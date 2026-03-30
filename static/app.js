@@ -725,7 +725,13 @@ function updateComparisonPanel() {
         const row = document.createElement('tr');
         // Add color class based on route index (cycle through colors if more than 10 routes)
         const colorIndex = route.route_index % 11;
-        row.className = `route-${colorIndex}`;
+        
+        const svrClass = route.svr_predicted_congestion < 1.15 ? 'forecast-light' : route.svr_predicted_congestion < 1.5 ? 'forecast-moderate' : 'forecast-heavy';
+        const svrText = route.svr_predicted_congestion ? (route.svr_predicted_congestion < 1.15 ? 'Light traffic' : route.svr_predicted_congestion < 1.5 ? 'Moderate traffic' : 'Heavy traffic') : 'N/A';
+        const etaVal = new Date(Date.now() + (route.travel_time_s * 1000)).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        const isBestRow = route.route_index === currentRouteData.best_route_index;
+        
+        row.className = isBestRow ? `route-${colorIndex} best-comparison-row` : `route-${colorIndex}`;
         
         row.innerHTML = `
             <td><strong>Route ${route.route_index + 1}</strong></td>
@@ -740,7 +746,9 @@ function updateComparisonPanel() {
             <td>${(route.length_m / 1000).toFixed(1)} km</td>
             <td>${route.congestion_ratio ? route.congestion_ratio.toFixed(2) : 'N/A'}</td>
             <td>₹${route.calculated_cost.toFixed(2)}</td>
-            <td>${route.ml_predicted_congestion ? route.ml_predicted_congestion.toFixed(2) : 'N/A'}</td>
+            <td><span class="rec-badge">Optimized</span></td>
+            <td><span class="forecast-badge ${svrClass}">${svrText}</span></td>
+            <td><span class="eta-badge">${etaVal}</span></td>
         `;
         tbody.appendChild(row);
     });

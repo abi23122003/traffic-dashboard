@@ -17,6 +17,206 @@
     
     <!-- Elite Premium Styles with Premium Animations -->
     <link rel="stylesheet" href="/static/elite-styles.css" />
+
+    <style>
+.comparison-panel {
+    background: #0d1421;
+    border: 1px solid #1e2d42;
+    border-radius: 16px;
+    padding: 20px;
+    margin-top: 16px;
+}
+
+.comparison-panel h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #f0c040;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+#comparison-table thead tr {
+    border-bottom: 2px solid #1e2d42;
+}
+
+#comparison-table thead th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: #4a6a8a;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+#comparison-table tbody tr {
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.2s;
+}
+
+#comparison-table tbody tr:hover {
+    background: rgba(255,255,255,0.03);
+}
+
+#comparison-table tbody tr.best-comparison-row {
+    background: rgba(240,192,64,0.05);
+    border-left: 3px solid #f0c040;
+}
+
+#comparison-table tbody td {
+    padding: 12px 12px;
+    color: #c0d0e0;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+#comparison-table tbody td:first-child {
+    font-weight: 700;
+    color: #e0e8f0;
+}
+
+.rec-badge {
+    background: rgba(76,175,80,0.12);
+    border: 1px solid rgba(76,175,80,0.3);
+    color: #66bb6a;
+    font-weight: 700;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.forecast-badge {
+    font-weight: 700;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.forecast-light {
+    background: rgba(76,175,80,0.12);
+    border: 1px solid rgba(76,175,80,0.3);
+    color: #66bb6a;
+}
+
+.forecast-moderate {
+    background: rgba(255,152,0,0.12);
+    border: 1px solid rgba(255,152,0,0.3);
+    color: #ffa726;
+}
+
+.forecast-heavy {
+    background: rgba(244,67,54,0.12);
+    border: 1px solid rgba(244,67,54,0.3);
+    color: #ef5350;
+}
+
+.eta-badge {
+    font-weight: 700;
+    color: #f0c040;
+    font-size: 14px;
+}
+
+.stats-bar {
+    display: flex;
+    background: #0b1220;
+    border-bottom: 1px solid #1a2840;
+    padding: 8px 24px;
+}
+.stat-item {
+    flex: 1;
+    text-align: center;
+    padding: 6px 0;
+    border-right: 1px solid #1a2840;
+}
+.stat-item:last-child { border-right: none; }
+.stat-value { font-size: 16px; font-weight: 700; color: #f0c040; }
+.stat-label { font-size: 10px; color: #4a6a8a; margin-top: 2px; letter-spacing: 0.04em; }
+
+.swap-btn {
+    background: #1a2840;
+    border: 1px solid #2a3d52;
+    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    color: #5a7a9a;
+    font-size: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+    align-self: flex-end;
+    margin-bottom: 4px;
+}
+.swap-btn:hover { background: #243550; color: #f0c040; }
+
+.sidebar-section-title {
+    font-size: 11px;
+    color: #f0c040;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+}
+.svr-forecast-note { font-size: 10px; color: #4a6a8a; margin-bottom: 10px; }
+
+.time-slots-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+}
+.time-slot {
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+}
+.slot-good { background: rgba(76,175,80,0.1); border: 1px solid rgba(76,175,80,0.25); }
+.slot-ok   { background: rgba(255,152,0,0.1); border: 1px solid rgba(255,152,0,0.25); }
+.slot-bad  { background: rgba(244,67,54,0.1); border: 1px solid rgba(244,67,54,0.25); }
+.slot-time { font-size: 11px; font-weight: 700; }
+.slot-good .slot-time { color: #66bb6a; }
+.slot-ok .slot-time   { color: #ffa726; }
+.slot-bad .slot-time  { color: #ef5350; }
+.slot-lbl { font-size: 10px; margin-top: 2px; }
+.slot-good .slot-lbl { color: #388e3c; }
+.slot-ok .slot-lbl   { color: #e65100; }
+.slot-bad .slot-lbl  { color: #b71c1c; }
+
+.popular-routes { display: flex; flex-direction: column; gap: 0; border: 1px solid #1e2d42; border-radius: 10px; overflow: hidden; }
+.pop-route-item {
+    padding: 12px 14px;
+    border-bottom: 1px solid #1a2840;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    background: #111d2e;
+}
+.pop-route-item:last-child { border-bottom: none; }
+.pop-route-item:hover { background: #1a2840; }
+.pop-route-name { font-size: 13px; color: #c0d0e0; font-weight: 500; }
+.pop-route-meta { font-size: 11px; color: #4a6a8a; margin-top: 2px; }
+.pop-route-right { text-align: right; }
+.pop-route-time { font-size: 13px; color: #f0c040; font-weight: 700; }
+.pop-route-dist { font-size: 11px; color: #4a6a8a; }
+
+.empty-state-panel {
+    padding: 20px;
+}
+.sidebar-section {
+    padding: 16px;
+    background: rgba(13,20,33,0.5);
+    border: 1px solid #1e2d42;
+    border-radius: 10px;
+}
+    </style>
 </head>
 
 <body>
@@ -62,6 +262,25 @@
             </div>
         </header>
 
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value" id="stat-routes">1,247</div>
+                <div class="stat-label">ROUTES ANALYZED TODAY</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" style="color:#66bb6a;" id="stat-congestion">1.04x</div>
+                <div class="stat-label">AVG CONGESTION NOW</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" style="color:#ffa726;" id="stat-time">--:--</div>
+                <div class="stat-label">CURRENT TIME</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" style="color:#42a5f5;" id="stat-status">Light</div>
+                <div class="stat-label">TRAFFIC STATUS</div>
+            </div>
+        </div>
+
         <div class="search-panel" id="route-analyzer-panel">
             <div class="input-group">
                 <div class="input-wrapper" style="position: relative; z-index: 1;">
@@ -70,6 +289,7 @@
                         autocomplete="off">
                     <div class="autocomplete-dropdown" id="origin-autocomplete"></div>
                 </div>
+                <button class="swap-btn" onclick="swapLocations()" title="Swap locations">&#8651;</button>
                 <div class="input-wrapper" style="position: relative; z-index: 2;">
                     <div class="input-label">To</div>
                     <input type="text" id="dest-input" placeholder="Enter destination location"
@@ -103,8 +323,36 @@
             <div class="results-panel">
                 <h2>📍 Suggested Routes</h2>
                 <div id="results-container">
-                    <div style="padding: 40px; text-align: center; color: var(--elite-text-muted);">
-                        <p style="font-size: 1.1rem; margin: 0;">Enter origin and destination to get route suggestions</p>
+                    <div id="empty-state" class="empty-state-panel">
+                        <div class="sidebar-section">
+                            <div class="sidebar-section-title">&#9889; BEST TIME TO TRAVEL TODAY</div>
+                            <div class="svr-forecast-note">Based on historical traffic patterns</div>
+                            <div class="time-slots-grid">
+                                <div class="time-slot slot-good"><div class="slot-time">6–8 AM</div><div class="slot-lbl">Light</div></div>
+                                <div class="time-slot slot-bad"><div class="slot-time">8–10 AM</div><div class="slot-lbl">Heavy</div></div>
+                                <div class="time-slot slot-ok"><div class="slot-time">10–12 PM</div><div class="slot-lbl">Moderate</div></div>
+                                <div class="time-slot slot-good"><div class="slot-time">12–4 PM</div><div class="slot-lbl">Light</div></div>
+                                <div class="time-slot slot-bad"><div class="slot-time">5–8 PM</div><div class="slot-lbl">Heavy</div></div>
+                                <div class="time-slot slot-good"><div class="slot-time">8 PM+</div><div class="slot-lbl">Light</div></div>
+                            </div>
+                        </div>
+                        <div class="sidebar-section" style="margin-top:16px;">
+                            <div class="sidebar-section-title">&#128205; POPULAR ROUTES</div>
+                            <div class="popular-routes">
+                                <div class="pop-route-item" onclick="fillRoute('Chennai','Salem')">
+                                    <div><div class="pop-route-name">Chennai &#8594; Salem</div><div class="pop-route-meta">Via NH-44</div></div>
+                                    <div class="pop-route-right"><div class="pop-route-time">~4h 32m</div><div class="pop-route-dist">333 km</div></div>
+                                </div>
+                                <div class="pop-route-item" onclick="fillRoute('Chennai','Coimbatore')">
+                                    <div><div class="pop-route-name">Chennai &#8594; Coimbatore</div><div class="pop-route-meta">Via NH-48</div></div>
+                                    <div class="pop-route-right"><div class="pop-route-time">~6h 10m</div><div class="pop-route-dist">498 km</div></div>
+                                </div>
+                                <div class="pop-route-item" onclick="fillRoute('Guindy Chennai','Velachery Chennai')">
+                                    <div><div class="pop-route-name">Guindy &#8594; Velachery</div><div class="pop-route-meta">Inner Ring Road</div></div>
+                                    <div class="pop-route-right"><div class="pop-route-time">~21 min</div><div class="pop-route-dist">5.5 km</div></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -122,7 +370,9 @@
                             <th>Distance</th>
                             <th>Congestion</th>
                             <th>Cost</th>
-                            <th>ML Prediction</th>
+                            <th>🌲 Recommendation</th>
+                            <th>⚡ Traffic Forecast</th>
+                            <th>🕐 Arrives At</th>
                         </tr>
                     </thead>
                     <tbody id="comparison-tbody"></tbody>
@@ -257,6 +507,57 @@
         // Make functions globally accessible
         window.showInfoPopup = showInfoPopup;
         window.closeInfoPopup = closeInfoPopup;
+
+        // Update clock in stats bar
+        function updateClock() {
+            const now = new Date();
+            const timeEl = document.getElementById('stat-time');
+            if (timeEl) {
+                timeEl.textContent = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Swap locations function
+        function swapLocations() {
+            const originInput = document.getElementById('origin-input');
+            const destInput = document.getElementById('dest-input');
+            if (originInput && destInput) {
+                const temp = originInput.value;
+                originInput.value = destInput.value;
+                destInput.value = temp;
+                const tempName = originInput.dataset.locationName;
+                originInput.dataset.locationName = destInput.dataset.locationName;
+                destInput.dataset.locationName = tempName;
+            }
+        }
+
+        // Fill popular route
+        function fillRoute(origin, destination) {
+            const originInput = document.getElementById('origin-input');
+            const destInput = document.getElementById('dest-input');
+            if (originInput && destInput) {
+                originInput.value = origin;
+                destInput.value = destination;
+                originInput.dataset.locationName = origin;
+                destInput.dataset.locationName = destination;
+                const emptyState = document.getElementById('empty-state');
+                if (emptyState) emptyState.style.display = 'none';
+            }
+        }
+
+        // Hide empty state when results load
+        const origContainer = document.getElementById('results-container');
+        if (origContainer) {
+            const observer = new MutationObserver(() => {
+                const emptyState = document.getElementById('empty-state');
+                if (emptyState && origContainer.children.length > 1) {
+                    emptyState.style.display = 'none';
+                }
+            });
+            observer.observe(origContainer, { childList: true });
+        }
     </script>
 
     <!-- PWA Service Worker Registration -->
