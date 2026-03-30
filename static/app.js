@@ -667,39 +667,69 @@ function displayResults(data) {
 
 // Toggle route selection
 function toggleRouteSelection(routeIndex) {
-    console.log('toggleRouteSelection called for route:', routeIndex);
     const checkbox = document.getElementById(`route-${routeIndex}`);
-    const card = document.querySelector(`[data-route-index="${routeIndex}"]`);
-
-    if (!checkbox || !card) {
-        console.error('Checkbox or card not found for route:', routeIndex);
-        return;
-    }
-
-    console.log('Checkbox checked state:', checkbox.checked);
-
     if (checkbox.checked) {
         selectedRoutes.add(routeIndex);
-        card.classList.add('selected');
-        if (!card.querySelector('.badge.selected')) {
-            const badge = document.createElement('span');
-            badge.className = 'badge selected';
-            badge.textContent = '✓ SELECTED';
-            card.querySelector('.route-header').appendChild(badge);
-        }
-        console.log('Route', routeIndex, 'selected. Total selected:', selectedRoutes.size);
     } else {
         selectedRoutes.delete(routeIndex);
-        card.classList.remove('selected');
-        const selectedBadge = card.querySelector('.badge.selected');
-        if (selectedBadge) {
-            selectedBadge.remove();
-        }
-        console.log('Route', routeIndex, 'deselected. Total selected:', selectedRoutes.size);
     }
-
+    updateRouteVisibility();
     updateComparisonPanel();
     highlightSelectedRoutes();
+}
+
+function updateRouteVisibility() {
+    if (!routeLayers || routeLayers.length === 0) return;
+
+    const routeColors = [
+        '#2196f3', // Blue - Route 0
+        '#4caf50', // Green - Route 1
+        '#ff9800', // Orange - Route 2
+        '#9c27b0', // Purple - Route 3
+        '#f44336', // Red - Route 4
+        '#00bcd4', // Cyan - Route 5
+        '#ffeb3b', // Yellow - Route 6
+        '#795548', // Brown - Route 7
+        '#607d8b', // Blue Grey - Route 8
+        '#e91e63', // Pink - Route 9
+        '#3f51b5'  // Indigo - Route 10
+    ];
+
+    const hasSelection = selectedRoutes.size > 0;
+
+    routeLayers.forEach((layer, idx) => {
+        if (!currentRouteData) return;
+        const route = currentRouteData.analyzed_routes[idx];
+        if (!route) return;
+
+        const isSelected = selectedRoutes.has(route.route_index);
+        const isBest = route.route_index === currentRouteData.best_route_index;
+        const color = routeColors[route.route_index % routeColors.length];
+
+        if (!hasSelection) {
+            // No selection — show all routes normally
+            layer.setStyle({
+                color: color,
+                weight: isBest ? 6 : 5,
+                opacity: isBest ? 0.95 : 0.8
+            });
+        } else if (isSelected) {
+            // This route is selected — highlight it
+            layer.setStyle({
+                color: color,
+                weight: 8,
+                opacity: 1.0
+            });
+            layer.bringToFront();
+        } else {
+            // Another route is selected — fade this one out
+            layer.setStyle({
+                color: '#334455',
+                weight: 3,
+                opacity: 0.25
+            });
+        }
+    });
 }
 
 // Update comparison panel
