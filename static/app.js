@@ -548,7 +548,40 @@ function displayResults(data) {
         const distanceKm = (route.length_m / 1000).toFixed(1);
         const congestionRatio = route.congestion_ratio ? route.congestion_ratio.toFixed(2) : 'N/A';
         const cost = `₹${route.calculated_cost.toFixed(2)}`;
-        const mlPred = route.ml_predicted_congestion ? route.ml_predicted_congestion.toFixed(2) : 'N/A';
+        let mlRaw = route.ml_predicted_congestion;
+        let mlPred = 'N/A';
+        if (mlRaw != null) {
+            if (mlRaw > 10 && route.no_traffic_s && route.no_traffic_s > 0) {
+                mlRaw = (mlRaw * 60) / route.no_traffic_s;
+            }
+            mlPred = mlRaw.toFixed(2);
+        }
+        const allTravelTimes = data ? data.analyzed_routes.map(r => r.travel_time_s) : [route.travel_time_s];
+        const maxTravelTime = Math.max(...allTravelTimes);
+        const timeSavedMin = Math.round((maxTravelTime - route.travel_time_s) / 60);
+        const rfLabel = timeSavedMin > 0 ? `Save ${timeSavedMin} min vs slowest route` : `Fastest available route`;
+        const svrRaw = route.svr_predicted_congestion;
+        let svrLabel = 'Traffic data unavailable';
+        let svrTraffic = 'N/A';
+        let svrColor = '#aaa';
+        if (svrRaw != null) {
+            const svrPct = Math.round((svrRaw - 1) * 100);
+            if (svrRaw < 1.15) {
+                svrTraffic = 'Light traffic';
+                svrLabel = 'Smooth drive expected at this hour';
+                svrColor = '#66bb6a';
+            } else if (svrRaw < 1.5) {
+                svrTraffic = 'Moderate traffic';
+                svrLabel = `Expect ~${svrPct}% slower than usual`;
+                svrColor = '#ff9800';
+            } else {
+                svrTraffic = 'Heavy traffic';
+                svrLabel = `Expect ~${svrPct}% slower than usual`;
+                svrColor = '#f44336';
+            }
+        }
+        const etaTime = new Date(Date.now() + (route.travel_time_s * 1000));
+        const etaStr = etaTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
         // Use global routeId
         const routeId = currentRouteId || `${originName}→${destName}`;
@@ -579,9 +612,29 @@ function displayResults(data) {
                     <div class="metric-label">Cost</div>
                     <div class="metric-value">${cost}</div>
                 </div>
-                <div class="metric">
-                    <div class="metric-label">ML Prediction</div>
-                    <div class="metric-value">${mlPred}</div>
+                <div style="grid-column: span 2; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="background: rgba(76,175,80,0.08); border: 1px solid rgba(76,175,80,0.2); border-radius: 10px; padding: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="font-size: 11px; color: #4caf50; font-weight: 600; letter-spacing: 0.05em;">🌲 ROUTE RECOMMENDATION</span>
+                        </div>
+                        <div style="font-size: 16px; font-weight: 700; color: #66bb6a;">${rfLabel}</div>
+                        <div style="font-size: 11px; color: #388e3c; margin-top: 2px;">Based on current traffic conditions</div>
+                    </div>
+                    <div style="background: rgba(33,150,243,0.08); border: 1px solid rgba(33,150,243,0.2); border-radius: 10px; padding: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="font-size: 11px; color: #42a5f5; font-weight: 600; letter-spacing: 0.05em;">⚡ TRAFFIC FORECAST</span>
+                            <span style="font-size: 12px; font-weight: 700; color: ${svrColor};">${svrTraffic}</span>
+                        </div>
+                        <div style="font-size: 15px; font-weight: 600; color: ${svrColor};">${svrLabel}</div>
+                        <div style="font-size: 11px; color: #1565c0; margin-top: 2px;">Based on time of day patterns</div>
+                    </div>
+                    <div style="background: rgba(240,192,64,0.08); border: 1px solid rgba(240,192,64,0.2); border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <div style="font-size: 11px; color: #888; margin-bottom: 2px;">🕐 ESTIMATED ARRIVAL</div>
+                            <div style="font-size: 11px; color: #666;">Based on current travel time</div>
+                        </div>
+                        <div style="font-size: 24px; font-weight: 700; color: #f0c040;">${etaStr}</div>
+                    </div>
                 </div>
             </div>
             <div class="checkbox-wrapper" style="display: flex !important; align-items: center; gap: 10px; margin-top: 20px; padding: 15px; background: #e3f2fd; border: 2px solid #667eea; border-radius: 8px; cursor: pointer;" onclick="event.stopPropagation(); (function() { const cb = document.getElementById('route-${route.route_index}'); if (cb) { cb.checked = !cb.checked; toggleRouteSelection(${route.route_index}); } })();">

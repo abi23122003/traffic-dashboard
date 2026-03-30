@@ -585,6 +585,13 @@ async def analyze_route(
                 "delay_s": summary["delay_s"]
             })
             
+            svr_predicted = None
+            try:
+                from svr_model import svr_predict
+                svr_predicted = svr_predict({})
+            except Exception as e:
+                svr_predicted = None
+            
             congestion_ratio = (
                 summary["travel_time_s"] / summary["no_traffic_s"]
                 if summary["no_traffic_s"] and summary["no_traffic_s"] > 0
@@ -608,6 +615,7 @@ async def analyze_route(
                 "congestion_ratio": congestion_ratio,
                 "calculated_cost": cost,
                 "ml_predicted_congestion": ml_predicted,
+                "svr_predicted_congestion": svr_predicted,
                 "geometry": geometry
             }
             analyzed_routes.append(analyzed_route)
