@@ -84,6 +84,17 @@
             }
         }
 
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
         .auth-container::after {
             content: '';
             position: absolute;
@@ -123,10 +134,28 @@
         .subtitle {
             color: rgba(226, 232, 240, 0.7);
             margin-bottom: 30px;
+            font-size: 15px;
+            font-weight: 500;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            position: relative;
+            animation: slideUp 0.6s ease-out forwards;
+        }
+
+        .form-group:nth-child(2) { animation-delay: 0.1s; }
+        .form-group:nth-child(3) { animation-delay: 0.2s; }
+        .form-group:nth-child(4) { animation-delay: 0.3s; }
+
+        .label-wrapper {
+            position: relative;
         }
 
         label {
@@ -135,6 +164,12 @@
             color: #cbd5f5;
             font-weight: 600;
             letter-spacing: 0.04em;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .input-wrapper {
+            position: relative;
         }
 
         input {
@@ -149,12 +184,126 @@
             transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
+        input::placeholder {
+            color: rgba(203, 213, 245, 0.3);
+        }
+
         input:focus {
             outline: none;
-            border-color: rgba(212, 175, 55, 0.5);
-            box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.2), 0 0 20px rgba(212, 175, 55, 0.3);
-            transform: translateY(-2px) scale(1.02);
-            background: rgba(10, 14, 39, 0.8);
+            border-color: rgba(212, 175, 55, 0.6);
+            box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.15), 0 0 25px rgba(212, 175, 55, 0.35);
+            transform: translateY(-3px) scale(1.02);
+            background: rgba(10, 14, 39, 0.9);
+        }
+
+        input.valid {
+            border-color: rgba(34, 197, 94, 0.6);
+            box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15), 0 0 25px rgba(34, 197, 94, 0.25);
+        }
+
+        input.invalid {
+            border-color: rgba(239, 68, 68, 0.6);
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15), 0 0 25px rgba(239, 68, 68, 0.25);
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #cbd5f5;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 8px;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .password-toggle:hover {
+            color: #d4af37;
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .field-feedback {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        .field-feedback.show {
+            display: block;
+        }
+
+        .field-feedback.valid {
+            color: #4ade80;
+        }
+
+        .field-feedback.invalid {
+            color: #f87171;
+        }
+
+        .password-strength {
+            margin-top: 8px;
+            display: none;
+        }
+
+        .password-strength.show {
+            display: block;
+        }
+
+        .strength-bar {
+            height: 4px;
+            background: rgba(212, 175, 55, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+
+        .strength-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .strength-text {
+            font-size: 12px;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .strength-fill.weak {
+            background: #f87171;
+            width: 33%;
+        }
+
+        .strength-fill.fair {
+            background: #fbbf24;
+            width: 66%;
+        }
+
+        .strength-fill.strong {
+            background: #4ade80;
+            width: 100%;
+        }
+
+        .strength-text.weak {
+            color: #f87171;
+        }
+
+        .strength-text.fair {
+            color: #fbbf24;
+        }
+
+        .strength-text.strong {
+            color: #4ade80;
         }
 
         button {
@@ -190,44 +339,156 @@
             transition: width 0.6s, height 0.6s;
         }
         
-        button:hover::before {
+        button:hover:not(:disabled)::before {
             width: 400px;
             height: 400px;
         }
 
-        button:hover {
+        button:hover:not(:disabled) {
             transform: translateY(-4px) scale(1.02);
             box-shadow: 0 30px 60px rgba(212, 175, 55, 0.6);
+        }
+
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            position: relative;
+        }
+
+        .button-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            border: 2px solid rgba(10, 14, 39, 0.3);
+            border-top-color: #0a0e27;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        button:disabled .button-spinner {
+            display: inline-block;
         }
 
         .toggle-auth {
             text-align: center;
             margin-top: 20px;
             color: rgba(226, 232, 240, 0.7);
+            font-size: 14px;
         }
 
         .toggle-auth a {
             color: #38bdf8;
             text-decoration: none;
             font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .toggle-auth a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: #38bdf8;
+            transition: width 0.3s ease;
+        }
+
+        .toggle-auth a:hover::after {
+            width: 100%;
         }
 
         .error {
-            background: rgba(239, 68, 68, 0.2);
+            background: rgba(239, 68, 68, 0.15);
             color: #fecaca;
             padding: 16px 20px;
             border-radius: 16px;
             margin-bottom: 20px;
             border: 2px solid rgba(239, 68, 68, 0.5);
             font-family: 'Poppins', sans-serif;
-            animation: shake 0.5s ease;
+            animation: shake 0.5s ease, slideUp 0.4s ease;
             backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .error::before {
+            content: '⚠️';
+            flex-shrink: 0;
         }
         
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             25% { transform: translateX(-10px); }
             75% { transform: translateX(10px); }
+        }
+
+        .success {
+            background: rgba(34, 197, 94, 0.15);
+            color: #86efac;
+            padding: 16px 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(34, 197, 94, 0.5);
+            font-family: 'Poppins', sans-serif;
+            animation: slideUp 0.4s ease;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .success::before {
+            content: '✓';
+            flex-shrink: 0;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .back-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .back-link a:hover {
+            transform: translateX(-4px);
+            color: #818cf8;
+        }
+
+        @media (max-width: 480px) {
+            .auth-container {
+                padding: 40px 30px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            input {
+                padding: 14px 16px;
+                font-size: 14px;
+            }
+
+            button {
+                padding: 14px;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
@@ -237,22 +498,50 @@
         <h1>🚦 Traffic Dashboard</h1>
         <p class="subtitle" id="subtitle">Login to your account</p>
         <div id="error-message"></div>
+        <div id="success-message"></div>
         <form id="auth-form">
             <div class="form-group" id="name-group" style="display: none;">
-                <label>Full Name</label>
-                <input type="text" id="full-name" placeholder="Optional">
+                <div class="label-wrapper">
+                    <label for="full-name">Full Name</label>
+                </div>
+                <div class="input-wrapper">
+                    <input type="text" id="full-name" placeholder="Enter your full name">
+                    <div class="field-feedback" id="name-feedback"></div>
+                </div>
             </div>
             <div class="form-group">
-                <label>Username</label>
-                <input type="text" id="username" required>
+                <div class="label-wrapper">
+                    <label for="username">Username</label>
+                </div>
+                <div class="input-wrapper">
+                    <input type="text" id="username" placeholder="Enter your username" required>
+                    <div class="field-feedback" id="username-feedback"></div>
+                </div>
             </div>
             <div class="form-group" id="email-group" style="display: none;">
-                <label>Email</label>
-                <input type="email" id="email">
+                <div class="label-wrapper">
+                    <label for="email">Email</label>
+                </div>
+                <div class="input-wrapper">
+                    <input type="email" id="email" placeholder="Enter your email address">
+                    <div class="field-feedback" id="email-feedback"></div>
+                </div>
             </div>
             <div class="form-group">
-                <label>Password</label>
-                <input type="password" id="password" required>
+                <div class="label-wrapper">
+                    <label for="password">Password</label>
+                </div>
+                <div class="input-wrapper">
+                    <input type="password" id="password" placeholder="Enter your password" required>
+                    <button type="button" class="password-toggle" id="password-toggle" onclick="togglePasswordVisibility()">👁️</button>
+                    <div class="password-strength" id="password-strength">
+                        <div class="strength-bar">
+                            <div class="strength-fill" id="strength-fill"></div>
+                        </div>
+                        <div class="strength-text" id="strength-text">Weak</div>
+                    </div>
+                    <div class="field-feedback" id="password-feedback"></div>
+                </div>
             </div>
             <button type="submit" id="submit-btn">Login</button>
         </form>
@@ -260,12 +549,137 @@
             <span id="toggle-text">Don't have an account? </span>
             <a href="#" id="toggle-link" onclick="toggleMode(); return false;">Sign up</a>
         </div>
-        <div style="text-align: center; margin-top: 20px;">
-            <a href="/" style="color: #667eea; text-decoration: none;">← Back to Home</a>
+        <div class="back-link">
+            <a href="/">← Back to Home</a>
         </div>
     </div>
     <script>
         let isLogin = true;
+
+        // Password visibility toggle
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('password');
+            const toggle = document.getElementById('password-toggle');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggle.textContent = '🙈';
+            } else {
+                passwordInput.type = 'password';
+                toggle.textContent = '👁️';
+            }
+        }
+
+        // Password strength checker
+        function checkPasswordStrength(password) {
+            let strength = 0;
+            
+            if (password.length >= 8) strength++;
+            if (password.length >= 12) strength++;
+            if (/[a-z]/.test(password)) strength++;
+            if (/[A-Z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^a-zA-Z0-9]/.test(password)) strength++;
+
+            const strengthFill = document.getElementById('strength-fill');
+            const strengthText = document.getElementById('strength-text');
+
+            if (password.length === 0) {
+                document.getElementById('password-strength').classList.remove('show');
+                return;
+            }
+
+            document.getElementById('password-strength').classList.add('show');
+            strengthFill.classList.remove('weak', 'fair', 'strong');
+            strengthText.classList.remove('weak', 'fair', 'strong');
+
+            if (strength <= 2) {
+                strengthFill.classList.add('weak');
+                strengthText.classList.add('weak');
+                strengthText.textContent = 'Weak';
+            } else if (strength <= 4) {
+                strengthFill.classList.add('fair');
+                strengthText.classList.add('fair');
+                strengthText.textContent = 'Fair';
+            } else {
+                strengthFill.classList.add('strong');
+                strengthText.classList.add('strong');
+                strengthText.textContent = 'Strong';
+            }
+        }
+
+        // Field validation
+        function validateField(fieldId, fieldType) {
+            const field = document.getElementById(fieldId);
+            const feedback = document.getElementById(fieldId + '-feedback');
+            const value = field.value.trim();
+            let isValid = false;
+            let message = '';
+
+            if (fieldType === 'username') {
+                isValid = value.length >= 3;
+                message = isValid ? 'Username looks good!' : 'Username must be at least 3 characters';
+            } else if (fieldType === 'email') {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                isValid = emailRegex.test(value) || value === '';
+                message = isValid || value === '' ? 'Email is valid!' : 'Please enter a valid email';
+            } else if (fieldType === 'password') {
+                isValid = value.length >= 6;
+                message = isValid ? 'Password is strong!' : 'Password must be at least 6 characters';
+            } else if (fieldType === 'name') {
+                isValid = value.length >= 2 || value === '';
+                message = isValid || value === '' ? 'Name looks good!' : 'Name must be at least 2 characters';
+            }
+
+            if (value === '' && fieldType !== 'name' && fieldType !== 'email') {
+                field.classList.remove('valid', 'invalid');
+                feedback.classList.remove('show');
+                return isValid;
+            }
+
+            if (value === '' && (fieldType === 'name' || fieldType === 'email')) {
+                field.classList.remove('valid', 'invalid');
+                feedback.classList.remove('show');
+                return true;
+            }
+
+            if (isValid && value !== '') {
+                field.classList.add('valid');
+                field.classList.remove('invalid');
+                feedback.classList.add('show', 'valid');
+                feedback.textContent = message;
+            } else if (value !== '') {
+                field.classList.add('invalid');
+                field.classList.remove('valid');
+                feedback.classList.add('show', 'invalid');
+                feedback.textContent = message;
+            }
+
+            return isValid;
+        }
+
+        // Setup field listeners
+        const fields = ['username', 'email', 'password', 'full-name'];
+        fields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.addEventListener('input', () => {
+                    const fieldType = fieldId === 'full-name' ? 'name' : fieldId;
+                    if (fieldType === 'password') {
+                        checkPasswordStrength(field.value);
+                    } else {
+                        validateField(fieldId, fieldType);
+                    }
+                });
+
+                field.addEventListener('blur', () => {
+                    const fieldType = fieldId === 'full-name' ? 'name' : fieldId;
+                    validateField(fieldId, fieldType);
+                });
+            }
+        });
+
+        // Toggle between login and signup
         function toggleMode() {
             isLogin = !isLogin;
             document.getElementById('subtitle').textContent = isLogin ? 'Login to your account' : 'Create your account';
@@ -274,75 +688,104 @@
             document.getElementById('toggle-link').textContent = isLogin ? 'Sign up' : 'Login';
             document.getElementById('email-group').style.display = isLogin ? 'none' : 'block';
             document.getElementById('name-group').style.display = isLogin ? 'none' : 'block';
+            document.getElementById('password-toggle').textContent = '👁️';
+            document.getElementById('password').type = 'password';
+            document.getElementById('password').value = '';
+            document.getElementById('error-message').innerHTML = '';
+            document.getElementById('success-message').innerHTML = '';
+            clearValidationStates();
         }
+
+        function clearValidationStates() {
+            fields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.classList.remove('valid', 'invalid');
+                    const feedback = document.getElementById(fieldId + '-feedback');
+                    if (feedback) feedback.classList.remove('show');
+                }
+            });
+            document.getElementById('password-strength').classList.remove('show');
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = type === 'error' ? 
+                document.getElementById('error-message') : 
+                document.getElementById('success-message');
+            messageDiv.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        // Form submission
         document.getElementById('auth-form').onsubmit = async (e) => {
             e.preventDefault();
-            const errorDiv = document.getElementById('error-message');
-            errorDiv.innerHTML = '';
+            document.getElementById('error-message').innerHTML = '';
+            document.getElementById('success-message').innerHTML = '';
+            
             const btn = document.getElementById('submit-btn');
+            const originalText = btn.textContent;
             btn.disabled = true;
-            btn.textContent = 'Processing...';
+            btn.innerHTML = '<span class="button-spinner"></span>' + (isLogin ? 'Logging in...' : 'Creating account...');
+
             try {
                 if (isLogin) {
+                    const username = document.getElementById('username').value.trim();
+                    const password = document.getElementById('password').value;
+
+                    if (!username || !password) {
+                        throw new Error('Please enter both username and password');
+                    }
+
                     const formData = new FormData();
-                    formData.append('username', document.getElementById('username').value);
-                    formData.append('password', document.getElementById('password').value);
+                    formData.append('username', username);
+                    formData.append('password', password);
+                    
                     const res = await fetch('/api/auth/login', { method: 'POST', body: formData });
-                    if (!res.ok) throw new Error('Login failed');
+                    if (!res.ok) throw new Error('Invalid username or password');
+                    
                     const data = await res.json();
                     localStorage.setItem('access_token', data.access_token);
+                    showMessage('Login successful! Redirecting...', 'success');
                     
-                    // Check if user is admin and redirect accordingly
                     try {
                         const userRes = await fetch('/api/auth/me', {
-                            headers: {
-                                'Authorization': `Bearer ${data.access_token}`
-                            }
+                            headers: { 'Authorization': `Bearer ${data.access_token}` }
                         });
                         if (userRes.ok) {
                             const user = await userRes.json();
-                            console.log('Login successful, user:', user);
-                            console.log('Is admin?', user.is_admin);
-                            
-                            // Check for redirect parameter first
                             const urlParams = new URLSearchParams(window.location.search);
                             const redirect = urlParams.get('redirect');
                             
-                            if (redirect) {
-                                console.log('Redirecting to:', redirect);
-                                window.location.href = redirect;
-                            } else if (user.is_admin) {
-                                console.log('Admin user, redirecting to /admin');
-                                window.location.href = '/admin';
-                            } else {
-                                console.log('Regular user, redirecting to /');
-                                window.location.href = '/';
-                            }
-                        } else {
-                            console.log('Failed to get user info, redirecting to /');
-                            window.location.href = '/';
+                            setTimeout(() => {
+                                if (redirect) {
+                                    window.location.href = redirect;
+                                } else if (user.is_admin) {
+                                    window.location.href = '/admin';
+                                } else {
+                                    window.location.href = '/';
+                                }
+                            }, 800);
                         }
                     } catch (error) {
-                        console.error('Error checking user:', error);
-                        window.location.href = '/';
+                        setTimeout(() => window.location.href = '/', 800);
                     }
                 } else {
-                    // Signup
-                    const email = document.getElementById('email').value;
-                    const username = document.getElementById('username').value;
+                    const email = document.getElementById('email').value.trim();
+                    const username = document.getElementById('username').value.trim();
                     const password = document.getElementById('password').value;
-                    const fullName = document.getElementById('full-name').value || null;
+                    const fullName = document.getElementById('full-name').value.trim() || null;
                     
                     if (!email || !username || !password) {
                         throw new Error('Please fill in all required fields');
                     }
                     
-                    // Validate password length
+                    if (!validateField('email', 'email')) {
+                        throw new Error('Please enter a valid email address');
+                    }
+                    
                     if (password.length < 6) {
                         throw new Error('Password must be at least 6 characters long.');
                     }
                     
-                    // Maximum password length (reasonable limit)
                     const MAX_PASSWORD_LENGTH = 10000;
                     if (password.length > MAX_PASSWORD_LENGTH) {
                         throw new Error(`Password is too long. Maximum ${MAX_PASSWORD_LENGTH} characters allowed.`);
@@ -363,7 +806,6 @@
                         let errorMsg = 'Registration failed';
                         try {
                             const err = await res.json();
-                            
                             if (err.detail) {
                                 if (Array.isArray(err.detail)) {
                                     errorMsg = err.detail.map(e => {
@@ -375,10 +817,6 @@
                                     errorMsg = err.detail;
                                 } else if (err.detail.message) {
                                     errorMsg = err.detail.message;
-                                } else {
-                                    // Try to extract meaningful error
-                                    const errStr = JSON.stringify(err.detail);
-                                    errorMsg = errStr.length < 100 ? errStr : 'Registration failed. Please check your input.';
                                 }
                             } else if (typeof err === 'string') {
                                 errorMsg = err;
@@ -386,24 +824,22 @@
                                 errorMsg = err.message;
                             }
                         } catch (parseError) {
-                            // If JSON parsing fails, use status text
                             errorMsg = `Registration failed: ${res.statusText}`;
                         }
-                        
                         throw new Error(errorMsg);
                     }
                     
-                    const data = await res.json();
-                    alert('Registration successful! Please login.');
-                    toggleMode();
+                    showMessage('Registration successful! Switching to login...', 'success');
+                    setTimeout(() => {
+                        toggleMode();
+                        clearValidationStates();
+                    }, 1500);
                 }
             } catch (error) {
-                const errorText = error.message || 'An error occurred. Please try again.';
-                errorDiv.innerHTML = `<div class="error">${errorText}</div>`;
-                console.error('Auth error:', error);
+                showMessage(error.message || 'An error occurred. Please try again.', 'error');
             } finally {
                 btn.disabled = false;
-                btn.textContent = isLogin ? 'Login' : 'Sign Up';
+                btn.innerHTML = originalText;
             }
         };
     </script>
