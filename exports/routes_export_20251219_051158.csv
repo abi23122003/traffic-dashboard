@@ -1,0 +1,507 @@
+id,route_id,timestamp,user_id,origin,destination,travel_time_min,delay_min,distance_km,congestion_ratio,cost,ml_prediction
+506,"13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route3",2025-12-19T05:09:49.290836,,"13.0351104, 80.2127872","Guindy, Chennai, Tamil Nadu",34.13,3.03,9.17,1.36,35.66,1.04
+505,"13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route2",2025-12-19T05:09:49.229775,,"13.0351104, 80.2127872","Guindy, Chennai, Tamil Nadu",25.1,2.52,6.71,1.43,26.37,1.04
+504,"13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route1",2025-12-19T05:09:49.167257,,"13.0351104, 80.2127872","Guindy, Chennai, Tamil Nadu",27.9,6.65,7.46,1.31,31.23,1.04
+503,"13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route0",2025-12-19T05:09:49.108197,,"13.0351104, 80.2127872","Guindy, Chennai, Tamil Nadu",25.05,1.92,6.44,1.47,26.01,1.04
+502,"13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route5",2025-12-19T05:09:27.969863,2,"13.0351104, 80.2127872","Guindy, Chennai, Tamil Nadu",23.12,4.33,6.85,1.23,25.29,1.04
+501,"13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route4",2025-12-19T05:09:27.910611,2,"13.0351104, 80.2127872","Guindy, Chennai, Tamil Nadu",20.9,3.0,5.71,1.17,22.41,1.04
+500,"13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route3",2025-12-19T05:09:27.845415,2,"13.0351104, 80.2127872","Guindy, Chennai, Tamil Nadu",20.87,3.58,6.06,1.21,22.66,1.04
+499,"13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route2",2025-12-19T05:09:27.773826,2,"13.0351104, 80.2127872","Guindy, Chennai, Tamil Nadu",20.2,3.38,5.8,1.58,21.9,1.04
+498,"13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route1",2025-12-19T05:09:27.704407,2,"13.0351104, 80.2127872","Guindy, Chennai, Tamil Nadu",20.17,3.7,5.46,1.22,22.02,1.04
+497,"13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route0",2025-12-19T05:09:27.637095,2,"13.0351104, 80.2127872","Guindy, Chennai, Tamil Nadu",18.68,3.77,5.39,1.25,20.57,1.03
+496,"Guindy, Chennai, Tamil Nadu→Aḍayār, Chennaī, Tamilnaadu_route5",2025-12-19T05:08:46.940168,2,"Guindy, Chennai, Tamil Nadu","Aḍayār, Chennaī, Tamilnaadu",50.9,7.18,19.94,1.16,54.51,20.77
+495,"Guindy, Chennai, Tamil Nadu→Aḍayār, Chennaī, Tamilnaadu_route4",2025-12-19T05:08:46.880926,2,"Guindy, Chennai, Tamil Nadu","Aḍayār, Chennaī, Tamilnaadu",42.13,1.9,10.86,1.29,43.09,1.04
+494,"Guindy, Chennai, Tamil Nadu→Aḍayār, Chennaī, Tamilnaadu_route3",2025-12-19T05:08:46.830879,2,"Guindy, Chennai, Tamil Nadu","Aḍayār, Chennaī, Tamilnaadu",35.3,5.4,11.24,1.18,38.01,1.04
+493,"Guindy, Chennai, Tamil Nadu→Aḍayār, Chennaī, Tamilnaadu_route2",2025-12-19T05:08:46.770769,2,"Guindy, Chennai, Tamil Nadu","Aḍayār, Chennaī, Tamilnaadu",31.87,6.2,10.14,1.24,34.98,1.04
+492,"Guindy, Chennai, Tamil Nadu→Aḍayār, Chennaī, Tamilnaadu_route1",2025-12-19T05:08:46.705392,2,"Guindy, Chennai, Tamil Nadu","Aḍayār, Chennaī, Tamilnaadu",21.9,2.12,5.93,1.53,22.96,1.04
+491,"Guindy, Chennai, Tamil Nadu→Aḍayār, Chennaī, Tamilnaadu_route0",2025-12-19T05:08:46.664081,2,"Guindy, Chennai, Tamil Nadu","Aḍayār, Chennaī, Tamilnaadu",20.12,2.12,5.81,1.5,21.18,1.04
+490,"Guindy, Chennai, Tamil Nadu→Aḍayār, Chennaī, Tamilnaadu_route5",2025-12-19T05:05:45.760580,2,"Guindy, Chennai, Tamil Nadu","Aḍayār, Chennaī, Tamilnaadu",49.78,7.18,20.43,1.17,53.4,12.21
+489,"Guindy, Chennai, Tamil Nadu→Aḍayār, Chennaī, Tamilnaadu_route4",2025-12-19T05:05:45.674309,2,"Guindy, Chennai, Tamil Nadu","Aḍayār, Chennaī, Tamilnaadu",43.65,8.58,10.5,1.5,47.95,1.04
+488,"Guindy, Chennai, Tamil Nadu→Aḍayār, Chennaī, Tamilnaadu_route3",2025-12-19T05:05:45.607885,2,"Guindy, Chennai, Tamil Nadu","Aḍayār, Chennaī, Tamilnaadu",35.35,5.73,11.1,1.19,38.23,1.04
+487,"Guindy, Chennai, Tamil Nadu→Aḍayār, Chennaī, Tamilnaadu_route2",2025-12-19T05:05:45.534393,2,"Guindy, Chennai, Tamil Nadu","Aḍayār, Chennaī, Tamilnaadu",22.2,2.58,5.93,1.55,23.5,1.04
+486,"Guindy, Chennai, Tamil Nadu→Aḍayār, Chennaī, Tamilnaadu_route1",2025-12-19T05:05:45.459898,2,"Guindy, Chennai, Tamil Nadu","Aḍayār, Chennaī, Tamilnaadu",31.77,5.82,10.28,1.22,34.69,1.04
+485,"Guindy, Chennai, Tamil Nadu→Aḍayār, Chennaī, Tamilnaadu_route0",2025-12-19T05:05:45.385816,2,"Guindy, Chennai, Tamil Nadu","Aḍayār, Chennaī, Tamilnaadu",20.45,2.58,5.81,1.53,21.75,1.04
+484,"Guindy,→Adayar_route5",2025-12-19T04:34:33.869731,2,"Guindy,",Adayar,40.83,3.92,11.35,1.11,42.8,1.04
+483,"Guindy,→Adayar_route4",2025-12-19T04:34:33.772453,2,"Guindy,",Adayar,15.55,0.08,4.95,1.34,15.6,1.03
+482,"Guindy,→Adayar_route3",2025-12-19T04:34:33.657016,2,"Guindy,",Adayar,26.1,0.77,7.28,1.29,26.49,1.03
+481,"Guindy,→Adayar_route2",2025-12-19T04:34:33.556043,2,"Guindy,",Adayar,33.63,4.72,11.78,1.16,36.0,1.04
+480,"Guindy,→Adayar_route1",2025-12-19T04:34:33.452426,2,"Guindy,",Adayar,16.33,0.08,4.52,1.4,16.38,1.03
+479,"Guindy,→Adayar_route0",2025-12-19T04:34:33.350502,2,"Guindy,",Adayar,14.63,0.08,4.39,1.37,14.68,1.03
+478,Anna University→Karapakkam_route3,2025-12-19T03:44:04.711773,,Anna University,Karapakkam,48.92,,17.09,1.13,48.93,15.81
+477,Anna University→Karapakkam_route2,2025-12-19T03:44:04.628093,,Anna University,Karapakkam,38.68,,16.05,1.16,38.7,1.03
+476,Anna University→Karapakkam_route1,2025-12-19T03:44:04.540390,,Anna University,Karapakkam,44.62,,15.2,1.14,44.63,1.03
+475,Anna University→Karapakkam_route0,2025-12-19T03:44:04.445619,,Anna University,Karapakkam,38.1,,18.06,1.21,38.12,1.03
+474,Anna University→Karapakkam_route5,2025-12-19T03:43:05.731423,2,Anna University,Karapakkam,47.73,,14.98,1.12,47.75,12.21
+473,Anna University→Karapakkam_route4,2025-12-19T03:43:05.639013,2,Anna University,Karapakkam,63.67,,26.1,1.23,63.69,31.16
+472,Anna University→Karapakkam_route3,2025-12-19T03:43:05.555197,2,Anna University,Karapakkam,48.92,,17.09,1.13,48.93,15.81
+471,Anna University→Karapakkam_route2,2025-12-19T03:43:05.472803,2,Anna University,Karapakkam,38.68,,16.05,1.16,38.7,1.03
+470,Anna University→Karapakkam_route1,2025-12-19T03:43:05.380685,2,Anna University,Karapakkam,44.6,,15.2,1.14,44.62,1.03
+469,Anna University→Karapakkam_route0,2025-12-19T03:43:05.292328,2,Anna University,Karapakkam,38.12,,18.06,1.21,38.13,1.03
+468,"13.003027,80.23774→Adayar, Chennai,_route3",2025-12-18T18:46:10.016008,,"13.003027, 80.23774","Adayar, Chennai,",24.93,,11.47,1.0,24.94,1.02
+467,"13.003027,80.23774→Adayar, Chennai,_route2",2025-12-18T18:46:09.961120,,"13.003027, 80.23774","Adayar, Chennai,",20.32,,7.28,1.0,20.32,1.02
+466,"13.003027,80.23774→Adayar, Chennai,_route1",2025-12-18T18:46:09.902759,,"13.003027, 80.23774","Adayar, Chennai,",11.62,,4.52,1.0,11.62,1.02
+465,"13.003027,80.23774→Adayar, Chennai,_route0",2025-12-18T18:46:09.843484,,"13.003027, 80.23774","Adayar, Chennai,",10.7,,4.39,1.0,10.7,1.02
+464,"13.003027,80.23774→Adayar, Chennai,_route3",2025-12-18T18:37:46.553381,,"13.003027, 80.23774","Adayar, Chennai,",24.93,,11.47,1.0,24.94,1.02
+463,"13.003027,80.23774→Adayar, Chennai,_route2",2025-12-18T18:37:46.504139,,"13.003027, 80.23774","Adayar, Chennai,",20.32,,7.28,1.0,20.32,1.02
+462,"13.003027,80.23774→Adayar, Chennai,_route1",2025-12-18T18:37:46.442140,,"13.003027, 80.23774","Adayar, Chennai,",11.62,,4.52,1.0,11.62,1.02
+461,"13.003027,80.23774→Adayar, Chennai,_route0",2025-12-18T18:37:46.383162,,"13.003027, 80.23774","Adayar, Chennai,",10.7,,4.39,1.0,10.7,1.02
+460,"13.003027,80.23774→Adayar, Chennai,_route5",2025-12-18T18:37:28.359192,2,"13.003027, 80.23774","Adayar, Chennai,",27.12,,12.9,1.0,27.13,1.02
+459,"13.003027,80.23774→Adayar, Chennai,_route4",2025-12-18T18:37:28.287169,2,"13.003027, 80.23774","Adayar, Chennai,",11.58,,4.95,1.0,11.59,1.02
+458,"13.003027,80.23774→Adayar, Chennai,_route3",2025-12-18T18:37:28.213185,2,"13.003027, 80.23774","Adayar, Chennai,",24.93,,11.47,1.0,24.94,1.02
+457,"13.003027,80.23774→Adayar, Chennai,_route2",2025-12-18T18:37:28.140317,2,"13.003027, 80.23774","Adayar, Chennai,",20.32,,7.28,1.0,20.32,1.02
+456,"13.003027,80.23774→Adayar, Chennai,_route1",2025-12-18T18:37:28.067133,2,"13.003027, 80.23774","Adayar, Chennai,",11.62,,4.52,1.0,11.62,1.02
+455,"13.003027,80.23774→Adayar, Chennai,_route0",2025-12-18T18:37:27.997662,2,"13.003027, 80.23774","Adayar, Chennai,",10.7,,4.39,1.0,10.7,1.02
+454,"Guindy,→Adayar_route3",2025-12-18T18:21:07.385915,,"Guindy,",Adayar,24.93,,11.47,1.0,24.94,1.02
+453,"Guindy,→Adayar_route2",2025-12-18T18:21:07.347325,,"Guindy,",Adayar,20.32,,7.28,1.0,20.32,1.02
+452,"Guindy,→Adayar_route1",2025-12-18T18:21:07.291838,,"Guindy,",Adayar,11.62,,4.52,1.0,11.62,1.02
+451,"Guindy,→Adayar_route0",2025-12-18T18:21:07.234910,,"Guindy,",Adayar,10.7,,4.39,1.0,10.7,1.02
+450,"Guindy,→Adayar_route5",2025-12-18T18:20:47.984463,2,"Guindy,",Adayar,27.12,,12.9,1.0,27.13,1.02
+449,"Guindy,→Adayar_route4",2025-12-18T18:20:47.922227,2,"Guindy,",Adayar,11.58,,4.95,1.0,11.59,1.02
+448,"Guindy,→Adayar_route3",2025-12-18T18:20:47.858463,2,"Guindy,",Adayar,24.93,,11.47,1.0,24.94,1.02
+447,"Guindy,→Adayar_route2",2025-12-18T18:20:47.792464,2,"Guindy,",Adayar,20.32,,7.28,1.0,20.32,1.02
+446,"Guindy,→Adayar_route1",2025-12-18T18:20:47.721727,2,"Guindy,",Adayar,11.62,,4.52,1.0,11.62,1.02
+445,"Guindy,→Adayar_route0",2025-12-18T18:20:47.657909,2,"Guindy,",Adayar,10.7,,4.39,1.0,10.7,1.02
+444,"Guindy,→Adyar Anandha_route3",2025-12-18T18:13:03.833637,,"Guindy,",Adyar Anandha,54.6,,26.39,1.0,54.63,45.31
+443,"Guindy,→Adyar Anandha_route2",2025-12-18T18:13:03.778807,,"Guindy,",Adyar Anandha,63.68,,32.97,0.98,63.72,45.31
+442,"Guindy,→Adyar Anandha_route1",2025-12-18T18:13:03.725400,,"Guindy,",Adyar Anandha,54.68,,29.29,1.0,54.71,45.31
+441,"Guindy,→Adyar Anandha_route0",2025-12-18T18:13:03.670177,,"Guindy,",Adyar Anandha,51.78,,28.68,0.99,51.81,31.15
+440,"Guindy,→Adyar Anandha_route3",2025-12-18T18:12:57.366563,,"Guindy,",Adyar Anandha,54.6,,26.39,1.0,54.63,45.31
+439,"Guindy,→Adyar Anandha_route2",2025-12-18T18:12:57.304527,,"Guindy,",Adyar Anandha,63.68,,32.97,0.98,63.72,45.31
+438,"Guindy,→Adyar Anandha_route1",2025-12-18T18:12:57.241171,,"Guindy,",Adyar Anandha,54.68,,29.29,1.0,54.71,45.31
+437,"Guindy,→Adyar Anandha_route0",2025-12-18T18:12:57.182408,,"Guindy,",Adyar Anandha,51.78,,28.68,0.99,51.81,31.15
+436,"Guindy,→Adyar Anandha_route5",2025-12-18T18:12:45.756832,2,"Guindy,",Adyar Anandha,68.28,,39.34,1.0,68.32,45.31
+435,"Guindy,→Adyar Anandha_route4",2025-12-18T18:12:45.690137,2,"Guindy,",Adyar Anandha,70.55,,31.44,1.0,70.58,45.31
+434,"Guindy,→Adyar Anandha_route3",2025-12-18T18:12:45.619011,2,"Guindy,",Adyar Anandha,54.6,,26.39,1.0,54.63,45.31
+433,"Guindy,→Adyar Anandha_route2",2025-12-18T18:12:45.543331,2,"Guindy,",Adyar Anandha,63.68,,32.97,0.98,63.72,45.31
+432,"Guindy,→Adyar Anandha_route1",2025-12-18T18:12:45.478042,2,"Guindy,",Adyar Anandha,54.68,,29.29,1.0,54.71,45.31
+431,"Guindy,→Adyar Anandha_route0",2025-12-18T18:12:45.414576,2,"Guindy,",Adyar Anandha,51.78,,28.68,0.99,51.81,31.15
+430,"10.4267776,77.5094272→Salem Junction_route3",2025-12-18T17:59:42.426235,,"10.4267776, 77.5094272",Salem Junction,214.8,,183.42,1.0,214.98,45.31
+429,"10.4267776,77.5094272→Salem Junction_route2",2025-12-18T17:59:42.342386,,"10.4267776, 77.5094272",Salem Junction,207.53,,192.96,1.0,207.73,45.31
+428,"10.4267776,77.5094272→Salem Junction_route1",2025-12-18T17:59:42.260364,,"10.4267776, 77.5094272",Salem Junction,193.52,2.17,189.18,1.01,194.79,45.31
+427,"10.4267776,77.5094272→Salem Junction_route0",2025-12-18T17:59:42.172646,,"10.4267776, 77.5094272",Salem Junction,174.92,,206.79,1.0,175.12,45.31
+426,"10.4267776,77.5094272→Salem Junction_route5",2025-12-18T17:59:23.044103,2,"10.4267776, 77.5094272",Salem Junction,220.4,0.62,224.76,1.0,220.93,45.31
+425,"10.4267776,77.5094272→Salem Junction_route4",2025-12-18T17:59:22.946415,2,"10.4267776, 77.5094272",Salem Junction,202.98,,201.58,1.0,203.18,45.31
+424,"10.4267776,77.5094272→Salem Junction_route3",2025-12-18T17:59:22.858748,2,"10.4267776, 77.5094272",Salem Junction,214.8,,183.42,1.0,214.98,45.31
+423,"10.4267776,77.5094272→Salem Junction_route2",2025-12-18T17:59:22.764276,2,"10.4267776, 77.5094272",Salem Junction,207.53,,192.96,1.0,207.73,45.31
+422,"10.4267776,77.5094272→Salem Junction_route1",2025-12-18T17:59:22.671361,2,"10.4267776, 77.5094272",Salem Junction,193.52,2.17,189.18,1.01,194.79,45.31
+421,"10.4267776,77.5094272→Salem Junction_route0",2025-12-18T17:59:22.576891,2,"10.4267776, 77.5094272",Salem Junction,174.92,,206.79,1.0,175.12,45.31
+420,"Saidapet→13.005437,80.192582_route3",2025-12-18T17:26:06.390995,,Saidapet,"13.005437, 80.192582",221.7,,199.83,1.0,221.9,45.31
+419,"Saidapet→13.005437,80.192582_route2",2025-12-18T17:26:06.325547,,Saidapet,"13.005437, 80.192582",223.73,2.55,155.67,1.01,225.16,45.31
+418,"Saidapet→13.005437,80.192582_route1",2025-12-18T17:26:06.259379,,Saidapet,"13.005437, 80.192582",191.8,,142.1,1.01,191.94,45.31
+417,"Saidapet→13.005437,80.192582_route0",2025-12-18T17:26:06.164124,,Saidapet,"13.005437, 80.192582",179.35,1.28,136.62,1.03,180.13,45.31
+416,"10.4267776,77.5094272→13.005437,80.192582_route5",2025-12-18T09:50:09.253418,2,"10.4267776, 77.5094272","13.005437, 80.192582",591.58,1.35,556.42,1.03,592.81,45.32
+415,"10.4267776,77.5094272→13.005437,80.192582_route4",2025-12-18T09:50:09.158014,2,"10.4267776, 77.5094272","13.005437, 80.192582",617.33,2.02,577.53,1.03,618.92,45.32
+414,"10.4267776,77.5094272→13.005437,80.192582_route3",2025-12-18T09:50:09.076650,2,"10.4267776, 77.5094272","13.005437, 80.192582",545.6,1.37,521.23,1.05,546.8,45.32
+413,"10.4267776,77.5094272→13.005437,80.192582_route2",2025-12-18T09:50:08.993331,2,"10.4267776, 77.5094272","13.005437, 80.192582",502.18,2.25,521.22,1.04,503.83,45.32
+412,"10.4267776,77.5094272→13.005437,80.192582_route1",2025-12-18T09:50:08.908377,2,"10.4267776, 77.5094272","13.005437, 80.192582",534.65,2.18,539.87,1.04,536.28,45.32
+411,"10.4267776,77.5094272→13.005437,80.192582_route0",2025-12-18T09:50:08.830425,2,"10.4267776, 77.5094272","13.005437, 80.192582",424.53,3.37,469.62,1.04,426.69,45.32
+410,"Saidapet→13.005437,80.192582_route3",2025-12-18T09:49:46.361357,,Saidapet,"13.005437, 80.192582",256.03,0.65,166.41,1.18,256.52,45.32
+409,"Saidapet→13.005437,80.192582_route2",2025-12-18T09:49:46.298877,,Saidapet,"13.005437, 80.192582",246.87,0.97,169.89,1.18,247.52,45.32
+408,"Saidapet→13.005437,80.192582_route1",2025-12-18T09:49:46.228919,,Saidapet,"13.005437, 80.192582",224.77,,140.43,1.19,224.91,45.32
+407,"Saidapet→13.005437,80.192582_route0",2025-12-18T09:49:46.165250,,Saidapet,"13.005437, 80.192582",210.77,,133.92,1.21,210.9,45.32
+406,"Saidapet→13.005437,80.192582_route5",2025-12-18T09:49:31.640806,2,Saidapet,"13.005437, 80.192582",316.12,,291.25,1.13,316.41,45.32
+405,"Saidapet→13.005437,80.192582_route4",2025-12-18T09:49:31.571359,2,Saidapet,"13.005437, 80.192582",262.08,,199.13,1.19,262.28,45.32
+404,"Saidapet→13.005437,80.192582_route3",2025-12-18T09:49:31.497713,2,Saidapet,"13.005437, 80.192582",256.05,0.65,166.41,1.18,256.54,45.32
+403,"Saidapet→13.005437,80.192582_route2",2025-12-18T09:49:31.425880,2,Saidapet,"13.005437, 80.192582",246.87,0.97,169.89,1.18,247.52,45.32
+402,"Saidapet→13.005437,80.192582_route1",2025-12-18T09:49:31.358096,2,Saidapet,"13.005437, 80.192582",224.73,,140.43,1.19,224.87,45.32
+401,"Saidapet→13.005437,80.192582_route0",2025-12-18T09:49:31.288281,2,Saidapet,"13.005437, 80.192582",210.82,,133.92,1.21,210.95,45.32
+400,"Anna Nagar, Chennai→Velachary_route3",2025-12-16T08:07:05.497656,,"Anna Nagar, Chennai",Velachary,52.72,10.12,16.8,1.6,123.39,1.03
+399,"Anna Nagar, Chennai→Velachary_route2",2025-12-16T08:07:05.439522,,"Anna Nagar, Chennai",Velachary,46.62,3.97,15.84,1.3,115.73,1.03
+398,"Anna Nagar, Chennai→Velachary_route1",2025-12-16T08:07:05.378672,,"Anna Nagar, Chennai",Velachary,48.88,,18.13,1.2,131.81,11.49
+397,"Anna Nagar, Chennai→Velachary_route0",2025-12-16T08:07:05.317228,,"Anna Nagar, Chennai",Velachary,43.97,4.43,14.55,1.42,106.5,1.03
+396,"Anna Nagar, Chennai→Velachary_route5",2025-12-16T08:06:37.969230,1,"Anna Nagar, Chennai",Velachary,60.33,,23.55,1.23,170.86,31.16
+395,"Anna Nagar, Chennai→Velachary_route4",2025-12-16T08:06:37.906782,1,"Anna Nagar, Chennai",Velachary,53.33,11.55,16.55,1.62,121.73,1.03
+394,"Anna Nagar, Chennai→Velachary_route3",2025-12-16T08:06:37.847142,1,"Anna Nagar, Chennai",Velachary,52.13,,18.93,1.17,137.72,31.16
+393,"Anna Nagar, Chennai→Velachary_route2",2025-12-16T08:06:37.777079,1,"Anna Nagar, Chennai",Velachary,45.8,3.97,15.85,1.32,115.76,1.03
+392,"Anna Nagar, Chennai→Velachary_route1",2025-12-16T08:06:37.708090,1,"Anna Nagar, Chennai",Velachary,47.92,7.1,14.24,1.55,104.82,1.03
+391,"Anna Nagar, Chennai→Velachary_route0",2025-12-16T08:06:37.647126,1,"Anna Nagar, Chennai",Velachary,43.97,4.43,14.55,1.42,106.5,1.03
+390,"Taramani→Guindy,_route3",2025-12-16T08:03:52.959642,,Taramani,"Guindy,",20.4,,5.1,1.05,37.75,1.03
+389,"Taramani→Guindy,_route2",2025-12-16T08:03:52.902753,,Taramani,"Guindy,",25.18,4.23,8.07,1.47,59.23,1.04
+388,"Taramani→Guindy,_route1",2025-12-16T08:03:52.844887,,Taramani,"Guindy,",20.75,,4.85,1.06,36.02,1.03
+387,"Taramani→Guindy,_route0",2025-12-16T08:03:52.789544,,Taramani,"Guindy,",19.22,0.43,6.91,1.33,50.34,1.03
+386,"Taramani→Guindy,_route5",2025-12-16T08:03:12.130840,2,Taramani,"Guindy,",26.52,1.97,6.41,1.23,47.6,1.04
+385,"Taramani→Guindy,_route4",2025-12-16T08:03:12.067944,2,Taramani,"Guindy,",21.93,0.77,7.65,1.34,55.8,1.03
+384,"Taramani→Guindy,_route3",2025-12-16T08:03:12.004713,2,Taramani,"Guindy,",20.4,,5.1,1.05,37.75,1.03
+383,"Taramani→Guindy,_route2",2025-12-16T08:03:11.941041,2,Taramani,"Guindy,",25.75,4.58,8.07,1.5,59.3,1.04
+382,"Taramani→Guindy,_route1",2025-12-16T08:03:11.882084,2,Taramani,"Guindy,",20.75,,4.85,1.06,36.02,1.03
+381,"Taramani→Guindy,_route0",2025-12-16T08:03:11.815260,2,Taramani,"Guindy,",19.55,0.77,6.91,1.35,50.39,1.03
+380,"13.011041,80.220967→Tambaram,_route5",2025-12-10T15:16:12.758443,1,"13.011041, 80.220967","Tambaram,",53.3,0.53,21.79,1.11,157.88,31.16
+379,"13.011041,80.220967→Tambaram,_route4",2025-12-10T15:16:12.694506,1,"13.011041, 80.220967","Tambaram,",57.68,2.22,30.73,1.17,221.02,31.16
+378,"13.011041,80.220967→Tambaram,_route3",2025-12-10T15:16:12.633066,1,"13.011041, 80.220967","Tambaram,",50.02,,20.4,1.1,147.77,31.16
+377,"13.011041,80.220967→Tambaram,_route2",2025-12-10T15:16:12.568840,1,"13.011041, 80.220967","Tambaram,",36.9,2.22,16.7,1.22,120.7,1.03
+376,"13.011041,80.220967→Tambaram,_route1",2025-12-10T15:16:12.506034,1,"13.011041, 80.220967","Tambaram,",48.03,,21.82,1.12,157.55,12.2
+375,"13.011041,80.220967→Tambaram,_route0",2025-12-10T15:16:12.437998,1,"13.011041, 80.220967","Tambaram,",35.68,2.22,16.69,1.23,120.54,1.03
+374,"Guindy,→Kathipara_route2",2025-12-09T17:11:50.525091,,"Guindy,",Kathipara,1658.08,1.73,1951.75,1.02,13828.15,45.31
+373,"Guindy,→Kathipara_route1",2025-12-09T17:11:50.460212,,"Guindy,",Kathipara,1497.55,11.35,1489.97,1.03,10580.1,45.31
+372,"Guindy,→Kathipara_route0",2025-12-09T17:11:50.394404,,"Guindy,",Kathipara,1413.87,6.28,1560.37,1.03,11064.27,45.31
+371,"Guindy,→Kathipara_route2",2025-12-09T17:07:19.282804,1,"Guindy,",Kathipara,1658.3,1.78,1951.75,1.02,13828.18,45.31
+370,"Guindy,→Kathipara_route1",2025-12-09T17:07:19.178140,1,"Guindy,",Kathipara,1500.52,14.42,1489.97,1.03,10580.55,45.31
+369,"Guindy,→Kathipara_route0",2025-12-09T17:07:19.093176,1,"Guindy,",Kathipara,1413.67,6.05,1560.37,1.03,11064.24,45.31
+368,"Taramani→Egmore,_route3",2025-12-09T16:37:51.899775,,Taramani,"Egmore,",35.7,,17.03,1.0,122.76,1.02
+367,"Taramani→Egmore,_route2",2025-12-09T16:37:51.829601,,Taramani,"Egmore,",39.62,,20.04,1.0,144.25,3.24
+366,"Taramani→Egmore,_route1",2025-12-09T16:37:51.761690,,Taramani,"Egmore,",37.93,,16.98,1.0,122.67,1.02
+365,"Taramani→Egmore,_route0",2025-12-09T16:37:51.690720,,Taramani,"Egmore,",34.35,1.87,14.29,1.06,103.55,1.02
+364,"Taramani→Egmore,_route5",2025-12-09T14:00:40.142313,2,Taramani,"Egmore,",65.57,,19.61,1.28,143.81,31.16
+363,"Taramani→Egmore,_route4",2025-12-09T14:00:40.070604,2,Taramani,"Egmore,",63.6,8.3,19.09,1.52,140.4,11.49
+362,"Taramani→Egmore,_route3",2025-12-09T14:00:40.009858,2,Taramani,"Egmore,",53.9,10.98,13.8,1.74,102.56,1.03
+361,"Taramani→Egmore,_route2",2025-12-09T14:00:39.943424,2,Taramani,"Egmore,",60.82,,18.4,1.38,134.89,31.16
+360,"Taramani→Egmore,_route1",2025-12-09T14:00:39.872950,2,Taramani,"Egmore,",57.22,2.8,17.86,1.41,130.89,11.49
+359,"Taramani→Egmore,_route0",2025-12-09T14:00:39.804159,2,Taramani,"Egmore,",50.13,5.32,14.72,1.55,108.31,1.03
+358,Salem Junction→Ammapet_route5,2025-12-09T13:53:33.665741,2,Salem Junction,Ammapet,50.88,,21.03,1.19,152.31,12.2
+357,Salem Junction→Ammapet_route4,2025-12-09T13:53:33.603785,2,Salem Junction,Ammapet,34.13,,11.74,1.22,85.58,1.03
+356,Salem Junction→Ammapet_route3,2025-12-09T13:53:33.541895,2,Salem Junction,Ammapet,40.6,,10.89,1.41,80.31,1.03
+355,Salem Junction→Ammapet_route2,2025-12-09T13:53:33.480157,2,Salem Junction,Ammapet,35.22,,21.66,1.24,155.12,1.03
+354,Salem Junction→Ammapet_route1,2025-12-09T13:53:33.412178,2,Salem Junction,Ammapet,32.57,,11.86,1.29,86.29,1.03
+353,Salem Junction→Ammapet_route0,2025-12-09T13:53:33.347493,2,Salem Junction,Ammapet,30.22,,12.66,1.23,91.66,1.03
+352,Salem Junction→Ammapet_route5,2025-12-09T13:47:51.866940,2,Salem Junction,Ammapet,33.68,,11.98,1.26,87.2,1.03
+351,Salem Junction→Ammapet_route4,2025-12-09T13:47:51.820741,2,Salem Junction,Ammapet,34.28,,12.02,1.29,87.58,1.03
+350,Salem Junction→Ammapet_route3,2025-12-09T13:47:51.766394,2,Salem Junction,Ammapet,35.1,,11.14,1.26,81.52,1.03
+349,Salem Junction→Ammapet_route2,2025-12-09T13:47:51.719236,2,Salem Junction,Ammapet,35.65,0.62,21.66,1.25,155.19,1.03
+348,Salem Junction→Ammapet_route1,2025-12-09T13:47:51.682219,2,Salem Junction,Ammapet,34.23,,12.06,1.24,87.86,1.03
+347,Salem Junction→Ammapet_route0,2025-12-09T13:47:51.634874,2,Salem Junction,Ammapet,30.33,,12.66,1.24,91.67,1.03
+346,Salem Junction→Ammapet_route5,2025-12-09T13:45:22.032579,2,Salem Junction,Ammapet,51.22,,21.03,1.2,152.34,12.2
+345,Salem Junction→Ammapet_route4,2025-12-09T13:45:21.992760,2,Salem Junction,Ammapet,34.33,,11.74,1.23,85.6,1.03
+344,Salem Junction→Ammapet_route3,2025-12-09T13:45:21.953013,2,Salem Junction,Ammapet,40.97,,10.89,1.42,80.35,1.03
+343,Salem Junction→Ammapet_route2,2025-12-09T13:45:21.911780,2,Salem Junction,Ammapet,35.88,0.62,21.66,1.26,155.21,1.03
+342,Salem Junction→Ammapet_route1,2025-12-09T13:45:21.875097,2,Salem Junction,Ammapet,32.77,,11.86,1.3,86.31,1.03
+341,Salem Junction→Ammapet_route0,2025-12-09T13:45:21.822956,2,Salem Junction,Ammapet,30.37,,12.66,1.24,91.68,1.03
+340,Salem junction→Ammapet_route5,2025-12-09T13:43:09.396861,2,Salem junction,Ammapet,33.8,,11.98,1.27,87.21,1.03
+339,Salem junction→Ammapet_route4,2025-12-09T13:43:09.363518,2,Salem junction,Ammapet,34.48,,12.02,1.3,87.6,1.03
+338,Salem junction→Ammapet_route3,2025-12-09T13:43:09.324331,2,Salem junction,Ammapet,35.23,,11.14,1.27,81.53,1.03
+337,Salem junction→Ammapet_route2,2025-12-09T13:43:09.280684,2,Salem junction,Ammapet,36.02,0.83,21.66,1.26,155.23,1.03
+336,Salem junction→Ammapet_route1,2025-12-09T13:43:09.238208,2,Salem junction,Ammapet,34.35,,12.06,1.24,87.88,1.03
+335,Salem junction→Ammapet_route0,2025-12-09T13:43:09.184579,2,Salem junction,Ammapet,30.47,,12.66,1.24,91.69,1.03
+334,"Mathur, Krishnagiri→Ammapet_route5",2025-12-09T13:38:15.575887,2,"Mathur, Krishnagiri",Ammapet,158.13,6.57,128.39,1.1,914.89,45.32
+333,"Mathur, Krishnagiri→Ammapet_route4",2025-12-09T13:38:15.530077,2,"Mathur, Krishnagiri",Ammapet,168.08,0.77,138.56,1.05,986.8,45.32
+332,"Mathur, Krishnagiri→Ammapet_route3",2025-12-09T13:38:15.490229,2,"Mathur, Krishnagiri",Ammapet,172.43,,105.69,1.05,757.03,45.32
+331,"Mathur, Krishnagiri→Ammapet_route2",2025-12-09T13:38:15.440436,2,"Mathur, Krishnagiri",Ammapet,144.15,,109.56,1.05,781.34,45.32
+330,"Mathur, Krishnagiri→Ammapet_route1",2025-12-09T13:38:15.394373,2,"Mathur, Krishnagiri",Ammapet,151.98,,115.81,1.06,825.88,45.32
+329,"Mathur, Krishnagiri→Ammapet_route0",2025-12-09T13:38:15.353116,2,"Mathur, Krishnagiri",Ammapet,124.55,,105.24,1.09,749.17,45.32
+328,Salem junction→Ammapet_route5,2025-12-09T13:33:00.625953,2,Salem junction,Ammapet,34.82,,11.81,1.22,86.18,1.03
+327,Salem junction→Ammapet_route4,2025-12-09T13:33:00.476636,2,Salem junction,Ammapet,34.68,,12.02,1.3,87.62,1.03
+326,Salem junction→Ammapet_route3,2025-12-09T13:33:00.359044,2,Salem junction,Ammapet,35.47,,11.14,1.28,81.56,1.03
+325,Salem junction→Ammapet_route2,2025-12-09T13:33:00.248998,2,Salem junction,Ammapet,36.73,1.13,21.66,1.29,155.33,1.03
+324,Salem junction→Ammapet_route1,2025-12-09T13:33:00.127161,2,Salem junction,Ammapet,34.53,,12.06,1.25,87.89,1.03
+323,Salem junction→Ammapet_route0,2025-12-09T13:33:00.018484,2,Salem junction,Ammapet,30.63,,12.66,1.25,91.7,1.03
+322,Salem Junction→Ammapet_route5,2025-12-09T13:19:13.590093,2,Salem Junction,Ammapet,51.3,,21.03,1.2,51.32,12.2
+321,Salem Junction→Ammapet_route4,2025-12-09T13:19:13.490093,2,Salem Junction,Ammapet,37.35,,11.74,1.33,37.36,1.03
+320,Salem Junction→Ammapet_route3,2025-12-09T13:19:13.402617,2,Salem Junction,Ammapet,42.22,,10.89,1.46,42.23,1.03
+319,Salem Junction→Ammapet_route2,2025-12-09T13:19:13.313611,2,Salem Junction,Ammapet,36.52,1.0,21.66,1.28,37.04,1.03
+318,Salem Junction→Ammapet_route1,2025-12-09T13:19:13.218879,2,Salem Junction,Ammapet,34.67,,11.74,1.24,34.68,1.03
+317,Salem Junction→Ammapet_route0,2025-12-09T13:19:13.120063,2,Salem Junction,Ammapet,31.35,,12.29,1.23,31.36,1.03
+316,"Chennai,→Salem_route5",2025-12-05T08:23:09.297990,1,"Chennai,",Salem,488.63,3.95,463.12,1.07,491.07,45.32
+315,"Chennai,→Salem_route4",2025-12-05T08:23:09.217835,1,"Chennai,",Salem,459.57,6.03,349.87,1.1,462.93,45.32
+314,"Chennai,→Salem_route3",2025-12-05T08:23:09.137462,1,"Chennai,",Salem,446.08,1.65,370.69,1.15,447.28,45.32
+313,"Chennai,→Salem_route2",2025-12-05T08:23:09.059050,1,"Chennai,",Salem,406.47,2.9,365.04,1.08,408.28,45.32
+312,"Chennai,→Salem_route1",2025-12-05T08:23:08.971277,1,"Chennai,",Salem,430.87,5.95,383.63,1.08,434.23,45.32
+311,"Chennai,→Salem_route0",2025-12-05T08:23:08.888634,1,"Chennai,",Salem,323.55,7.75,337.88,1.06,327.76,45.32
+310,"Chennai,→Bangaluru_route3",2025-12-05T08:19:57.428011,2,"Chennai,",Bangaluru,434.83,3.6,378.44,1.07,437.01,45.32
+309,"Chennai,→Bangaluru_route2",2025-12-05T08:19:57.352894,2,"Chennai,",Bangaluru,454.98,3.2,429.48,1.07,457.01,45.32
+308,"Chennai,→Bangaluru_route1",2025-12-05T08:19:57.287337,2,"Chennai,",Bangaluru,440.65,6.05,398.35,1.09,444.07,45.32
+307,"Chennai,→Bangaluru_route0",2025-12-05T08:19:57.213758,2,"Chennai,",Bangaluru,390.8,2.83,344.04,1.08,392.56,45.32
+306,Chennai→Pondicherry_route5,2025-12-05T08:19:05.400710,,Chennai,Pondicherry,272.68,5.3,208.29,1.12,275.54,45.32
+305,Chennai→Pondicherry_route4,2025-12-05T08:19:05.346917,,Chennai,Pondicherry,233.93,1.7,159.44,1.14,234.94,45.32
+304,Chennai→Pondicherry_route3,2025-12-05T08:19:05.278724,,Chennai,Pondicherry,202.62,3.55,155.49,1.13,204.55,45.32
+303,Chennai→Pondicherry_route2,2025-12-05T08:19:05.206091,,Chennai,Pondicherry,245.07,,194.33,1.09,245.26,45.32
+302,Chennai→Pondicherry_route1,2025-12-05T08:19:05.130937,,Chennai,Pondicherry,207.25,6.17,153.71,1.18,210.49,45.32
+301,Chennai→Pondicherry_route0,2025-12-05T08:19:05.062109,,Chennai,Pondicherry,174.67,0.57,161.78,1.08,175.11,45.32
+300,Chennai→Salem_route4,2025-12-05T08:18:21.542906,,Chennai,Salem,459.02,4.82,352.55,1.1,461.78,45.32
+299,Chennai→Salem_route3,2025-12-05T08:18:21.436207,,Chennai,Salem,444.53,8.2,370.56,1.16,449.0,45.32
+298,Chennai→Salem_route2,2025-12-05T08:18:21.330299,,Chennai,Salem,430.47,5.25,383.63,1.08,433.48,45.32
+297,Chennai→Salem_route1,2025-12-05T08:18:21.246527,,Chennai,Salem,406.97,3.02,365.04,1.08,408.84,45.32
+296,Chennai→Salem_route0,2025-12-05T08:18:21.137737,,Chennai,Salem,323.32,7.62,335.2,1.06,327.46,45.32
+295,"Mathur, Krishnagiri→Uthangarai,_route3",2025-12-05T07:51:44.222040,,"Mathur, Krishnagiri","Uthangarai,",20.42,,12.71,1.01,20.43,1.03
+294,"Mathur, Krishnagiri→Uthangarai,_route2",2025-12-05T07:51:44.162526,,"Mathur, Krishnagiri","Uthangarai,",18.2,,10.81,1.01,18.21,1.03
+293,"Mathur, Krishnagiri→Uthangarai,_route1",2025-12-05T07:51:44.102710,,"Mathur, Krishnagiri","Uthangarai,",19.97,,13.11,1.02,19.98,1.03
+292,"Mathur, Krishnagiri→Uthangarai,_route0",2025-12-05T07:51:44.041865,,"Mathur, Krishnagiri","Uthangarai,",16.03,,11.73,1.05,16.05,1.03
+291,"Mathur, Krishnagiri→Uthangarai,_route5",2025-12-05T07:49:44.873413,2,"Mathur, Krishnagiri","Uthangarai,",25.03,,19.3,1.0,25.05,1.03
+290,"Mathur, Krishnagiri→Uthangarai,_route4",2025-12-05T07:49:44.785009,2,"Mathur, Krishnagiri","Uthangarai,",25.07,,15.08,1.07,25.08,1.03
+289,"Mathur, Krishnagiri→Uthangarai,_route3",2025-12-05T07:49:44.700260,2,"Mathur, Krishnagiri","Uthangarai,",20.4,,12.71,1.01,20.41,1.03
+288,"Mathur, Krishnagiri→Uthangarai,_route2",2025-12-05T07:49:44.576271,2,"Mathur, Krishnagiri","Uthangarai,",18.18,,10.81,1.01,18.19,1.03
+287,"Mathur, Krishnagiri→Uthangarai,_route1",2025-12-05T07:49:44.485179,2,"Mathur, Krishnagiri","Uthangarai,",19.97,,13.11,1.02,19.98,1.03
+286,"Mathur, Krishnagiri→Uthangarai,_route0",2025-12-05T07:49:44.361432,2,"Mathur, Krishnagiri","Uthangarai,",16.03,,11.73,1.05,16.05,1.03
+285,"Guindy,→Airport , Chennai_route3",2025-12-04T18:26:22.199674,,"Guindy,","Airport , Chennai",28.08,,13.59,1.0,28.1,1.02
+284,"Guindy,→Airport , Chennai_route2",2025-12-04T18:26:22.111463,,"Guindy,","Airport , Chennai",36.1,,13.49,1.0,36.11,1.02
+283,"Guindy,→Airport , Chennai_route1",2025-12-04T18:26:22.009598,,"Guindy,","Airport , Chennai",35.63,,20.59,1.0,35.65,1.02
+282,"Guindy,→Airport , Chennai_route0",2025-12-04T18:26:21.907669,,"Guindy,","Airport , Chennai",21.57,,11.12,1.0,21.58,1.02
+281,"Guindy,→Airport , Chennai_route5",2025-12-04T18:25:49.529179,2,"Guindy,","Airport , Chennai",57.47,,18.37,1.0,57.49,45.31
+280,"Guindy,→Airport , Chennai_route4",2025-12-04T18:25:49.440154,2,"Guindy,","Airport , Chennai",46.15,,17.91,1.0,46.17,31.15
+279,"Guindy,→Airport , Chennai_route3",2025-12-04T18:25:49.356073,2,"Guindy,","Airport , Chennai",28.08,,13.59,1.0,28.1,1.02
+278,"Guindy,→Airport , Chennai_route2",2025-12-04T18:25:49.268268,2,"Guindy,","Airport , Chennai",36.1,,13.49,1.0,36.11,1.02
+277,"Guindy,→Airport , Chennai_route1",2025-12-04T18:25:49.184596,2,"Guindy,","Airport , Chennai",35.63,,20.59,1.0,35.65,1.02
+276,"Guindy,→Airport , Chennai_route0",2025-12-04T18:25:49.114667,2,"Guindy,","Airport , Chennai",21.57,,11.12,1.0,21.58,1.02
+275,"Airport Chennai→Guindy,_route3",2025-12-04T18:03:49.992243,,Airport Chennai,"Guindy,",42.43,,18.15,1.0,42.45,12.2
+274,"Airport Chennai→Guindy,_route2",2025-12-04T18:03:49.905414,,Airport Chennai,"Guindy,",39.98,,22.96,1.0,40.01,11.48
+273,"Airport Chennai→Guindy,_route1",2025-12-04T18:03:49.801557,,Airport Chennai,"Guindy,",31.25,,13.01,1.0,31.26,1.02
+272,"Airport Chennai→Guindy,_route0",2025-12-04T18:03:49.701157,,Airport Chennai,"Guindy,",20.35,,11.46,1.0,20.36,1.02
+271,"Airport Chennai→Guindy,_route5",2025-12-04T18:03:23.156755,2,Airport Chennai,"Guindy,",43.92,,12.74,1.0,43.93,20.76
+270,"Airport Chennai→Guindy,_route4",2025-12-04T18:03:23.052174,2,Airport Chennai,"Guindy,",30.67,,13.05,1.0,30.68,1.02
+269,"Airport Chennai→Guindy,_route3",2025-12-04T18:03:22.964303,2,Airport Chennai,"Guindy,",42.43,,18.15,1.0,42.45,12.2
+268,"Airport Chennai→Guindy,_route2",2025-12-04T18:03:22.873329,2,Airport Chennai,"Guindy,",39.98,,22.96,1.0,40.01,11.48
+267,"Airport Chennai→Guindy,_route1",2025-12-04T18:03:22.782852,2,Airport Chennai,"Guindy,",31.25,,13.01,1.0,31.26,1.02
+266,"Airport Chennai→Guindy,_route0",2025-12-04T18:03:22.684760,2,Airport Chennai,"Guindy,",20.35,,11.46,1.0,20.36,1.02
+265,"13.011041,80.220967→Marina Beach, Chennai_route3",2025-12-04T17:59:48.878682,,"13.011041, 80.220967","Marina Beach, Chennai",26.22,,11.74,1.0,26.23,1.02
+264,"13.011041,80.220967→Marina Beach, Chennai_route2",2025-12-04T17:59:48.783581,,"13.011041, 80.220967","Marina Beach, Chennai",27.8,,12.89,1.0,27.81,1.02
+263,"13.011041,80.220967→Marina Beach, Chennai_route1",2025-12-04T17:59:48.704970,,"13.011041, 80.220967","Marina Beach, Chennai",24.68,0.6,10.29,1.02,24.99,1.02
+262,"13.011041,80.220967→Marina Beach, Chennai_route0",2025-12-04T17:59:48.614816,,"13.011041, 80.220967","Marina Beach, Chennai",23.15,,11.38,1.0,23.16,1.02
+261,"13.011041,80.220967→Marina Beach, Chennai_route5",2025-12-04T17:59:28.201835,1,"13.011041, 80.220967","Marina Beach, Chennai",40.18,,18.98,1.0,40.2,11.48
+260,"13.011041,80.220967→Marina Beach, Chennai_route4",2025-12-04T17:59:28.111391,1,"13.011041, 80.220967","Marina Beach, Chennai",27.23,,11.49,1.0,27.24,1.02
+259,"13.011041,80.220967→Marina Beach, Chennai_route3",2025-12-04T17:59:28.008309,1,"13.011041, 80.220967","Marina Beach, Chennai",26.22,,11.74,1.0,26.23,1.02
+258,"13.011041,80.220967→Marina Beach, Chennai_route2",2025-12-04T17:59:27.910977,1,"13.011041, 80.220967","Marina Beach, Chennai",27.8,,12.89,1.0,27.81,1.02
+257,"13.011041,80.220967→Marina Beach, Chennai_route1",2025-12-04T17:59:27.812303,1,"13.011041, 80.220967","Marina Beach, Chennai",24.68,0.6,10.29,1.02,24.99,1.02
+256,"13.011041,80.220967→Marina Beach, Chennai_route0",2025-12-04T17:59:27.726071,1,"13.011041, 80.220967","Marina Beach, Chennai",23.15,,11.38,1.0,23.16,1.02
+255,"Little mount, Chenna→Guindy_route1",2025-12-03T15:46:38.021865,1,"Little mount, Chenna",Guindy,13.67,,3.92,1.05,13.67,1.03
+254,"Little mount, Chenna→Guindy_route0",2025-12-03T15:46:37.977576,1,"Little mount, Chenna",Guindy,6.05,,2.68,1.13,6.05,29.33
+253,"11.6738,78.1121→9.737515,77.286012_route5",2025-12-03T15:01:42.751762,1,"11.6738, 78.1121","9.737515, 77.286012",410.37,1.58,421.78,1.03,411.58,45.32
+252,"11.6738,78.1121→9.737515,77.286012_route4",2025-12-03T15:01:42.675744,1,"11.6738, 78.1121","9.737515, 77.286012",334.07,4.87,295.18,1.03,336.8,45.32
+251,"11.6738,78.1121→9.737515,77.286012_route3",2025-12-03T15:01:42.596284,1,"11.6738, 78.1121","9.737515, 77.286012",366.43,,311.59,1.01,366.74,45.32
+250,"11.6738,78.1121→9.737515,77.286012_route2",2025-12-03T15:01:42.519100,1,"11.6738, 78.1121","9.737515, 77.286012",317.32,,322.82,1.01,317.64,45.32
+249,"11.6738,78.1121→9.737515,77.286012_route1",2025-12-03T15:01:42.423625,1,"11.6738, 78.1121","9.737515, 77.286012",312.38,,324.24,1.02,312.71,45.32
+248,"11.6738,78.1121→9.737515,77.286012_route0",2025-12-03T15:01:42.233320,1,"11.6738, 78.1121","9.737515, 77.286012",252.63,3.73,287.37,1.04,254.79,45.32
+247,Salem Junction→Ammapet_route3,2025-12-03T14:34:51.700082,,Salem Junction,Ammapet,37.75,,10.89,1.31,37.76,1.03
+246,Salem Junction→Ammapet_route2,2025-12-03T14:34:51.634563,,Salem Junction,Ammapet,35.33,,21.66,1.24,35.35,1.03
+245,Salem Junction→Ammapet_route1,2025-12-03T14:34:51.563664,,Salem Junction,Ammapet,30.93,,11.86,1.23,30.95,1.03
+244,Salem Junction→Ammapet_route0,2025-12-03T14:34:51.503604,,Salem Junction,Ammapet,28.88,,12.66,1.18,28.9,1.03
+243,Salem Junction→Ammapet_route5,2025-12-03T14:34:27.934841,1,Salem Junction,Ammapet,49.42,,21.03,1.16,49.44,12.2
+242,Salem Junction→Ammapet_route4,2025-12-03T14:34:27.871617,1,Salem Junction,Ammapet,32.93,,11.74,1.18,32.95,1.03
+241,Salem Junction→Ammapet_route3,2025-12-03T14:34:27.801636,1,Salem Junction,Ammapet,37.78,,10.89,1.31,37.79,1.03
+240,Salem Junction→Ammapet_route2,2025-12-03T14:34:27.736760,1,Salem Junction,Ammapet,35.3,,21.66,1.24,35.32,1.03
+239,Salem Junction→Ammapet_route1,2025-12-03T14:34:27.672414,1,Salem Junction,Ammapet,30.97,,11.86,1.23,30.98,1.03
+238,Salem Junction→Ammapet_route0,2025-12-03T14:34:27.597970,1,Salem Junction,Ammapet,28.88,,12.66,1.18,28.9,1.03
+237,Salem Junction→Peelamedu_route5,2025-12-03T14:23:50.829476,2,Salem Junction,Peelamedu,203.92,,169.07,1.06,204.09,45.32
+236,Salem Junction→Peelamedu_route4,2025-12-03T14:23:50.759792,2,Salem Junction,Peelamedu,186.8,,180.52,1.03,186.98,45.32
+235,Salem Junction→Peelamedu_route3,2025-12-03T14:23:50.684823,2,Salem Junction,Peelamedu,219.35,2.77,205.22,1.05,220.94,45.32
+234,Salem Junction→Peelamedu_route2,2025-12-03T14:23:50.614373,2,Salem Junction,Peelamedu,223.02,0.53,178.0,1.03,223.46,45.32
+233,Salem Junction→Peelamedu_route1,2025-12-03T14:23:50.545853,2,Salem Junction,Peelamedu,185.25,,160.55,1.05,185.41,45.32
+232,Salem Junction→Peelamedu_route0,2025-12-03T14:23:50.466668,2,Salem Junction,Peelamedu,149.37,0.65,164.09,1.02,149.86,45.32
+231,"13.0843007,80.2704622→Mathur, Krishnagiri, Tamilnadu_route5",2025-12-03T13:41:17.695126,,"13.0843007, 80.2704622","Mathur, Krishnagiri, Tamilnadu",413.67,3.58,293.43,1.07,415.75,45.32
+230,"13.0843007,80.2704622→Mathur, Krishnagiri, Tamilnadu_route4",2025-12-03T13:41:17.624074,,"13.0843007, 80.2704622","Mathur, Krishnagiri, Tamilnadu",386.0,5.8,281.82,1.09,389.18,45.32
+229,"13.0843007,80.2704622→Mathur, Krishnagiri, Tamilnadu_route3",2025-12-03T13:41:17.549192,,"13.0843007, 80.2704622","Mathur, Krishnagiri, Tamilnadu",389.7,1.0,339.11,1.07,390.54,45.32
+228,"13.0843007,80.2704622→Mathur, Krishnagiri, Tamilnadu_route2",2025-12-03T13:41:17.476136,,"13.0843007, 80.2704622","Mathur, Krishnagiri, Tamilnadu",342.03,,308.62,1.07,342.34,45.32
+227,"13.0843007,80.2704622→Mathur, Krishnagiri, Tamilnadu_route1",2025-12-03T13:41:17.396539,,"13.0843007, 80.2704622","Mathur, Krishnagiri, Tamilnadu",326.22,0.62,287.78,1.08,326.81,45.32
+226,"13.0843007,80.2704622→Mathur, Krishnagiri, Tamilnadu_route0",2025-12-03T13:41:17.315180,,"13.0843007, 80.2704622","Mathur, Krishnagiri, Tamilnadu",307.33,6.3,286.99,1.11,310.77,45.32
+225,Guindy→Velachery_route3,2025-11-29T07:16:02.459559,,Guindy,Velachery,22.92,,9.93,1.19,22.93,1.03
+224,Guindy→Velachery_route2,2025-11-29T07:16:02.384649,,Guindy,Velachery,20.17,,6.1,1.18,20.17,1.03
+223,Guindy→Velachery_route1,2025-11-29T07:16:02.305065,,Guindy,Velachery,18.77,,5.54,1.31,18.77,1.03
+222,Guindy→Velachery_route0,2025-11-29T07:16:02.228495,,Guindy,Velachery,17.48,,5.63,1.25,17.49,1.03
+221,"13.0351104,80.232448→Velachery_route5",2025-11-29T07:13:03.043070,,"13.0351104, 80.232448",Velachery,40.42,,12.31,1.2,40.43,1.03
+220,"13.0351104,80.232448→Velachery_route4",2025-11-29T07:13:02.968359,,"13.0351104, 80.232448",Velachery,25.43,,8.11,1.35,25.44,1.03
+219,"13.0351104,80.232448→Velachery_route3",2025-11-29T07:13:02.894006,,"13.0351104, 80.232448",Velachery,41.5,3.7,13.15,1.46,43.36,1.04
+218,"13.0351104,80.232448→Velachery_route2",2025-11-29T07:13:02.820709,,"13.0351104, 80.232448",Velachery,36.53,,13.72,1.2,36.55,1.03
+217,"13.0351104,80.232448→Velachery_route1",2025-11-29T07:13:02.739476,,"13.0351104, 80.232448",Velachery,31.6,,12.56,1.28,31.61,1.03
+216,"13.0351104,80.232448→Velachery_route0",2025-11-29T07:13:02.660779,,"13.0351104, 80.232448",Velachery,24.18,,8.68,1.31,24.19,1.03
+215,Guindy→Velachery_route5,2025-11-29T07:10:26.459184,,Guindy,Velachery,25.77,,7.63,1.15,25.77,1.03
+214,Guindy→Velachery_route4,2025-11-29T07:10:26.371071,,Guindy,Velachery,26.48,,10.65,1.23,26.49,1.03
+213,Guindy→Velachery_route3,2025-11-29T07:10:26.292864,,Guindy,Velachery,22.95,,9.93,1.19,22.96,1.03
+212,Guindy→Velachery_route2,2025-11-29T07:10:26.203475,,Guindy,Velachery,20.15,,6.1,1.18,20.16,1.03
+211,Guindy→Velachery_route1,2025-11-29T07:10:26.124875,,Guindy,Velachery,18.8,,5.54,1.31,18.81,1.03
+210,Guindy→Velachery_route0,2025-11-29T07:10:26.017443,,Guindy,Velachery,17.48,,5.63,1.25,17.49,1.03
+209,"13.0351104,80.232448→Guindy_route5",2025-11-29T05:26:37.636795,,"13.0351104, 80.232448",Guindy,13.98,,4.67,1.24,13.99,1.03
+208,"13.0351104,80.232448→Guindy_route4",2025-11-29T05:26:37.562913,,"13.0351104, 80.232448",Guindy,23.72,,8.12,1.25,23.72,1.03
+207,"13.0351104,80.232448→Guindy_route3",2025-11-29T05:26:37.488568,,"13.0351104, 80.232448",Guindy,19.68,,6.93,1.33,19.69,1.03
+206,"13.0351104,80.232448→Guindy_route2",2025-11-29T05:26:37.411249,,"13.0351104, 80.232448",Guindy,20.23,,6.08,1.2,20.24,1.03
+205,"13.0351104,80.232448→Guindy_route1",2025-11-29T05:26:37.336480,,"13.0351104, 80.232448",Guindy,14.4,,5.42,1.29,14.41,1.03
+204,"13.0351104,80.232448→Guindy_route0",2025-11-29T05:26:37.266676,,"13.0351104, 80.232448",Guindy,14.0,,4.87,1.27,14.0,1.03
+203,Kodambakkam→Guindy_route3,2025-11-29T05:25:13.624225,,Kodambakkam,Guindy,24.92,,6.37,1.21,24.92,1.03
+202,Kodambakkam→Guindy_route2,2025-11-29T05:25:13.545854,,Kodambakkam,Guindy,23.02,,6.58,1.21,23.02,1.03
+201,Kodambakkam→Guindy_route1,2025-11-29T05:25:13.482758,,Kodambakkam,Guindy,22.0,,7.24,1.25,22.01,1.03
+200,Kodambakkam→Guindy_route0,2025-11-29T05:25:13.422454,,Kodambakkam,Guindy,21.9,,7.92,1.3,21.91,1.03
+199,Kodambakkam→Guindy_route5,2025-11-29T05:23:35.685806,,Kodambakkam,Guindy,25.05,,6.85,1.18,25.06,1.03
+198,Kodambakkam→Guindy_route4,2025-11-29T05:23:35.585186,,Kodambakkam,Guindy,25.7,,7.58,1.17,25.71,1.03
+197,Kodambakkam→Guindy_route3,2025-11-29T05:23:35.487373,,Kodambakkam,Guindy,24.92,,6.37,1.21,24.92,1.03
+196,Kodambakkam→Guindy_route2,2025-11-29T05:23:35.400843,,Kodambakkam,Guindy,23.0,,6.58,1.21,23.01,1.03
+195,Kodambakkam→Guindy_route1,2025-11-29T05:23:35.294072,,Kodambakkam,Guindy,21.97,,7.24,1.25,21.97,1.03
+194,Kodambakkam→Guindy_route0,2025-11-29T05:23:35.179478,,Kodambakkam,Guindy,21.87,,7.92,1.3,21.87,1.03
+193,Guindy→Velachery_route5,2025-11-28T11:02:59.229354,,Guindy,Velachery,30.45,,10.65,1.41,30.46,1.03
+192,Guindy→Velachery_route4,2025-11-28T11:02:59.080913,,Guindy,Velachery,25.8,,7.63,1.15,25.81,1.03
+191,Guindy→Velachery_route3,2025-11-28T11:02:58.953612,,Guindy,Velachery,24.3,,9.93,1.26,24.31,1.03
+190,Guindy→Velachery_route2,2025-11-28T11:02:58.814591,,Guindy,Velachery,20.32,,6.1,1.19,20.32,1.03
+189,Guindy→Velachery_route1,2025-11-28T11:02:58.680760,,Guindy,Velachery,18.63,,5.54,1.3,18.64,1.03
+188,Guindy→Velachery_route0,2025-11-28T11:02:58.497733,,Guindy,Velachery,17.88,,5.63,1.28,17.89,1.03
+187,"13.0449408,80.2127872→Guindy_route5",2025-11-28T10:06:51.513904,,"13.0449408, 80.2127872",Guindy,25.83,,7.27,1.17,25.84,1.03
+186,"13.0449408,80.2127872→Guindy_route4",2025-11-28T10:06:51.407857,,"13.0449408, 80.2127872",Guindy,24.43,,6.99,1.13,24.44,1.03
+185,"13.0449408,80.2127872→Guindy_route3",2025-11-28T10:06:51.296206,,"13.0449408, 80.2127872",Guindy,26.55,,7.81,1.24,26.56,1.03
+184,"13.0449408,80.2127872→Guindy_route2",2025-11-28T10:06:51.179055,,"13.0449408, 80.2127872",Guindy,25.67,,6.93,1.2,25.67,1.03
+183,"13.0449408,80.2127872→Guindy_route1",2025-11-28T10:06:51.072745,,"13.0449408, 80.2127872",Guindy,22.08,,6.67,1.16,22.09,1.03
+182,"13.0449408,80.2127872→Guindy_route0",2025-11-28T10:06:50.963444,,"13.0449408, 80.2127872",Guindy,20.9,,7.19,1.31,20.91,1.03
+181,Guindy→Velachery_route5,2025-11-28T09:41:01.204463,,Guindy,Velachery,30.4,5.02,10.65,1.41,32.92,1.04
+180,Guindy→Velachery_route4,2025-11-28T09:41:01.125617,,Guindy,Velachery,24.28,,7.63,1.08,24.29,1.03
+179,Guindy→Velachery_route3,2025-11-28T09:41:01.057941,,Guindy,Velachery,22.08,,9.93,1.14,22.09,1.03
+178,Guindy→Velachery_route2,2025-11-28T09:41:00.985528,,Guindy,Velachery,18.88,,6.1,1.11,18.89,1.03
+177,Guindy→Velachery_route1,2025-11-28T09:41:00.907138,,Guindy,Velachery,17.08,,5.54,1.19,17.09,1.03
+176,Guindy→Velachery_route0,2025-11-28T09:41:00.829115,,Guindy,Velachery,16.15,,5.63,1.16,16.16,1.03
+175,Guindy→Velachery_route5,2025-11-28T08:59:20.727563,,Guindy,Velachery,24.15,,7.63,1.08,24.16,1.03
+174,Guindy→Velachery_route4,2025-11-28T08:59:20.660655,,Guindy,Velachery,26.0,,10.65,1.21,26.01,1.03
+173,Guindy→Velachery_route3,2025-11-28T08:59:20.585343,,Guindy,Velachery,21.78,,9.93,1.13,21.79,1.03
+172,Guindy→Velachery_route2,2025-11-28T08:59:20.517259,,Guindy,Velachery,18.78,,6.1,1.1,18.79,1.03
+171,Guindy→Velachery_route1,2025-11-28T08:59:20.445910,,Guindy,Velachery,16.93,,5.54,1.18,16.94,1.03
+170,Guindy→Velachery_route0,2025-11-28T08:59:20.357511,,Guindy,Velachery,15.85,,5.63,1.14,15.86,1.03
+169,Guindy→Velachery_route3,2025-11-28T08:49:31.383067,,Guindy,Velachery,21.73,,9.93,1.13,21.74,1.03
+168,Guindy→Velachery_route2,2025-11-28T08:49:31.323769,,Guindy,Velachery,18.82,,6.1,1.1,18.82,1.03
+167,Guindy→Velachery_route1,2025-11-28T08:49:31.260562,,Guindy,Velachery,16.93,,5.54,1.18,16.94,1.03
+166,Guindy→Velachery_route0,2025-11-28T08:49:31.199070,,Guindy,Velachery,15.83,,5.63,1.14,15.84,1.03
+165,Guindy→Velachery_route3,2025-11-28T08:49:28.689673,,Guindy,Velachery,21.73,,9.93,1.13,21.74,1.03
+164,Guindy→Velachery_route2,2025-11-28T08:49:28.633902,,Guindy,Velachery,18.82,,6.1,1.1,18.82,1.03
+163,Guindy→Velachery_route1,2025-11-28T08:49:28.573262,,Guindy,Velachery,16.93,,5.54,1.18,16.94,1.03
+162,Guindy→Velachery_route0,2025-11-28T08:49:28.510792,,Guindy,Velachery,15.83,,5.63,1.14,15.84,1.03
+161,Guindy→Velachery_route5,2025-11-28T08:48:57.026364,,Guindy,Velachery,24.17,,7.63,1.08,24.17,1.03
+160,Guindy→Velachery_route4,2025-11-28T08:48:56.945608,,Guindy,Velachery,25.98,,10.65,1.2,25.99,1.03
+159,Guindy→Velachery_route3,2025-11-28T08:48:56.880811,,Guindy,Velachery,21.73,,9.93,1.13,21.74,1.03
+158,Guindy→Velachery_route2,2025-11-28T08:48:56.816040,,Guindy,Velachery,18.82,,6.1,1.1,18.82,1.03
+157,Guindy→Velachery_route1,2025-11-28T08:48:56.737617,,Guindy,Velachery,16.93,,5.54,1.18,16.94,1.03
+156,Guindy→Velachery_route0,2025-11-28T08:48:56.648676,,Guindy,Velachery,15.83,,5.63,1.14,15.84,1.03
+155,"13.0449408,80.2127872→Velachery_route5",2025-11-28T08:43:35.338618,,"13.0449408, 80.2127872",Velachery,45.47,,16.24,1.25,45.48,1.03
+154,"13.0449408,80.2127872→Velachery_route4",2025-11-28T08:43:35.272008,,"13.0449408, 80.2127872",Velachery,33.2,,10.45,1.22,33.21,1.03
+153,"13.0449408,80.2127872→Velachery_route3",2025-11-28T08:43:35.208254,,"13.0449408, 80.2127872",Velachery,32.87,0.52,10.62,1.18,33.14,1.03
+152,"13.0449408,80.2127872→Velachery_route2",2025-11-28T08:43:35.142950,,"13.0449408, 80.2127872",Velachery,31.87,,11.88,1.28,31.88,1.03
+151,"13.0449408,80.2127872→Velachery_route1",2025-11-28T08:43:35.076460,,"13.0449408, 80.2127872",Velachery,31.27,,10.87,1.17,31.28,1.03
+150,"13.0449408,80.2127872→Velachery_route0",2025-11-28T08:43:34.992637,,"13.0449408, 80.2127872",Velachery,29.93,,12.41,1.26,29.95,1.03
+149,"13.0449408,80.2127872→Velachery_route5",2025-11-28T08:36:56.557153,,"13.0449408, 80.2127872",Velachery,45.47,,16.24,1.25,45.48,1.03
+148,"13.0449408,80.2127872→Velachery_route4",2025-11-28T08:36:56.489171,,"13.0449408, 80.2127872",Velachery,33.27,,10.45,1.22,33.28,1.03
+147,"13.0449408,80.2127872→Velachery_route3",2025-11-28T08:36:56.428242,,"13.0449408, 80.2127872",Velachery,33.17,0.8,10.62,1.19,33.58,1.03
+146,"13.0449408,80.2127872→Velachery_route2",2025-11-28T08:36:56.359975,,"13.0449408, 80.2127872",Velachery,31.93,,11.88,1.28,31.95,1.03
+145,"13.0449408,80.2127872→Velachery_route1",2025-11-28T08:36:56.286465,,"13.0449408, 80.2127872",Velachery,31.3,,10.87,1.17,31.31,1.03
+144,"13.0449408,80.2127872→Velachery_route0",2025-11-28T08:36:56.221455,,"13.0449408, 80.2127872",Velachery,29.98,,12.41,1.26,30.0,1.03
+143,"13.0449408,80.2127872→Guindy_route5",2025-11-28T08:28:38.127791,,"13.0449408, 80.2127872",Guindy,25.82,,7.81,1.21,25.82,1.03
+142,"13.0449408,80.2127872→Guindy_route4",2025-11-28T08:28:38.065425,,"13.0449408, 80.2127872",Guindy,24.7,,7.19,1.16,24.71,1.03
+141,"13.0449408,80.2127872→Guindy_route3",2025-11-28T08:28:38.000872,,"13.0449408, 80.2127872",Guindy,24.58,,6.93,1.24,24.59,1.03
+140,"13.0449408,80.2127872→Guindy_route2",2025-11-28T08:28:37.937979,,"13.0449408, 80.2127872",Guindy,25.1,,7.33,1.18,25.11,1.03
+139,"13.0449408,80.2127872→Guindy_route1",2025-11-28T08:28:37.873293,,"13.0449408, 80.2127872",Guindy,21.8,,6.67,1.15,21.81,1.03
+138,"13.0449408,80.2127872→Guindy_route0",2025-11-28T08:28:37.794544,,"13.0449408, 80.2127872",Guindy,19.88,,6.92,1.35,19.89,1.03
+137,"13.0449408,80.2127872→13.03032,80.22805_route5",2025-11-28T08:18:22.744811,,"13.0449408, 80.2127872","13.03032, 80.22805",19.62,,5.77,1.19,19.62,1.03
+136,"13.0449408,80.2127872→13.03032,80.22805_route4",2025-11-28T08:18:22.689949,,"13.0449408, 80.2127872","13.03032, 80.22805",15.58,,3.9,1.15,15.59,1.03
+135,"13.0449408,80.2127872→13.03032,80.22805_route3",2025-11-28T08:18:22.634614,,"13.0449408, 80.2127872","13.03032, 80.22805",15.18,,3.54,1.12,15.19,1.03
+134,"13.0449408,80.2127872→13.03032,80.22805_route2",2025-11-28T08:18:22.577758,,"13.0449408, 80.2127872","13.03032, 80.22805",16.17,,4.03,1.22,16.17,1.03
+133,"13.0449408,80.2127872→13.03032,80.22805_route1",2025-11-28T08:18:22.519451,,"13.0449408, 80.2127872","13.03032, 80.22805",14.92,,3.64,1.17,14.92,1.03
+132,"13.0449408,80.2127872→13.03032,80.22805_route0",2025-11-28T08:18:22.445023,,"13.0449408, 80.2127872","13.03032, 80.22805",13.63,,3.73,1.12,13.64,1.03
+131,"13.0449408,80.2127872→13.003027,80.23774_route5",2025-11-28T07:47:54.349040,,"13.0449408, 80.2127872","13.003027, 80.23774",39.12,,10.47,1.2,39.13,1.03
+130,"13.0449408,80.2127872→13.003027,80.23774_route4",2025-11-28T07:47:54.306321,,"13.0449408, 80.2127872","13.003027, 80.23774",30.33,,8.61,1.28,30.34,1.03
+129,"13.0449408,80.2127872→13.003027,80.23774_route3",2025-11-28T07:47:54.263916,,"13.0449408, 80.2127872","13.003027, 80.23774",28.62,0.32,8.08,1.26,28.78,1.03
+128,"13.0449408,80.2127872→13.003027,80.23774_route2",2025-11-28T07:47:54.202628,,"13.0449408, 80.2127872","13.003027, 80.23774",31.47,1.72,8.64,1.57,32.33,1.04
+127,"13.0449408,80.2127872→13.003027,80.23774_route1",2025-11-28T07:47:54.165977,,"13.0449408, 80.2127872","13.003027, 80.23774",29.0,,9.92,1.49,29.01,1.03
+126,"13.0449408,80.2127872→13.003027,80.23774_route0",2025-11-28T07:47:54.105810,,"13.0449408, 80.2127872","13.003027, 80.23774",27.35,,7.73,1.29,27.36,1.03
+125,"13.0449408,80.2127872→13.001304,80.26787_route5",2025-11-28T07:39:03.421421,,"13.0449408, 80.2127872","13.001304, 80.26787",45.48,,12.89,1.3,45.5,1.03
+124,"13.0449408,80.2127872→13.001304,80.26787_route4",2025-11-28T07:39:03.390228,,"13.0449408, 80.2127872","13.001304, 80.26787",43.87,1.82,12.29,1.23,44.79,1.04
+123,"13.0449408,80.2127872→13.001304,80.26787_route3",2025-11-28T07:39:03.350764,,"13.0449408, 80.2127872","13.001304, 80.26787",37.12,,13.44,1.4,37.13,1.03
+122,"13.0449408,80.2127872→13.001304,80.26787_route2",2025-11-28T07:39:03.321254,,"13.0449408, 80.2127872","13.001304, 80.26787",43.53,,13.27,1.37,43.55,1.03
+121,"13.0449408,80.2127872→13.001304,80.26787_route1",2025-11-28T07:39:03.286439,,"13.0449408, 80.2127872","13.001304, 80.26787",37.92,1.57,11.98,1.36,38.71,1.04
+120,"13.0449408,80.2127872→13.001304,80.26787_route0",2025-11-28T07:39:03.245301,,"13.0449408, 80.2127872","13.001304, 80.26787",34.78,,11.23,1.29,34.79,1.03
+119,"13.0449408,80.2127872→13.03032,80.22805_route5",2025-11-28T07:17:44.086029,,"13.0449408, 80.2127872","13.03032, 80.22805",19.7,0.23,5.15,1.16,19.82,1.03
+118,"13.0449408,80.2127872→13.03032,80.22805_route4",2025-11-28T07:17:43.838543,,"13.0449408, 80.2127872","13.03032, 80.22805",16.08,0.37,3.9,1.19,16.27,1.03
+117,"13.0449408,80.2127872→13.03032,80.22805_route3",2025-11-28T07:17:43.606104,,"13.0449408, 80.2127872","13.03032, 80.22805",16.97,0.37,4.03,1.29,17.15,1.03
+116,"13.0449408,80.2127872→13.03032,80.22805_route2",2025-11-28T07:17:43.353330,,"13.0449408, 80.2127872","13.03032, 80.22805",15.73,,3.54,1.16,15.74,1.03
+115,"13.0449408,80.2127872→13.03032,80.22805_route1",2025-11-28T07:17:43.158663,,"13.0449408, 80.2127872","13.03032, 80.22805",15.37,,3.64,1.21,15.37,1.03
+114,"13.0449408,80.2127872→13.03032,80.22805_route0",2025-11-28T07:17:42.942981,,"13.0449408, 80.2127872","13.03032, 80.22805",14.17,,3.73,1.16,14.17,1.03
+113,"13.0449408,80.2127872→13.127382,80.184093_route5",2025-11-28T06:52:08.417721,,"13.0449408, 80.2127872","13.127382, 80.184093",46.6,,15.09,1.14,46.62,11.49
+112,"13.0449408,80.2127872→13.127382,80.184093_route4",2025-11-28T06:52:08.374643,,"13.0449408, 80.2127872","13.127382, 80.184093",66.9,,17.78,1.19,66.92,45.32
+111,"13.0449408,80.2127872→13.127382,80.184093_route3",2025-11-28T06:52:08.341087,,"13.0449408, 80.2127872","13.127382, 80.184093",62.23,,20.44,1.18,62.25,45.32
+110,"13.0449408,80.2127872→13.127382,80.184093_route2",2025-11-28T06:52:08.300078,,"13.0449408, 80.2127872","13.127382, 80.184093",57.83,,25.73,1.1,57.86,45.32
+109,"13.0449408,80.2127872→13.127382,80.184093_route1",2025-11-28T06:52:08.268802,,"13.0449408, 80.2127872","13.127382, 80.184093",55.92,,18.38,1.17,55.94,31.16
+108,"13.0449408,80.2127872→13.127382,80.184093_route0",2025-11-28T06:52:08.225699,,"13.0449408, 80.2127872","13.127382, 80.184093",32.93,,13.11,1.13,32.95,1.03
+107,"13.0449408,80.2127872→13.059689,80.252021_route3",2025-11-28T06:14:26.971250,,"13.0449408, 80.2127872","13.059689, 80.252021",28.5,,7.43,1.28,28.51,1.03
+106,"13.0449408,80.2127872→13.059689,80.252021_route2",2025-11-28T06:14:26.902694,,"13.0449408, 80.2127872","13.059689, 80.252021",27.18,,7.0,1.26,27.19,1.03
+105,"13.0449408,80.2127872→13.059689,80.252021_route1",2025-11-28T06:14:26.832364,,"13.0449408, 80.2127872","13.059689, 80.252021",23.05,,6.03,1.31,23.06,1.03
+104,"13.0449408,80.2127872→13.059689,80.252021_route0",2025-11-28T06:14:26.772124,,"13.0449408, 80.2127872","13.059689, 80.252021",22.12,,5.97,1.43,22.12,1.03
+103,"13.0449408,80.2127872→13.059689,80.252021_route3",2025-11-28T06:14:20.472135,,"13.0449408, 80.2127872","13.059689, 80.252021",28.5,,7.43,1.28,28.51,1.03
+102,"13.0449408,80.2127872→13.059689,80.252021_route2",2025-11-28T06:14:20.407948,,"13.0449408, 80.2127872","13.059689, 80.252021",27.18,,7.0,1.26,27.19,1.03
+101,"13.0449408,80.2127872→13.059689,80.252021_route1",2025-11-28T06:14:20.348724,,"13.0449408, 80.2127872","13.059689, 80.252021",23.05,,6.03,1.31,23.06,1.03
+100,"13.0449408,80.2127872→13.059689,80.252021_route0",2025-11-28T06:14:20.289070,,"13.0449408, 80.2127872","13.059689, 80.252021",22.12,,5.97,1.43,22.12,1.03
+99,"13.0449408,80.2127872→13.059689,80.252021_route5",2025-11-28T06:14:11.945948,,"13.0449408, 80.2127872","13.059689, 80.252021",28.68,,7.22,1.16,28.69,1.03
+98,"13.0449408,80.2127872→13.059689,80.252021_route4",2025-11-28T06:14:11.885255,,"13.0449408, 80.2127872","13.059689, 80.252021",29.9,,7.79,1.29,29.91,1.03
+97,"13.0449408,80.2127872→13.059689,80.252021_route3",2025-11-28T06:14:11.820427,,"13.0449408, 80.2127872","13.059689, 80.252021",28.5,,7.43,1.28,28.51,1.03
+96,"13.0449408,80.2127872→13.059689,80.252021_route2",2025-11-28T06:14:11.757309,,"13.0449408, 80.2127872","13.059689, 80.252021",27.18,,7.0,1.26,27.19,1.03
+95,"13.0449408,80.2127872→13.059689,80.252021_route1",2025-11-28T06:14:11.685730,,"13.0449408, 80.2127872","13.059689, 80.252021",23.07,,6.03,1.31,23.07,1.03
+94,"13.0449408,80.2127872→13.059689,80.252021_route0",2025-11-28T06:14:11.620419,,"13.0449408, 80.2127872","13.059689, 80.252021",22.12,,5.97,1.43,22.12,1.03
+93,"13.0449408,80.2127872→13.078792,80.221762_route5",2025-11-28T06:12:34.666640,,"13.0449408, 80.2127872","13.078792, 80.221762",26.78,,6.24,1.18,26.79,1.03
+92,"13.0449408,80.2127872→13.078792,80.221762_route4",2025-11-28T06:12:34.623235,,"13.0449408, 80.2127872","13.078792, 80.221762",28.08,0.32,6.2,1.21,28.25,1.03
+91,"13.0449408,80.2127872→13.078792,80.221762_route3",2025-11-28T06:12:34.591613,,"13.0449408, 80.2127872","13.078792, 80.221762",25.98,,7.97,1.26,25.99,1.03
+90,"13.0449408,80.2127872→13.078792,80.221762_route2",2025-11-28T06:12:34.548033,,"13.0449408, 80.2127872","13.078792, 80.221762",26.65,,6.36,1.33,26.66,1.03
+89,"13.0449408,80.2127872→13.078792,80.221762_route1",2025-11-28T06:12:34.514413,,"13.0449408, 80.2127872","13.078792, 80.221762",25.5,3.35,5.45,1.38,27.18,1.04
+88,"13.0449408,80.2127872→13.078792,80.221762_route0",2025-11-28T06:12:34.482202,,"13.0449408, 80.2127872","13.078792, 80.221762",23.97,,5.84,1.23,23.97,1.03
+87,"13.0449408,80.2127872→13.059689,80.252021_route3",2025-11-28T06:06:56.762451,,"13.0449408, 80.2127872","13.059689, 80.252021",28.5,,7.43,1.28,28.51,1.03
+86,"13.0449408,80.2127872→13.059689,80.252021_route2",2025-11-28T06:06:56.696796,,"13.0449408, 80.2127872","13.059689, 80.252021",27.13,,7.0,1.26,27.14,1.03
+85,"13.0449408,80.2127872→13.059689,80.252021_route1",2025-11-28T06:06:56.632688,,"13.0449408, 80.2127872","13.059689, 80.252021",23.07,,6.03,1.31,23.07,1.03
+84,"13.0449408,80.2127872→13.059689,80.252021_route0",2025-11-28T06:06:56.570821,,"13.0449408, 80.2127872","13.059689, 80.252021",22.13,,5.97,1.44,22.14,1.03
+83,"13.0449408,80.2127872→13.059689,80.252021_route3",2025-11-28T06:06:55.534274,,"13.0449408, 80.2127872","13.059689, 80.252021",28.5,,7.43,1.28,28.51,1.03
+82,"13.0449408,80.2127872→13.059689,80.252021_route2",2025-11-28T06:06:55.478481,,"13.0449408, 80.2127872","13.059689, 80.252021",27.13,,7.0,1.26,27.14,1.03
+81,"13.0449408,80.2127872→13.059689,80.252021_route1",2025-11-28T06:06:55.417573,,"13.0449408, 80.2127872","13.059689, 80.252021",23.07,,6.03,1.31,23.07,1.03
+80,"13.0449408,80.2127872→13.059689,80.252021_route0",2025-11-28T06:06:55.361029,,"13.0449408, 80.2127872","13.059689, 80.252021",22.13,,5.97,1.44,22.14,1.03
+79,"13.0449408,80.2127872→13.059689,80.252021_route3",2025-11-28T06:06:54.414543,,"13.0449408, 80.2127872","13.059689, 80.252021",28.5,,7.43,1.28,28.51,1.03
+78,"13.0449408,80.2127872→13.059689,80.252021_route2",2025-11-28T06:06:54.350280,,"13.0449408, 80.2127872","13.059689, 80.252021",27.13,,7.0,1.26,27.14,1.03
+77,"13.0449408,80.2127872→13.059689,80.252021_route1",2025-11-28T06:06:54.290613,,"13.0449408, 80.2127872","13.059689, 80.252021",23.07,,6.03,1.31,23.07,1.03
+76,"13.0449408,80.2127872→13.059689,80.252021_route0",2025-11-28T06:06:54.227366,,"13.0449408, 80.2127872","13.059689, 80.252021",22.13,,5.97,1.44,22.14,1.03
+75,"13.0449408,80.2127872→13.059689,80.252021_route5",2025-11-28T06:03:43.317164,,"13.0449408, 80.2127872","13.059689, 80.252021",29.38,,7.2,1.25,29.39,1.03
+74,"13.0449408,80.2127872→13.059689,80.252021_route4",2025-11-28T06:03:43.267010,,"13.0449408, 80.2127872","13.059689, 80.252021",27.33,,6.78,1.24,27.34,1.03
+73,"13.0449408,80.2127872→13.059689,80.252021_route3",2025-11-28T06:03:43.210811,,"13.0449408, 80.2127872","13.059689, 80.252021",29.68,,7.96,1.29,29.69,1.03
+72,"13.0449408,80.2127872→13.059689,80.252021_route2",2025-11-28T06:03:43.171904,,"13.0449408, 80.2127872","13.059689, 80.252021",28.03,,8.18,1.25,28.04,1.03
+71,"13.0449408,80.2127872→13.059689,80.252021_route1",2025-11-28T06:03:43.126333,,"13.0449408, 80.2127872","13.059689, 80.252021",23.1,,6.03,1.31,23.11,1.03
+70,"13.0449408,80.2127872→13.059689,80.252021_route0",2025-11-28T06:03:43.095160,,"13.0449408, 80.2127872","13.059689, 80.252021",22.1,,5.97,1.43,22.11,1.03
+69,"13.011041,80.220967→13.001304,80.26787_route5",2025-11-28T04:22:58.325272,,"13.011041, 80.220967","13.001304, 80.26787",43.48,,13.98,1.21,43.5,1.03
+68,"13.011041,80.220967→13.001304,80.26787_route4",2025-11-28T04:22:58.293868,,"13.011041, 80.220967","13.001304, 80.26787",26.6,3.62,7.99,1.44,28.42,1.04
+67,"13.011041,80.220967→13.001304,80.26787_route3",2025-11-28T04:22:58.261750,,"13.011041, 80.220967","13.001304, 80.26787",38.45,6.48,11.38,1.46,41.7,1.04
+66,"13.011041,80.220967→13.001304,80.26787_route2",2025-11-28T04:22:58.226808,,"13.011041, 80.220967","13.001304, 80.26787",37.85,,12.15,1.16,37.86,1.03
+65,"13.011041,80.220967→13.001304,80.26787_route1",2025-11-28T04:22:58.191621,,"13.011041, 80.220967","13.001304, 80.26787",23.83,3.62,7.14,1.54,25.65,1.04
+64,"13.011041,80.220967→13.001304,80.26787_route0",2025-11-28T04:22:58.155442,,"13.011041, 80.220967","13.001304, 80.26787",23.92,3.62,6.88,1.54,25.73,1.04
+63,"13.011041,80.220967→13.001304,80.26787_route3",2025-11-28T04:20:26.684593,,"13.011041, 80.220967","13.001304, 80.26787",38.07,4.87,11.38,1.45,40.51,1.04
+62,"13.011041,80.220967→13.001304,80.26787_route2",2025-11-28T04:20:26.654769,,"13.011041, 80.220967","13.001304, 80.26787",37.85,,12.15,1.16,37.86,1.03
+61,"13.011041,80.220967→13.001304,80.26787_route1",2025-11-28T04:20:26.624866,,"13.011041, 80.220967","13.001304, 80.26787",23.43,3.22,7.14,1.52,25.05,1.04
+60,"13.011041,80.220967→13.001304,80.26787_route0",2025-11-28T04:20:26.592153,,"13.011041, 80.220967","13.001304, 80.26787",23.52,3.22,6.88,1.52,25.13,1.04
+59,"13.011041,80.220967→13.001304,80.26787_route3",2025-11-28T04:16:51.648953,,"13.011041, 80.220967","13.001304, 80.26787",38.53,5.18,11.38,1.46,41.14,1.04
+58,"13.011041,80.220967→13.001304,80.26787_route2",2025-11-28T04:16:51.618229,,"13.011041, 80.220967","13.001304, 80.26787",37.82,,12.15,1.16,37.83,1.03
+57,"13.011041,80.220967→13.001304,80.26787_route1",2025-11-28T04:16:51.589813,,"13.011041, 80.220967","13.001304, 80.26787",23.8,3.62,7.14,1.54,25.62,1.04
+56,"13.011041,80.220967→13.001304,80.26787_route0",2025-11-28T04:16:51.556414,,"13.011041, 80.220967","13.001304, 80.26787",23.87,3.62,6.88,1.54,25.68,1.04
+55,"13.011041,80.220967→13.001304,80.26787_route5",2025-11-28T04:16:22.070473,,"13.011041, 80.220967","13.001304, 80.26787",43.35,,13.98,1.21,43.36,1.03
+54,"13.011041,80.220967→13.001304,80.26787_route4",2025-11-28T04:16:22.029288,,"13.011041, 80.220967","13.001304, 80.26787",26.12,3.22,7.99,1.42,27.73,1.04
+53,"13.011041,80.220967→13.001304,80.26787_route3",2025-11-28T04:16:21.997345,,"13.011041, 80.220967","13.001304, 80.26787",38.02,4.75,11.38,1.44,40.4,1.04
+52,"13.011041,80.220967→13.001304,80.26787_route2",2025-11-28T04:16:21.968932,,"13.011041, 80.220967","13.001304, 80.26787",37.8,,12.15,1.16,37.81,1.03
+51,"13.011041,80.220967→13.001304,80.26787_route1",2025-11-28T04:16:21.938482,,"13.011041, 80.220967","13.001304, 80.26787",23.38,3.22,7.14,1.51,25.0,1.04
+50,"13.011041,80.220967→13.001304,80.26787_route0",2025-11-28T04:16:21.899254,,"13.011041, 80.220967","13.001304, 80.26787",23.45,3.22,6.88,1.51,25.07,1.04
+49,"13.011041,80.220967→13.052609,80.210498_route3",2025-11-28T04:15:43.757432,,"13.011041, 80.220967","13.052609, 80.210498",28.97,,7.55,1.14,28.97,1.03
+48,"13.011041,80.220967→13.052609,80.210498_route2",2025-11-28T04:15:43.716655,,"13.011041, 80.220967","13.052609, 80.210498",29.38,,7.15,1.21,29.39,1.03
+47,"13.011041,80.220967→13.052609,80.210498_route1",2025-11-28T04:15:43.685419,,"13.011041, 80.220967","13.052609, 80.210498",26.88,,6.9,1.22,26.89,1.03
+46,"13.011041,80.220967→13.052609,80.210498_route0",2025-11-28T04:15:43.645211,,"13.011041, 80.220967","13.052609, 80.210498",23.92,2.18,8.27,1.36,25.02,1.04
+45,"13.011041,80.220967→13.010996,80.235086_route2",2025-11-28T04:11:12.391671,,"13.011041, 80.220967","13.010996, 80.235086",28.08,5.17,7.43,1.52,30.67,1.04
+44,"13.011041,80.220967→13.010996,80.235086_route1",2025-11-28T04:11:12.331543,,"13.011041, 80.220967","13.010996, 80.235086",11.02,1.45,2.4,1.23,11.74,1.04
+43,"13.011041,80.220967→13.010996,80.235086_route0",2025-11-28T04:11:12.280387,,"13.011041, 80.220967","13.010996, 80.235086",10.43,1.45,2.67,1.3,11.16,1.04
+42,"13.007966,80.20467→12.995304,80.253843_route3",2025-11-28T04:07:04.230706,,"13.007966, 80.20467","12.995304, 80.253843",40.3,5.38,12.32,1.36,43.0,1.04
+41,"13.007966,80.20467→12.995304,80.253843_route2",2025-11-28T04:07:04.184154,,"13.007966, 80.20467","12.995304, 80.253843",36.32,,11.04,1.14,36.33,1.03
+40,"13.007966,80.20467→12.995304,80.253843_route1",2025-11-28T04:07:04.151074,,"13.007966, 80.20467","12.995304, 80.253843",32.68,,13.76,1.26,32.7,1.03
+39,"13.007966,80.20467→12.995304,80.253843_route0",2025-11-28T04:07:04.115514,,"13.007966, 80.20467","12.995304, 80.253843",27.75,8.68,8.72,1.86,32.1,1.04
+38,"13.012077,80.213045→12.995304,80.253843_route3",2025-11-28T04:05:58.377869,,"13.012077, 80.213045","12.995304, 80.253843",24.75,7.45,7.01,1.92,28.48,1.04
+37,"13.012077,80.213045→12.995304,80.253843_route2",2025-11-28T04:05:58.345548,,"13.012077, 80.213045","12.995304, 80.253843",36.57,3.85,11.63,1.39,38.5,1.04
+36,"13.012077,80.213045→12.995304,80.253843_route1",2025-11-28T04:05:58.317115,,"13.012077, 80.213045","12.995304, 80.253843",34.4,0.58,10.27,1.26,34.7,1.03
+35,"13.012077,80.213045→12.995304,80.253843_route0",2025-11-28T04:05:58.284419,,"13.012077, 80.213045","12.995304, 80.253843",23.78,3.62,7.27,1.6,25.6,1.04
+34,"13.012077,80.213045→12.995304,80.253843_route3",2025-11-28T04:05:48.019369,,"13.012077, 80.213045","12.995304, 80.253843",24.75,7.45,7.01,1.92,28.48,1.04
+33,"13.012077,80.213045→12.995304,80.253843_route2",2025-11-28T04:05:47.989169,,"13.012077, 80.213045","12.995304, 80.253843",36.57,3.85,11.63,1.39,38.5,1.04
+32,"13.012077,80.213045→12.995304,80.253843_route1",2025-11-28T04:05:47.959391,,"13.012077, 80.213045","12.995304, 80.253843",34.4,0.58,10.27,1.26,34.7,1.03
+31,"13.012077,80.213045→12.995304,80.253843_route0",2025-11-28T04:05:47.925292,,"13.012077, 80.213045","12.995304, 80.253843",23.78,3.62,7.27,1.6,25.6,1.04
+30,"13.012077,80.213045→13.047401,80.224611_route3",2025-11-28T04:04:51.880012,,"13.012077, 80.213045","13.047401, 80.224611",21.35,,5.81,1.12,21.36,1.03
+29,"13.012077,80.213045→13.047401,80.224611_route2",2025-11-28T04:04:51.836192,,"13.012077, 80.213045","13.047401, 80.224611",20.38,,5.23,1.14,20.39,1.03
+28,"13.012077,80.213045→13.047401,80.224611_route1",2025-11-28T04:04:51.809256,,"13.012077, 80.213045","13.047401, 80.224611",19.4,,6.1,1.36,19.41,1.03
+27,"13.012077,80.213045→13.047401,80.224611_route0",2025-11-28T04:04:51.777272,,"13.012077, 80.213045","13.047401, 80.224611",17.23,,4.58,1.26,17.24,1.03
+26,"12.921679,80.113826→13.095581,80.283512_route3",2025-11-28T03:58:08.976370,,"12.921679, 80.113826","13.095581, 80.283512",75.3,0.42,37.68,1.31,75.55,45.32
+25,"12.921679,80.113826→13.095581,80.283512_route2",2025-11-28T03:58:08.945031,,"12.921679, 80.113826","13.095581, 80.283512",86.58,,36.5,1.31,86.62,45.32
+24,"12.921679,80.113826→13.095581,80.283512_route1",2025-11-28T03:58:08.917146,,"12.921679, 80.113826","13.095581, 80.283512",79.58,0.88,30.65,1.47,80.06,45.32
+23,"12.921679,80.113826→13.095581,80.283512_route0",2025-11-28T03:58:08.888474,,"12.921679, 80.113826","13.095581, 80.283512",69.3,0.42,46.05,1.13,69.55,45.32
+22,"12.921679,80.113826→13.101761,80.161163_route2",2025-11-28T03:56:50.333663,,"12.921679, 80.113826","13.101761, 80.161163",69.63,,30.97,1.29,69.66,45.32
+21,"12.921679,80.113826→13.101761,80.161163_route1",2025-11-28T03:56:50.301030,,"12.921679, 80.113826","13.101761, 80.161163",57.27,,33.22,1.17,57.3,31.16
+20,"12.921679,80.113826→13.101761,80.161163_route0",2025-11-28T03:56:50.254813,,"12.921679, 80.113826","13.101761, 80.161163",33.22,,26.75,1.07,33.24,1.03
+19,"13.011041,80.220967→13.047401,80.224611_route3",2025-11-28T03:51:22.634551,,"13.011041, 80.220967","13.047401, 80.224611",25.9,,6.15,1.15,25.91,1.03
+18,"13.011041,80.220967→13.047401,80.224611_route2",2025-11-28T03:51:22.598380,,"13.011041, 80.220967","13.047401, 80.224611",22.65,,5.58,1.3,22.66,1.03
+17,"13.011041,80.220967→13.047401,80.224611_route1",2025-11-28T03:51:22.570076,,"13.011041, 80.220967","13.047401, 80.224611",24.15,,8.49,1.29,24.16,1.03
+16,"13.011041,80.220967→13.047401,80.224611_route0",2025-11-28T03:51:22.528581,,"13.011041, 80.220967","13.047401, 80.224611",23.3,,5.72,1.23,23.31,1.03
+15,"Guindy→13.047401,80.224611_route3",2025-11-28T02:50:41.982208,,Guindy,"13.047401, 80.224611",25.12,,6.16,1.14,25.12,1.03
+14,"Guindy→13.047401,80.224611_route2",2025-11-28T02:50:41.944331,,Guindy,"13.047401, 80.224611",23.43,,8.49,1.25,23.44,1.03
+13,"Guindy→13.047401,80.224611_route1",2025-11-28T02:50:41.904147,,Guindy,"13.047401, 80.224611",22.38,,5.72,1.19,22.39,1.03
+12,"Guindy→13.047401,80.224611_route0",2025-11-28T02:50:41.848394,,Guindy,"13.047401, 80.224611",21.23,,6.4,1.27,21.24,1.03
+11,"Guindy, Chennai→Velachery, Chennai_route2",2025-11-27T17:39:23.544933,,"Guindy, Chennai","Velachery, Chennai",17.03,,6.1,1.0,17.04,
+10,"Guindy, Chennai→Velachery, Chennai_route1",2025-11-27T17:39:23.533171,,"Guindy, Chennai","Velachery, Chennai",14.3,,5.54,1.0,14.31,
+9,"Guindy, Chennai→Velachery, Chennai_route0",2025-11-27T17:39:23.514014,,"Guindy, Chennai","Velachery, Chennai",13.93,,5.63,1.0,13.94,
+8,"12.976813,80.221488→12.921679,80.113826_route3",2025-11-22T19:46:59.290353,,"12.976813, 80.221488","12.921679, 80.113826",36.22,,16.47,1.0,36.23,
+7,"12.976813,80.221488→12.921679,80.113826_route2",2025-11-22T19:46:59.273135,,"12.976813, 80.221488","12.921679, 80.113826",34.85,,19.53,1.0,34.87,
+6,"12.976813,80.221488→12.921679,80.113826_route1",2025-11-22T19:46:59.260649,,"12.976813, 80.221488","12.921679, 80.113826",31.52,,16.64,1.0,31.53,
+5,"12.976813,80.221488→12.921679,80.113826_route0",2025-11-22T19:46:59.236977,,"12.976813, 80.221488","12.921679, 80.113826",28.2,,16.56,1.0,28.22,
+4,"12.976813,80.221488→13.101761,80.161163_route3",2025-11-22T19:42:50.807364,,"12.976813, 80.221488","13.101761, 80.161163",47.03,,21.14,1.0,47.05,
+3,"12.976813,80.221488→13.101761,80.161163_route2",2025-11-22T19:42:50.781949,,"12.976813, 80.221488","13.101761, 80.161163",49.93,,22.61,1.0,49.96,
+2,"12.976813,80.221488→13.101761,80.161163_route1",2025-11-22T19:42:50.761005,,"12.976813, 80.221488","13.101761, 80.161163",42.58,,21.47,1.0,42.6,
+1,"12.976813,80.221488→13.101761,80.161163_route0",2025-11-22T19:42:50.732095,,"12.976813, 80.221488","13.101761, 80.161163",39.73,,20.86,0.99,39.75,

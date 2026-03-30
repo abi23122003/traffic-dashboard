@@ -1,0 +1,6 @@
+.env
+__pycache__/
+traffic_results.csv
+visuals/
+*.pyc
+.vscode/

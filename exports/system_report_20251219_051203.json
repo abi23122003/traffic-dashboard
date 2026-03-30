@@ -1,0 +1,88 @@
+{
+  "export_timestamp": "2025-12-19T05:12:03.856375+00:00",
+  "system_statistics": {
+    "total_users": 3,
+    "active_users": 3,
+    "admin_users": 2,
+    "total_routes": 506,
+    "total_analyses": 506,
+    "total_saved_routes": 7,
+    "total_ratings": 0,
+    "total_notifications": 0
+  },
+  "cache_statistics": {
+    "size": 0,
+    "maxsize": 1000,
+    "ttl": 300
+  },
+  "database_info": {
+    "database_type": "SQLite",
+    "database_path": "traffic_analysis.db"
+  },
+  "ml_model_info": {
+    "model_loaded": true,
+    "model_path": "rf_model.pkl"
+  },
+  "recent_activity": [
+    {
+      "route_id": "13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route3",
+      "timestamp": "2025-12-19T05:09:49.290836",
+      "travel_time": 2048.0,
+      "cost": 35.659166
+    },
+    {
+      "route_id": "13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route2",
+      "timestamp": "2025-12-19T05:09:49.229775",
+      "travel_time": 1506.0,
+      "cost": 26.365043333333336
+    },
+    {
+      "route_id": "13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route1",
+      "timestamp": "2025-12-19T05:09:49.167257",
+      "travel_time": 1674.0,
+      "cost": 31.232456999999997
+    },
+    {
+      "route_id": "13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route0",
+      "timestamp": "2025-12-19T05:09:49.108197",
+      "travel_time": 1503.0,
+      "cost": 26.01477033333333
+    },
+    {
+      "route_id": "13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route5",
+      "timestamp": "2025-12-19T05:09:27.969863",
+      "travel_time": 1387.0,
+      "cost": 25.290179333333334
+    },
+    {
+      "route_id": "13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route4",
+      "timestamp": "2025-12-19T05:09:27.910611",
+      "travel_time": 1254.0,
+      "cost": 22.405711
+    },
+    {
+      "route_id": "13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route3",
+      "timestamp": "2025-12-19T05:09:27.845415",
+      "travel_time": 1252.0,
+      "cost": 22.664389333333336
+    },
+    {
+      "route_id": "13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route2",
+      "timestamp": "2025-12-19T05:09:27.773826",
+      "travel_time": 1212.0,
+      "cost": 21.897468666666665
+    },
+    {
+      "route_id": "13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route1",
+      "timestamp": "2025-12-19T05:09:27.704407",
+      "travel_time": 1210.0,
+      "cost": 22.02212866666667
+    },
+    {
+      "route_id": "13.0351104, 80.2127872→Guindy, Chennai, Tamil Nadu_route0",
+      "timestamp": "2025-12-19T05:09:27.637095",
+      "travel_time": 1121.0,
+      "cost": 20.572052666666668
+    }
+  ]
+}
