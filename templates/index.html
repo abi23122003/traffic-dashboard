@@ -600,6 +600,35 @@
             }
         }
 
+        // Load real stats from database
+        async function loadRealStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                
+                const routesEl = document.getElementById('stat-routes');
+                const congestionEl = document.getElementById('stat-congestion');
+                const statusEl = document.getElementById('stat-status');
+                
+                if (routesEl) routesEl.textContent = data.total_routes.toLocaleString();
+                if (congestionEl) {
+                    congestionEl.textContent = '• ' + data.avg_congestion.toFixed(2) + 'x';
+                    congestionEl.style.color = data.status_color;
+                }
+                if (statusEl) {
+                    statusEl.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:' + data.status_color + ';display:inline-block;margin-right:5px;vertical-align:middle;"></span>' + data.traffic_status;
+                    statusEl.style.color = data.status_color;
+                }
+            } catch(e) {
+                console.log('Stats load failed:', e);
+            }
+        }
+
+        // Load real stats on page load and every 30 seconds
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRealStats();
+            setInterval(loadRealStats, 30000);
+        });
 
     </script>
 </body>

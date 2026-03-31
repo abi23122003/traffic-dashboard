@@ -479,6 +479,64 @@ async def health():
     }
 
 
+@app.get("/api/stats")
+async def get_stats():
+    """Get real statistics from database for stats bar."""
+    try:
+        session = get_session()
+        
+        # Count routes analyzed today
+        today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_count = session.query(AnalysisResult).filter(
+            AnalysisResult.timestamp >= today_start
+        ).count()
+        
+        # Get average congestion from last 10 records
+        recent_records = session.query(AnalysisResult).order_by(
+            AnalysisResult.timestamp.desc()
+        ).limit(10).all()
+        
+        avg_congestion = 1.0
+        if recent_records:
+            ratios = []
+            for r in recent_records:
+                if r.travel_time_s and r.no_traffic_s and r.no_traffic_s > 0:
+                    ratios.append(r.travel_time_s / r.no_traffic_s)
+            if ratios:
+                avg_congestion = round(sum(ratios) / len(ratios), 2)
+        
+        # Traffic status based on congestion
+        if avg_congestion < 1.15:
+            traffic_status = "Light"
+            status_color = "#42a5f5"
+        elif avg_congestion < 1.5:
+            traffic_status = "Moderate"
+            status_color = "#ffa726"
+        else:
+            traffic_status = "Heavy"
+            status_color = "#ef5350"
+        
+        # Total all time count
+        total_count = session.query(AnalysisResult).count()
+        session.close()
+        
+        return {
+            "routes_today": today_count,
+            "total_routes": total_count,
+            "avg_congestion": avg_congestion,
+            "traffic_status": traffic_status,
+            "status_color": status_color
+        }
+    except Exception as e:
+        return {
+            "routes_today": 0,
+            "total_routes": 0,
+            "avg_congestion": 1.0,
+            "traffic_status": "Light",
+            "status_color": "#42a5f5"
+        }
+
+
 @app.get("/autocomplete")
 async def autocomplete(q: str = Query(..., description="Search query")):
     """
