@@ -756,3 +756,7 @@
 2026-04-01 00:55:18 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
 2026-04-01 00:55:18 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
 2026-04-01 00:55:18 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:09:40 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:09:40 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 01:09:40 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:09:42 - db - INFO - db.py:190 - ✅ Default admin user verified/created
