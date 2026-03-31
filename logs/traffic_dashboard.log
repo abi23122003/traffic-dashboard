@@ -760,3 +760,27 @@
 2026-04-01 01:09:40 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
 2026-04-01 01:09:40 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
 2026-04-01 01:09:42 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 01:09:48 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:09:48 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 01:09:48 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 01:09:48 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:09:49 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:09:49 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 01:09:49 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:09:49 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 01:09:50 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 01:09:50 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:09:50 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 01:09:50 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:09:50 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 01:09:53 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 01:09:54 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 01:09:54 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 01:11:28 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:11:40 - fuel_price - WARNING - fuel_price.py:72 - Could not fetch fuel prices from API: HTTPSConnectionPool(host='api.data.gov.in', port=443): Read timed out. (read timeout=5)
+2026-04-01 01:11:40 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:11:41 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:11:41 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:11:41 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:11:41 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 01:11:42 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
