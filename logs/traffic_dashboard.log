@@ -632,3 +632,108 @@
 2026-03-31 02:06:28 - db - INFO - db.py:190 - ✅ Default admin user verified/created
 2026-03-31 02:06:30 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
 2026-03-31 02:06:30 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:15:34 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:15:34 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:15:35 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:15:35 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:15:43 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:15:43 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:15:43 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:15:43 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:15:46 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:17:10 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:17:10 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:17:10 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:17:10 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:17:13 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:21:24 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:21:24 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:21:24 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:21:24 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:21:24 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:21:24 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:21:24 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:21:24 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:21:27 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:21:27 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:21:28 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:21:33 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:21:33 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:21:33 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:21:34 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:21:34 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:21:48 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:21:51 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:21:51 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:21:51 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:02 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:05 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:05 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:05 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:05 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:24 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:24 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:22:24 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:25 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:22:27 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:27 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:22:27 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:28 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:22:31 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:22:31 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:35 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:22:38 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:38 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:39 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:39 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:22:39 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:31:05 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:31:06 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:31:06 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:31:07 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:31:09 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:31:09 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:31:09 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:31:10 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:31:14 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:31:18 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:31:26 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:31:26 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:31:26 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:31:27 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:31:29 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:31:30 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:31:30 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:31:31 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:31:35 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:31:37 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:32:43 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:32:43 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:32:43 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:32:44 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:32:47 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:39:36 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:39:36 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:39:36 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:39:37 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:39:39 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:48:34 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:48:34 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:48:34 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:48:35 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:48:37 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:48:37 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:48:37 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:48:37 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:48:37 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:48:37 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:48:38 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:48:38 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:48:38 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:48:39 - db - INFO - db.py:182 - ✅ Database tables initialized successfully
+2026-04-01 00:48:39 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:48:40 - db - INFO - db.py:190 - ✅ Default admin user verified/created
+2026-04-01 00:48:49 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:48:52 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:48:52 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:48:53 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl

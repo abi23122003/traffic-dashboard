@@ -357,21 +357,13 @@ def extract_route_geometry(route_json: dict) -> list[tuple[float, float]]:
 
 def predict_congestion(features: dict) -> Optional[float]:
     """
-    Predict congestion using ML model if available.
-    
-    Args:
-        features: Dictionary with feature values
-        
-    Returns:
-        Predicted congestion level or None
+    Predict route score using RF model.
+    Lower score = better route.
     """
     if ML_MODEL is None:
         return None
-    
     try:
         import pandas as pd
-        import numpy as np
-        
         now = datetime.now(UTC)
         feature_dict = {
             "hour": now.hour,
@@ -385,13 +377,11 @@ def predict_congestion(features: dict) -> Optional[float]:
             "rolling_mean_congestion": features.get("rolling_mean_congestion", 1.0),
             "rolling_std_congestion": features.get("rolling_std_congestion", 0.0)
         }
-        
         df = pd.DataFrame([feature_dict])
         numeric_cols = [col for col in df.columns if df[col].dtype in ['int64', 'float64']]
         X = df[numeric_cols].fillna(0)
-        
         prediction = ML_MODEL.predict(X)[0]
-        return float(prediction)
+        return round(float(prediction), 2)
     except Exception as e:
         logger.error(f"ML prediction error: {e}")
         return None

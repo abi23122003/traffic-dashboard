@@ -7,8 +7,9 @@
     <title>Traffic Route Analyzer - Smart Route Suggestions</title>
 
     <!-- PWA Support -->
-    <link rel="manifest" href="/static/manifest.json">
+    <link rel="manifest" href="/static/manifest.json?v=2">
     <meta name="theme-color" content="#764ba2">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
@@ -283,7 +284,7 @@
             </div>
         </div>
 
-        <button onclick="analyzeRoute()" style="background: #f0c040; border: none; border-radius: 12px; padding: 13px 22px; color: #080f1c; font-size: 13px; font-weight: 800; cursor: pointer; white-space: nowrap; align-self: flex-end; height: 48px;">
+        <button id="analyze-btn" onclick="handleAnalyzeClick()" style="background: #f0c040; border: none; border-radius: 12px; padding: 13px 22px; color: #080f1c; font-size: 13px; font-weight: 800; cursor: pointer; white-space: nowrap; align-self: flex-end; height: 48px;">
             &#128269; FIND BEST ROUTES
         </button>
     </div>
@@ -386,8 +387,8 @@
         // Wrapper function to ensure analyzeRoute is accessible
         function handleAnalyzeClick() {
             console.log('handleAnalyzeClick called');
+            // Call the analyzeRoute function from app.js
             if (typeof analyzeRoute === 'function') {
-                console.log('analyzeRoute function found, calling...');
                 analyzeRoute().catch(error => {
                     console.error('Error in analyzeRoute:', error);
                     const errorDiv = document.getElementById('error-message');
@@ -425,11 +426,6 @@
             } else {
                 alert('Geolocation is not supported by your browser.');
             }
-        }
-        
-        // Analyze Route function
-        function analyzeRoute() {
-            handleAnalyzeClick();
         }
         
         // Initialize auth on page load and hide route analyzer for admins
