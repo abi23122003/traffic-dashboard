@@ -737,3 +737,22 @@
 2026-04-01 00:48:52 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
 2026-04-01 00:48:52 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
 2026-04-01 00:48:53 - app - INFO - app.py:92 - ✅ Loaded ML model from rf_model.pkl
+2026-04-01 00:49:41 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:49:47 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:49:47 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:49:48 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:49:48 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:53:58 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:54:02 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:54:03 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:54:03 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:54:03 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:54:04 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:54:04 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:55:12 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:55:16 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:55:17 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:55:17 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:55:18 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:55:18 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
+2026-04-01 00:55:18 - db - INFO - db.py:162 - Using SQLite database: traffic_analysis.db
