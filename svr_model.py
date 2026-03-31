@@ -32,21 +32,41 @@ def generate_historical_data(n_samples=300):
         is_peak_am = 1 if 8 <= hour <= 10 else 0
         is_peak_pm = 1 if 17 <= hour <= 20 else 0
         is_night = 1 if (hour >= 22 or hour <= 5) else 0
+
+        # Realistic congestion values — max 1.8 (80% slower)
         if is_peak_am:
-            congestion = np.random.uniform(1.5, 2.2)
+            congestion = np.random.uniform(1.3, 1.7)
         elif is_peak_pm:
-            congestion = np.random.uniform(1.6, 2.4)
+            congestion = np.random.uniform(1.4, 1.8)
         elif is_night:
-            congestion = np.random.uniform(0.9, 1.1)
+            congestion = np.random.uniform(0.95, 1.05)
         else:
-            congestion = np.random.uniform(1.1, 1.5)
+            congestion = np.random.uniform(1.05, 1.3)
+
+        # Weekends lighter
         if is_weekend:
-            congestion *= np.random.uniform(0.7, 0.85)
+            congestion *= np.random.uniform(0.75, 0.90)
+
+        # Monsoon months slightly worse
         if 6 <= month <= 9:
-            congestion *= np.random.uniform(1.05, 1.2)
-        congestion += np.random.normal(0, 0.08)
-        congestion = round(max(0.9, min(3.0, congestion)), 4)
-        records.append({"hour":hour,"weekday":weekday,"is_weekend":is_weekend,"month":month,"is_peak_am":is_peak_am,"is_peak_pm":is_peak_pm,"is_night":is_night,"historical_congestion":congestion})
+            congestion *= np.random.uniform(1.02, 1.10)
+
+        # Add small noise
+        congestion += np.random.normal(0, 0.03)
+
+        # HARD CAP — max 1.8, min 0.95
+        congestion = round(max(0.95, min(1.8, congestion)), 4)
+
+        records.append({
+            "hour": hour,
+            "weekday": weekday,
+            "is_weekend": is_weekend,
+            "month": month,
+            "is_peak_am": is_peak_am,
+            "is_peak_pm": is_peak_pm,
+            "is_night": is_night,
+            "historical_congestion": congestion,
+        })
     return pd.DataFrame(records)
 
 def train_svr():
