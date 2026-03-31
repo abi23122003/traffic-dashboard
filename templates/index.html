@@ -600,17 +600,7 @@
             }
         }
 
-        // Add GPS button to header
-        document.addEventListener('DOMContentLoaded', () => {
-            const header = document.querySelector('header > div:last-child');
-            if (header) {
-                const gpsBtn = document.createElement('button');
-                gpsBtn.innerHTML = '📍 Use My Location';
-                gpsBtn.onclick = getCurrentLocation;
-                gpsBtn.style.cssText = 'padding: 10px 20px; background: white; color: #667eea; border: 2px solid #667eea; border-radius: 8px; font-weight: 600; cursor: pointer;';
-                header.insertBefore(gpsBtn, header.firstChild);
-            }
-        });
+
     </script>
 </body>
 
