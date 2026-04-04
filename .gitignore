@@ -5,3 +5,4 @@ visuals/
 *.pyc
 .vscode/
 Report/
+logs/
