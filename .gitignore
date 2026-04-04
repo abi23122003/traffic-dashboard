@@ -1,8 +1,30 @@
+# Environment variables
 .env
+.env.local
+
+# Python cache
 __pycache__/
-traffic_results.csv
-visuals/
 *.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# IDE
 .vscode/
-Report/
+
+# Generated data and logs
 logs/
+*.log
+exports/
+traffic_results.csv
+svr_training_data.csv
+routes.csv
+
+# Database and models
+*.db
+*.pkl
+
+# Visualizations and reports
+visuals/
+*.pptx
+Report/

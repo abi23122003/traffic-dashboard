@@ -1,4 +1,0 @@
-id,email,username,full_name,is_active,is_admin,created_at,last_login
-3,sanjaysk2303@gmail.com,Owner,Sanjay,Yes,Yes,2025-12-18T17:10:54.974985,2025-12-18T18:11:55.362769
-2,testuser1@gmail.com,Testuser1,Test User,Yes,No,2025-12-03T14:16:33.771381,2025-12-19T05:09:53.089727
-1,admin123@gmail.com,Admin,Admin,Yes,Yes,2025-12-03T13:38:46.250912,2025-12-19T05:11:54.225334
