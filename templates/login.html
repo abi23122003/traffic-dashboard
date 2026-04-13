@@ -184,6 +184,10 @@
             transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
+        .input-wrapper:has(.password-toggle) input {
+            padding-right: 50px;
+        }
+
         input::placeholder {
             color: rgba(203, 213, 245, 0.3);
         }
@@ -215,15 +219,26 @@
             border: none;
             color: #cbd5f5;
             cursor: pointer;
-            font-size: 18px;
-            padding: 8px;
+            font-size: 20px;
+            padding: 8px 12px;
             transition: all 0.3s ease;
             z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
         }
 
         .password-toggle:hover {
             color: #d4af37;
-            transform: translateY(-50%) scale(1.1);
+            background: rgba(212, 175, 55, 0.1);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        .password-toggle:active {
+            background: rgba(212, 175, 55, 0.2);
         }
 
         .field-feedback {
@@ -533,7 +548,7 @@
                 </div>
                 <div class="input-wrapper">
                     <input type="password" id="password" placeholder="Enter your password" required>
-                    <button type="button" class="password-toggle" id="password-toggle" onclick="togglePasswordVisibility()">👁️</button>
+                    <button type="button" class="password-toggle" id="password-toggle" onclick="togglePasswordVisibility('password')">👁️</button>
                     <div class="password-strength" id="password-strength">
                         <div class="strength-bar">
                             <div class="strength-fill" id="strength-fill"></div>
@@ -541,6 +556,16 @@
                         <div class="strength-text" id="strength-text">Weak</div>
                     </div>
                     <div class="field-feedback" id="password-feedback"></div>
+                </div>
+            </div>
+            <div class="form-group" id="confirm-password-group" style="display: none;">
+                <div class="label-wrapper">
+                    <label for="confirm-password">Confirm Password</label>
+                </div>
+                <div class="input-wrapper">
+                    <input type="password" id="confirm-password" placeholder="Re-enter your password" required>
+                    <button type="button" class="password-toggle" id="confirm-password-toggle" onclick="togglePasswordVisibility('confirm-password')">👁️</button>
+                    <div class="field-feedback" id="confirm-password-feedback"></div>
                 </div>
             </div>
             <button type="submit" id="submit-btn">Login</button>
@@ -557,9 +582,9 @@
         let isLogin = true;
 
         // Password visibility toggle
-        function togglePasswordVisibility() {
-            const passwordInput = document.getElementById('password');
-            const toggle = document.getElementById('password-toggle');
+        function togglePasswordVisibility(fieldId = 'password') {
+            const passwordInput = document.getElementById(fieldId);
+            const toggle = document.getElementById(fieldId === 'password' ? 'password-toggle' : 'confirm-password-toggle');
             
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
@@ -688,9 +713,16 @@
             document.getElementById('toggle-link').textContent = isLogin ? 'Sign up' : 'Login';
             document.getElementById('email-group').style.display = isLogin ? 'none' : 'block';
             document.getElementById('name-group').style.display = isLogin ? 'none' : 'block';
+            document.getElementById('confirm-password-group').style.display = isLogin ? 'none' : 'block';
             document.getElementById('password-toggle').textContent = '👁️';
             document.getElementById('password').type = 'password';
             document.getElementById('password').value = '';
+            const confirmPasswordField = document.getElementById('confirm-password');
+            if (confirmPasswordField) {
+                confirmPasswordField.type = 'password';
+                confirmPasswordField.value = '';
+                document.getElementById('confirm-password-toggle').textContent = '👁️';
+            }
             document.getElementById('error-message').innerHTML = '';
             document.getElementById('success-message').innerHTML = '';
             clearValidationStates();
@@ -772,9 +804,10 @@
                     const email = document.getElementById('email').value.trim();
                     const username = document.getElementById('username').value.trim();
                     const password = document.getElementById('password').value;
+                    const confirmPassword = document.getElementById('confirm-password').value;
                     const fullName = document.getElementById('full-name').value.trim() || null;
                     
-                    if (!email || !username || !password) {
+                    if (!email || !username || !password || !confirmPassword) {
                         throw new Error('Please fill in all required fields');
                     }
                     
@@ -784,6 +817,10 @@
                     
                     if (password.length < 6) {
                         throw new Error('Password must be at least 6 characters long.');
+                    }
+                    
+                    if (password !== confirmPassword) {
+                        throw new Error('Passwords do not match. Please try again.');
                     }
                     
                     const MAX_PASSWORD_LENGTH = 10000;
