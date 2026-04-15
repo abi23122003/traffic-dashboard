@@ -190,8 +190,14 @@ def get_user_by_email(db: Session, email: str) -> Optional[User]:
 
 
 def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
-    """Authenticate a user."""
+    """Authenticate a user by username or email."""
+    # Try username first
     user = get_user_by_username(db, username)
+    
+    # If not found by username, try email
+    if not user:
+        user = get_user_by_email(db, username)
+    
     if not user:
         return None
     if not verify_password(password, user.hashed_password):

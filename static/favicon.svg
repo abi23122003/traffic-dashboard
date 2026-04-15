@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <style>
+      .traffic { fill: #d4af37; }
+      .bg { fill: #0a0e27; }
+    </style>
+  </defs>
+  <rect class="bg" width="100" height="100"/>
+  <rect class="traffic" x="10" y="10" width="80" height="80" rx="15"/>
+  <circle cx="30" cy="35" r="8" fill="#ef4444"/>
+  <circle cx="70" cy="35" r="8" fill="#fbbf24"/>
+  <circle cx="50" cy="65" r="8" fill="#22c55e"/>
+  <line x1="50" y1="45" x2="50" y2="55" stroke="#0a0e27" stroke-width="3" stroke-linecap="round"/>
+</svg>

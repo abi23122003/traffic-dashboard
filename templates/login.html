@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Traffic Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <style>
         * {
             margin: 0;
@@ -520,7 +521,7 @@
                     <label for="full-name">Full Name</label>
                 </div>
                 <div class="input-wrapper">
-                    <input type="text" id="full-name" placeholder="Enter your full name">
+                    <input type="text" id="full-name" name="full-name" placeholder="Enter your full name">
                     <div class="field-feedback" id="name-feedback"></div>
                 </div>
             </div>
@@ -529,7 +530,7 @@
                     <label for="username">Username</label>
                 </div>
                 <div class="input-wrapper">
-                    <input type="text" id="username" placeholder="Enter your username" required>
+                    <input type="text" id="username" name="username" placeholder="Enter your username" required>
                     <div class="field-feedback" id="username-feedback"></div>
                 </div>
             </div>
@@ -538,7 +539,7 @@
                     <label for="email">Email</label>
                 </div>
                 <div class="input-wrapper">
-                    <input type="email" id="email" placeholder="Enter your email address">
+                    <input type="email" id="email" name="email" placeholder="Enter your email address">
                     <div class="field-feedback" id="email-feedback"></div>
                 </div>
             </div>
@@ -547,7 +548,7 @@
                     <label for="password">Password</label>
                 </div>
                 <div class="input-wrapper">
-                    <input type="password" id="password" placeholder="Enter your password" required>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
                     <button type="button" class="password-toggle" id="password-toggle" onclick="togglePasswordVisibility('password')">👁️</button>
                     <div class="password-strength" id="password-strength">
                         <div class="strength-bar">
@@ -563,7 +564,7 @@
                     <label for="confirm-password">Confirm Password</label>
                 </div>
                 <div class="input-wrapper">
-                    <input type="password" id="confirm-password" placeholder="Re-enter your password" required>
+                    <input type="password" id="confirm-password" name="confirm-password" placeholder="Re-enter your password">
                     <button type="button" class="password-toggle" id="confirm-password-toggle" onclick="togglePasswordVisibility('confirm-password')">👁️</button>
                     <div class="field-feedback" id="confirm-password-feedback"></div>
                 </div>
@@ -637,6 +638,12 @@
         function validateField(fieldId, fieldType) {
             const field = document.getElementById(fieldId);
             const feedback = document.getElementById(fieldId + '-feedback');
+            
+            // Return early if field doesn't exist in DOM (hidden fields)
+            if (!field || !feedback) {
+                return true;
+            }
+            
             const value = field.value.trim();
             let isValid = false;
             let message = '';
@@ -714,10 +721,24 @@
             document.getElementById('email-group').style.display = isLogin ? 'none' : 'block';
             document.getElementById('name-group').style.display = isLogin ? 'none' : 'block';
             document.getElementById('confirm-password-group').style.display = isLogin ? 'none' : 'block';
+            
+            // Update required attributes based on mode
+            const emailField = document.getElementById('email');
+            const confirmPasswordField = document.getElementById('confirm-password');
+            
+            if (isLogin) {
+                // Login mode - remove required from signup-only fields
+                if (emailField) emailField.removeAttribute('required');
+                if (confirmPasswordField) confirmPasswordField.removeAttribute('required');
+            } else {
+                // Signup mode - add required to signup-only fields
+                if (emailField) emailField.setAttribute('required', 'required');
+                if (confirmPasswordField) confirmPasswordField.setAttribute('required', 'required');
+            }
+            
             document.getElementById('password-toggle').textContent = '👁️';
             document.getElementById('password').type = 'password';
             document.getElementById('password').value = '';
-            const confirmPasswordField = document.getElementById('confirm-password');
             if (confirmPasswordField) {
                 confirmPasswordField.type = 'password';
                 confirmPasswordField.value = '';
@@ -754,6 +775,12 @@
             document.getElementById('success-message').innerHTML = '';
             
             const btn = document.getElementById('submit-btn');
+            
+            // Prevent multiple submissions
+            if (btn.disabled) {
+                return;
+            }
+            
             const originalText = btn.textContent;
             btn.disabled = true;
             btn.innerHTML = '<span class="button-spinner"></span>' + (isLogin ? 'Logging in...' : 'Creating account...');
@@ -763,6 +790,11 @@
                     const username = document.getElementById('username').value.trim();
                     const password = document.getElementById('password').value;
 
+                    console.log('📝 Form Values:');
+                    console.log('  Username:', username);
+                    console.log('  Password length:', password.length);
+                    console.log('  isLogin flag:', isLogin);
+
                     if (!username || !password) {
                         throw new Error('Please enter both username and password');
                     }
@@ -771,10 +803,20 @@
                     formData.append('username', username);
                     formData.append('password', password);
                     
+                    console.log('📤 Sending to /api/auth/login');
+                    console.log('  FormData entries:', Array.from(formData.entries()));
+                    
                     const res = await fetch('/api/auth/login', { method: 'POST', body: formData });
-                    if (!res.ok) throw new Error('Invalid username or password');
+                    console.log('📥 Response status:', res.status);
+                    
+                    if (!res.ok) {
+                        const errorData = await res.json();
+                        console.log('❌ Login error:', errorData);
+                        throw new Error(errorData.detail || 'Invalid username or password');
+                    }
                     
                     const data = await res.json();
+                    console.log('✅ Login successful!');
                     localStorage.setItem('access_token', data.access_token);
                     showMessage('Login successful! Redirecting...', 'success');
                     
@@ -879,6 +921,19 @@
                 btn.innerHTML = originalText;
             }
         };
+        
+        // Initialize logging
+        console.log('✅ Form handler attached');
+        console.log('isLogin mode:', isLogin);
+        
+        // Log when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('✅ Page fully loaded');
+            });
+        } else {
+            console.log('✅ Page already loaded');
+        }
     </script>
 </body>
 
