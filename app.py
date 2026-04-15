@@ -443,6 +443,19 @@ async def serve_account():
     )
 
 
+@app.get("/password-toggle-demo", response_class=HTMLResponse)
+async def serve_password_toggle_demo():
+    """Serve the password toggle demo page."""
+    demo_path = os.path.join("templates", "password_toggle_demo.html")
+    if os.path.exists(demo_path):
+        with open(demo_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(
+        content="<h1>Password Toggle Demo</h1><p>Demo page not found.</p>",
+        status_code=404
+    )
+
+
 @app.get("/analysis-report", response_class=HTMLResponse)
 async def serve_analysis_report():
     """Serve the analysis report HTML page."""

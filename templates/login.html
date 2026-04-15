@@ -216,12 +216,11 @@
             right: 16px;
             top: 50%;
             transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: #cbd5f5;
+            background: rgba(212, 175, 55, 0.1);
+            border: 1.5px solid rgba(212, 175, 55, 0.3);
+            color: #d4af37;
             cursor: pointer;
-            font-size: 20px;
-            padding: 8px 12px;
+            padding: 0;
             transition: all 0.3s ease;
             z-index: 10;
             display: flex;
@@ -230,12 +229,36 @@
             width: 40px;
             height: 40px;
             border-radius: 8px;
+            font-size: 0;
+            line-height: 0;
+            text-indent: -9999px;
+            overflow: hidden;
+        }
+
+        .password-toggle::before {
+            content: '';
+            display: block;
+            width: 24px;
+            height: 24px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23d4af37" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>');
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            background-position: center;
         }
 
         .password-toggle:hover {
-            color: #d4af37;
-            background: rgba(212, 175, 55, 0.1);
-            transform: translateY(-50%) scale(1.05);
+            background: rgba(212, 175, 55, 0.2);
+            border-color: rgba(212, 175, 55, 0.6);
+            transform: translateY(-50%) scale(1.08);
+            box-shadow: 0 0 12px rgba(212, 175, 55, 0.3);
+        }
+
+        .password-toggle:active {
+            transform: translateY(-50%) scale(0.95);
+        }
+
+        .password-toggle:focus {
+            outline: none;
         }
 
         .password-toggle:active {
@@ -549,7 +572,7 @@
                 </div>
                 <div class="input-wrapper">
                     <input type="password" id="password" name="password" placeholder="Enter your password" required>
-                    <button type="button" class="password-toggle" id="password-toggle" onclick="togglePasswordVisibility('password')">👁️</button>
+                    <button type="button" class="password-toggle" id="password-toggle" onclick="togglePasswordVisibility('password')" title="Toggle password visibility"></button>
                     <div class="password-strength" id="password-strength">
                         <div class="strength-bar">
                             <div class="strength-fill" id="strength-fill"></div>
@@ -565,7 +588,7 @@
                 </div>
                 <div class="input-wrapper">
                     <input type="password" id="confirm-password" name="confirm-password" placeholder="Re-enter your password">
-                    <button type="button" class="password-toggle" id="confirm-password-toggle" onclick="togglePasswordVisibility('confirm-password')">👁️</button>
+                    <button type="button" class="password-toggle" id="confirm-password-toggle" onclick="togglePasswordVisibility('confirm-password')" title="Toggle password visibility"></button>
                     <div class="field-feedback" id="confirm-password-feedback"></div>
                 </div>
             </div>
@@ -589,10 +612,10 @@
             
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
-                toggle.textContent = '🙈';
+                toggle.setAttribute('data-hidden', 'false');
             } else {
                 passwordInput.type = 'password';
-                toggle.textContent = '👁️';
+                toggle.setAttribute('data-hidden', 'true');
             }
         }
 
@@ -736,13 +759,11 @@
                 if (confirmPasswordField) confirmPasswordField.setAttribute('required', 'required');
             }
             
-            document.getElementById('password-toggle').textContent = '👁️';
             document.getElementById('password').type = 'password';
             document.getElementById('password').value = '';
             if (confirmPasswordField) {
                 confirmPasswordField.type = 'password';
                 confirmPasswordField.value = '';
-                document.getElementById('confirm-password-toggle').textContent = '👁️';
             }
             document.getElementById('error-message').innerHTML = '';
             document.getElementById('success-message').innerHTML = '';
