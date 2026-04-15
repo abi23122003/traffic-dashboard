@@ -8,7 +8,7 @@ import json
 from typing import Optional, Union, List
 from functools import wraps
 from fastapi import FastAPI, HTTPException, Query, Depends, status, BackgroundTasks, Request
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse, Response
 import io
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -402,6 +402,17 @@ async def serve_index():
         content="<h1>Traffic Route Analysis API</h1><p>Frontend not found. Please create templates/index.html</p>",
         status_code=404
     )
+
+
+@app.get("/favicon.ico")
+async def serve_favicon():
+    """Serve the favicon."""
+    favicon_path = os.path.join("static", "favicon.svg")
+    if os.path.exists(favicon_path):
+        with open(favicon_path, "r", encoding="utf-8") as f:
+            return Response(content=f.read(), media_type="image/svg+xml")
+    # Return a default empty response to prevent 404 logs
+    return Response(content="", status_code=204)
 
 
 @app.get("/login", response_class=HTMLResponse)
