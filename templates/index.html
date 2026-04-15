@@ -230,9 +230,22 @@
             <div style="font-size: 12px; color: #3a5a7a; margin-top: 3px;">AI-powered route suggestions with real-time traffic analysis</div>
         </div>
     </div>
-    <div style="display: flex; gap: 8px;">
-        <button onclick="useMyLocation()" style="border: 1px solid #1a2d42; border-radius: 10px; padding: 9px 16px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: #8aaac0;">&#128205; Use My Location</button>
-        <button onclick="window.location.href='/login'" style="border: 1px solid #1a2d42; border-radius: 10px; padding: 9px 16px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: #8aaac0;">&#128273; Login / Sign Up</button>
+    <div style="display: flex; gap: 8px; align-items: center;">
+        <!-- Login Button (shown when not logged in) -->
+        <button id="login-btn" onclick="window.location.href='/login'" style="border: 1px solid #1a2d42; border-radius: 10px; padding: 9px 16px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: #8aaac0; display: flex; align-items: center; gap: 4px;">
+            &#128273; Login / Sign Up
+        </button>
+        
+        <!-- User Profile Section (shown when logged in) -->
+        <div id="user-section" style="display: none; align-items: center; border: 1px solid #1a2d42; border-radius: 10px; background: rgba(26, 45, 66, 0.2); padding: 0;">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px;">
+                <div style="width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #d4af37, #f0c040); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #080f1c;">👤</div>
+                <span id="user-name" style="color: #8aaac0; font-size: 12px; font-weight: 500;"></span>
+            </div>
+            <div style="width: 1px; height: 24px; background: #1a2d42;"></div>
+            <button onclick="logout()" style="border: none; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: #ef4444; display: flex; align-items: center; gap: 4px;">🚪 Logout</button>
+        </div>
+        
         <button onclick="window.location.href='/analysis-report'" style="border: 1px solid #f0c040; border-radius: 10px; padding: 9px 16px; font-size: 12px; font-weight: 600; cursor: pointer; background: #f0c040; color: #080f1c;">&#128202; View All Reports</button>
     </div>
 </header>
@@ -262,10 +275,11 @@
             <div style="font-size: 10px; color: #f0c040; font-weight: 800; letter-spacing: 0.1em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                 <span style="width: 8px; height: 8px; border-radius: 50%; background: #4fc3f7; display: inline-block;"></span>FROM
             </div>
-            <div style="position: relative;">
+            <div style="position: relative; display: flex; gap: 8px;">
                 <input id="origin-input" type="text" placeholder="Enter origin location"
-                    style="width: 100%; background: #0d1a2a; border: 1.5px solid #1a2d42; border-radius: 12px; padding: 13px 16px; color: #c0d8f0; font-size: 14px; outline: none;"
+                    style="flex: 1; background: #0d1a2a; border: 1.5px solid #1a2d42; border-radius: 12px; padding: 13px 16px; color: #c0d8f0; font-size: 14px; outline: none;"
                     autocomplete="off" />
+                <button onclick="useMyLocation('origin')" style="width: 42px; height: 48px; background: #0d1a2a; border: 1.5px solid #1a2d42; border-radius: 12px; color: #3a5a7a; font-size: 16px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;" title="Use my location">📍</button>
                 <div id="origin-autocomplete" style="display:none; position: absolute; top: 100%; left: 0; right: 0; z-index: 9999; background: white; border-radius: 8px; border: 1px solid #e2e8f0; max-height: 300px; overflow-y: auto;"></div>
             </div>
         </div>
@@ -276,10 +290,11 @@
             <div style="font-size: 10px; color: #f0c040; font-weight: 800; letter-spacing: 0.1em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                 <span style="width: 8px; height: 8px; border-radius: 50%; background: #f0c040; display: inline-block;"></span>TO
             </div>
-            <div style="position: relative;">
+            <div style="position: relative; display: flex; gap: 8px;">
                 <input id="dest-input" type="text" placeholder="Enter destination location"
-                    style="width: 100%; background: #0d1a2a; border: 1.5px solid #1a2d42; border-radius: 12px; padding: 13px 16px; color: #c0d8f0; font-size: 14px; outline: none;"
+                    style="flex: 1; background: #0d1a2a; border: 1.5px solid #1a2d42; border-radius: 12px; padding: 13px 16px; color: #c0d8f0; font-size: 14px; outline: none;"
                     autocomplete="off" />
+                <button onclick="useMyLocation('destination')" style="width: 42px; height: 48px; background: #0d1a2a; border: 1.5px solid #1a2d42; border-radius: 12px; color: #3a5a7a; font-size: 16px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;" title="Use my location">📍</button>
                 <div id="dest-autocomplete" style="display:none; position: absolute; top: 100%; left: 0; right: 0; z-index: 9999; background: white; border-radius: 8px; border: 1px solid #e2e8f0; max-height: 300px; overflow-y: auto;"></div>
             </div>
         </div>
@@ -405,17 +420,18 @@
         }
         
         // Use My Location function
-        function useMyLocation() {
+        function useMyLocation(fieldType = 'origin') {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         const lat = position.coords.latitude;
                         const lon = position.coords.longitude;
-                        const originInput = document.getElementById('origin-input');
-                        if (originInput) {
-                            originInput.value = `${lat}, ${lon}`;
-                            originInput.dataset.lat = lat;
-                            originInput.dataset.lon = lon;
+                        const inputId = fieldType === 'destination' ? 'dest-input' : 'origin-input';
+                        const input = document.getElementById(inputId);
+                        if (input) {
+                            input.value = `${lat}, ${lon}`;
+                            input.dataset.lat = lat;
+                            input.dataset.lon = lon;
                         }
                     },
                     (error) => {
@@ -437,6 +453,20 @@
                 console.log('Auth initialized');
             } catch (authError) {
                 console.warn('Auth init error (non-fatal):', authError);
+            }
+            
+            // Check if user is authenticated, redirect to login if not
+            try {
+                const currentUser = getCurrentUser();
+                if (!currentUser) {
+                    console.log('No authenticated user found, redirecting to login');
+                    window.location.href = '/login';
+                    return;
+                }
+            } catch (redirectError) {
+                console.error('Error checking auth:', redirectError);
+                window.location.href = '/login';
+                return;
             }
             
             // Check if user is admin and hide route analyzer
@@ -571,6 +601,36 @@
             });
             observer.observe(origContainer, { childList: true });
         }
+
+        // Update login button based on authentication state
+        function updateAuthUI() {
+            const currentUser = getCurrentUser();
+            const loginBtn = document.getElementById('login-btn');
+            const userSection = document.getElementById('user-section');
+            const userName = document.getElementById('user-name');
+
+            if (currentUser && currentUser.username) {
+                // User is logged in
+                if (loginBtn) loginBtn.style.display = 'none';
+                if (userSection) userSection.style.display = 'flex';
+                if (userName) userName.textContent = currentUser.username;
+            } else {
+                // User is not logged in
+                if (loginBtn) loginBtn.style.display = 'flex';
+                if (userSection) userSection.style.display = 'none';
+            }
+        }
+
+        // Logout function
+        function logout() {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('currentUser');
+            window.location.href = '/login';
+        }
+
+        // Update auth UI when page loads and periodically
+        updateAuthUI();
+        setInterval(updateAuthUI, 1000); // Check every second if auth state changed
     </script>
 
     <!-- PWA Service Worker Registration -->

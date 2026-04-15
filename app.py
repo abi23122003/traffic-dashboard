@@ -8,7 +8,7 @@ import json
 from typing import Optional, Union, List
 from functools import wraps
 from fastapi import FastAPI, HTTPException, Query, Depends, status, BackgroundTasks, Request
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse, Response
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse, Response, RedirectResponse
 import io
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -393,7 +393,7 @@ def predict_congestion(features: dict) -> Optional[float]:
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
-    """Serve the main frontend HTML page."""
+    """Serve the main frontend HTML page. Authentication is checked client-side."""
     index_path = os.path.join("templates", "index.html")
     if os.path.exists(index_path):
         with open(index_path, "r", encoding="utf-8") as f:
