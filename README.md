@@ -361,8 +361,7 @@ This project is for educational/academic purposes.
 
 ## Author
 
-Sanjaykumar S | Reg No: 67223200109  
-Guide: Mrs. Arockia Xaiver Annie  
-Anna University – Center for Distance Education, Chennai
-#   t r a f f i c - d a s h b o a r d  
- 
+J.SHIFANA (711622104049)  
+V.SATHISH (711622104047)  
+E.T.PAVITHRAN (711622104015)  
+Guide: Dr C Vimalarani
