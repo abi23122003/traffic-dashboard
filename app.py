@@ -41,7 +41,7 @@ from utils import (
 )
 from db import (
     init_db, get_session, save_analysis, AnalysisResult,
-    User, SavedRoute, RouteRating, Notification
+    User, SavedRoute, RouteRating, Notification, PoliceDispatchAssignment
 )
 from sqlalchemy.orm import Session
 from auth import (
@@ -234,6 +234,148 @@ def _build_district_summary(incidents: list[dict]) -> dict:
     return {
         "total_incidents_today": today_count,
         "avg_response_time": avg_response_time,
+    }
+
+
+def _format_police_timestamp(value: object) -> str:
+    if not value:
+        return "-"
+    if isinstance(value, datetime):
+        return value.astimezone(UTC).strftime("%I:%M %p")
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed.astimezone(UTC).strftime("%I:%M %p")
+    except ValueError:
+        return str(value)
+
+
+def _normalize_patrol_status(raw_status: object) -> str:
+    status_value = str(raw_status or "").strip().lower()
+    if status_value in {"responding", "response", "enroute", "en route"}:
+        return "Responding"
+    if status_value in {"idle", "available", "standby"}:
+        return "Idle"
+    if status_value == "active":
+        return "Active"
+    return "Active"
+
+
+def _get_dispatch_assignments(district_id: str) -> list[PoliceDispatchAssignment]:
+    session = get_session()
+    try:
+        return (
+            session.query(PoliceDispatchAssignment)
+            .filter(PoliceDispatchAssignment.district_id == district_id)
+            .order_by(PoliceDispatchAssignment.assigned_at.desc())
+            .all()
+        )
+    finally:
+        session.close()
+
+
+def _build_patrol_units(
+    district_id: str,
+    incidents: list[dict],
+    supervisor_name: str,
+    assignments: Optional[list[PoliceDispatchAssignment]] = None,
+) -> list[dict]:
+    district = DISTRICT_LOCATIONS.get(district_id, DISTRICT_LOCATIONS["district_1"])
+    session = get_session()
+    try:
+        police_users = (
+            session.query(User)
+            .filter(User.department == "police", User.is_active == True)  # noqa: E712
+            .order_by(User.id.asc())
+            .all()
+        )
+    finally:
+        session.close()
+
+    assignments = assignments or []
+    assignment_by_unit = {assignment.unit_id: assignment for assignment in assignments}
+    assignment_by_incident = {assignment.incident_id: assignment for assignment in assignments}
+
+    unit_count = max(4, len(incidents), len(police_users))
+    patrol_units: list[dict] = []
+
+    for index in range(unit_count):
+        incident = incidents[index % len(incidents)] if incidents else None
+        officer = police_users[index % len(police_users)] if police_users else None
+        unit_id = f"{district_id.upper().replace('_', '-')}-U{index + 1:02d}"
+        assignment = assignment_by_unit.get(unit_id)
+
+        if assignment and incident:
+            status = "Responding"
+        elif assignment:
+            status = "Responding"
+        else:
+            status = "Idle" if index % 3 else "Active"
+
+        officer_name = (
+            getattr(officer, "full_name", None)
+            or getattr(officer, "username", None)
+            or supervisor_name
+            or f"Officer {index + 1}"
+        )
+
+        location = district["name"]
+        last_updated = datetime.now(UTC)
+
+        if assignment:
+            incident_match = next((item for item in incidents if item.get("id") == assignment.incident_id), None)
+            if incident_match:
+                location = incident_match.get("description") or incident_match.get("type") or district["name"]
+                if incident_match.get("latitude") is not None and incident_match.get("longitude") is not None:
+                    location = f"{location} ({incident_match['latitude']:.4f}, {incident_match['longitude']:.4f})"
+            else:
+                location = f"Assigned to incident {assignment.incident_id}"
+            last_updated = assignment.assigned_at or last_updated
+        elif incident:
+            location = incident.get("description") or incident.get("type") or district["name"]
+            if incident.get("latitude") is not None and incident.get("longitude") is not None:
+                location = f"{location} ({incident['latitude']:.4f}, {incident['longitude']:.4f})"
+            last_updated = incident.get("start_time") or last_updated
+
+        patrol_units.append({
+            "unit_id": unit_id,
+            "officer_name": officer_name,
+            "status": status,
+            "current_location": location,
+            "last_updated": _format_police_timestamp(last_updated),
+            "district_id": district_id,
+            "assigned_incident_id": assignment.incident_id if assignment else None,
+        })
+
+    return patrol_units
+
+
+def _build_police_dashboard_context(current_user: dict, district_id: str) -> dict:
+    incidents = _load_police_incidents(district_id)
+    assignments = _get_dispatch_assignments(district_id)
+    district_summary = _build_district_summary(incidents)
+    district_info = DISTRICT_LOCATIONS.get(district_id, {"name": district_id or "Unknown District"})
+    supervisor_name = current_user.get("username", "Unknown Supervisor")
+    patrol_units = _build_patrol_units(district_id, incidents, supervisor_name, assignments)
+
+    assigned_incident_ids = {assignment.incident_id for assignment in assignments}
+    unassigned_incidents = [incident for incident in incidents if incident.get("id") not in assigned_incident_ids]
+    available_patrol_units = [unit for unit in patrol_units if unit["status"] == "Idle"]
+    active_units = [unit for unit in patrol_units if unit["status"] != "Idle"]
+
+    return {
+        "district_info": district_info,
+        "district_name": district_info.get("name", district_id or "Unknown District"),
+        "supervisor_name": supervisor_name,
+        "shift_time": datetime.now(UTC).strftime("%I:%M %p UTC"),
+        "total_active_incidents": len(unassigned_incidents),
+        "units_deployed": len(active_units),
+        "units_available": len(available_patrol_units),
+        "avg_response_time": district_summary.get("avg_response_time", 0.0),
+        "patrol_units": patrol_units,
+        "available_patrol_units": available_patrol_units,
+        "unassigned_incidents": unassigned_incidents,
+        "incidents": incidents,
+        "district_summary": district_summary,
     }
 
 
@@ -543,6 +685,12 @@ class UserUpdate(BaseModel):
     is_admin: Optional[bool] = None
     password: Optional[str] = Field(None, min_length=8)
 
+
+class DispatchRequest(BaseModel):
+    """Dispatch assignment request."""
+    incident_id: str = Field(..., min_length=1)
+    unit_id: str = Field(..., min_length=1)
+
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
@@ -717,7 +865,9 @@ def predict_congestion(features: dict) -> Optional[float]:
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
-    """Serve the main frontend HTML page. Authentication is checked client-side."""
+    """Send visitors to the login page first."""
+    return RedirectResponse(url="/login", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
     index_path = os.path.join("templates", "index.html")
     if os.path.exists(index_path):
         with open(index_path, "r", encoding="utf-8") as f:
@@ -1431,54 +1581,146 @@ async def police_dashboard(request: Request, current_user: dict = Depends(requir
             detail="district_id is required for police dashboard access",
         )
 
-    incidents: list[dict] = []
-    district_summary: dict = {"total_incidents_today": "N/A", "avg_response_time": "N/A"}
-    ml_predictions: list[dict] = []
-    incidents_failed = False
-    summary_failed = False
-    predictions_failed = False
-
-    try:
-        incidents = _load_police_incidents(district_id)
-    except Exception:
-        logging.exception("Failed to load police incidents for district %s", district_id)
-        incidents = []
-        incidents_failed = True
-
-    try:
-        district_summary = _build_district_summary(incidents)
-    except Exception:
-        logging.exception("Failed to build district summary for district %s", district_id)
-        district_summary = {"total_incidents_today": "N/A", "avg_response_time": "N/A"}
-        summary_failed = True
-
-    try:
-        ml_predictions = _predict_police_hotspots(district_id, incidents)
-    except Exception:
-        logging.exception("Failed to load ML predictions for district %s", district_id)
-        ml_predictions = []
-        predictions_failed = True
-
-    print("[DEBUG][police_dashboard] incidents_raw:", incidents)
-    print("[DEBUG][police_dashboard] district_summary_raw:", district_summary)
-    print("[DEBUG][police_dashboard] ml_predictions_raw:", ml_predictions)
-
-    data_error = incidents_failed or summary_failed or predictions_failed
-    district_info = DISTRICT_LOCATIONS.get(district_id, {"name": district_id or "Unknown District"})
+    context = _build_police_dashboard_context(current_user, district_id)
+    context.update({
+        "request": request,
+        "current_user": current_user,
+        "district_id": district_id,
+        "ml_predictions": _predict_police_hotspots(district_id, context["incidents"]),
+        "data_error": False,
+    })
 
     return templates.TemplateResponse(
-        "police_dashboard.html",
-        {
-            "request": request,
-            "current_user": current_user,
-            "district_id": district_id,
-            "district_info": district_info,
-            "incidents": incidents,
-            "district_summary": district_summary,
-            "ml_predictions": ml_predictions,
-            "data_error": data_error,
-        },
+        request=request,
+        name="police/supervisor_dashboard.html",
+        context=context,
     )
+
+
+@app.get("/police/units/live")
+async def live_patrol_units(current_user: dict = Depends(require_police_department_user())):
+    """Return the latest patrol unit status data for the supervisor dashboard."""
+    district_id = current_user.get("district_id")
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for patrol unit status",
+        )
+
+    incidents = _load_police_incidents(district_id)
+    supervisor_name = current_user.get("username", "Unknown Supervisor")
+    assignments = _get_dispatch_assignments(district_id)
+    patrol_units = _build_patrol_units(district_id, incidents, supervisor_name, assignments)
+    assigned_incident_ids = {assignment.incident_id for assignment in assignments}
+    unassigned_incidents = [incident for incident in incidents if incident.get("id") not in assigned_incident_ids]
+    available_patrol_units = [unit for unit in patrol_units if unit["status"] == "Idle"]
+
+    return {
+        "patrol_units": patrol_units,
+        "available_patrol_units": available_patrol_units,
+        "unassigned_incidents": unassigned_incidents,
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
+
+
+@app.post("/police/dispatch")
+async def dispatch_patrol_unit(
+    request: DispatchRequest,
+    current_user: dict = Depends(require_role("police_supervisor")),
+):
+    """Assign a patrol unit to an incident and persist the dispatch."""
+    district_id = current_user.get("district_id")
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for dispatch",
+        )
+
+    incidents = _load_police_incidents(district_id)
+    incident_map = {incident.get("id"): incident for incident in incidents}
+    target_incident = incident_map.get(request.incident_id)
+    if not target_incident:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found",
+        )
+
+    session = get_session()
+    try:
+        existing_incident_assignment = (
+            session.query(PoliceDispatchAssignment)
+            .filter(
+                PoliceDispatchAssignment.district_id == district_id,
+                PoliceDispatchAssignment.incident_id == request.incident_id,
+            )
+            .first()
+        )
+        existing_unit_assignment = (
+            session.query(PoliceDispatchAssignment)
+            .filter(
+                PoliceDispatchAssignment.district_id == district_id,
+                PoliceDispatchAssignment.unit_id == request.unit_id,
+            )
+            .first()
+        )
+
+        if existing_unit_assignment and existing_unit_assignment.incident_id != request.incident_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Selected unit is already assigned to another incident",
+            )
+
+        now = datetime.now(UTC)
+        if existing_incident_assignment:
+            existing_incident_assignment.unit_id = request.unit_id
+            existing_incident_assignment.assigned_by = current_user.get("username", "Unknown Supervisor")
+            existing_incident_assignment.assigned_at = now
+            existing_incident_assignment.status = "active"
+            assignment = existing_incident_assignment
+        else:
+            assignment = PoliceDispatchAssignment(
+                district_id=district_id,
+                incident_id=request.incident_id,
+                unit_id=request.unit_id,
+                assigned_by=current_user.get("username", "Unknown Supervisor"),
+                assigned_at=now,
+                status="active",
+            )
+            session.add(assignment)
+
+        session.commit()
+        session.refresh(assignment)
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as exc:
+        session.rollback()
+        logger.error("Dispatch assignment failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Dispatch assignment failed",
+        )
+    finally:
+        session.close()
+
+    updated_context = _build_police_dashboard_context(current_user, district_id)
+    updated_unit = next((unit for unit in updated_context["patrol_units"] if unit["unit_id"] == request.unit_id), None)
+    updated_incident = next((incident for incident in updated_context["incidents"] if incident.get("id") == request.incident_id), None)
+
+    return {
+        "message": "Unit dispatched successfully",
+        "assignment": {
+            "incident_id": request.incident_id,
+            "unit_id": request.unit_id,
+            "assigned_by": assignment.assigned_by,
+            "assigned_at": assignment.assigned_at.isoformat() if assignment.assigned_at else None,
+        },
+        "unit": updated_unit,
+        "incident": updated_incident,
+        "available_patrol_units": updated_context["available_patrol_units"],
+        "unassigned_incidents": updated_context["unassigned_incidents"],
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
 
 
 @app.get("/police/export/pptx")

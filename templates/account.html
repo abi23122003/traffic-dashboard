@@ -628,10 +628,20 @@
             // Use currentUser from auth.js if available, otherwise use accountCurrentUser
             const user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : accountCurrentUser;
             if (!user) return;
+
+            const department = (user.department || '').toLowerCase();
+            let roleLabel = '👤 Normal User';
+            if (user.is_admin || department === 'admin') {
+                roleLabel = '👑 Administrator';
+            } else if (department === 'police') {
+                roleLabel = '🚓 Police Supervisor';
+            } else if (department === 'logistics') {
+                roleLabel = '🚚 Logistics Manager';
+            }
             
             document.getElementById('user-name').textContent = user.username || 'User';
             document.getElementById('user-email').textContent = user.email || '';
-            document.getElementById('user-role').textContent = user.is_admin ? '👑 Administrator' : '👤 User';
+            document.getElementById('user-role').textContent = roleLabel;
             
             // Show admin panel link for admins
             if (user.is_admin) {

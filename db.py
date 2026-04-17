@@ -99,6 +99,19 @@ class Notification(Base):
     user = relationship("User", back_populates="notifications")
 
 
+class PoliceDispatchAssignment(Base):
+    """Tracks active police dispatch assignments for supervisor operations."""
+    __tablename__ = "police_dispatch_assignments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    district_id = Column(String, nullable=False, index=True)
+    incident_id = Column(String, nullable=False, unique=True, index=True)
+    unit_id = Column(String, nullable=False, unique=True, index=True)
+    assigned_by = Column(String, nullable=False)
+    assigned_at = Column(DateTime, default=lambda: datetime.now(UTC), index=True)
+    status = Column(String, nullable=False, default="active")
+
+
 class AnalysisResult(Base):
     """SQLAlchemy model for analysis results table."""
     __tablename__ = "analysis_results"

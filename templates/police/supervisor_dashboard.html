@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Police Supervisor Command Center</title>
+    <style>
+        :root {
+            --bg: #06111f;
+            --bg-2: #0b1b2e;
+            --panel: #0d2137;
+            --panel-2: #102945;
+            --line: rgba(120, 170, 220, 0.16);
+            --text: #e8f1fb;
+            --muted: #8ba8c6;
+            --accent: #4fd1c5;
+            --accent-2: #35b0ff;
+            --warning: #fbbf24;
+            --success: #4ade80;
+            --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            background:
+                radial-gradient(circle at top left, rgba(53, 176, 255, 0.12), transparent 30%),
+                radial-gradient(circle at top right, rgba(79, 209, 197, 0.10), transparent 26%),
+                linear-gradient(180deg, var(--bg) 0%, #081524 100%);
+            color: var(--text);
+            font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 48px 48px;
+            mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.35));
+        }
+
+        .page {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            min-height: 100vh;
+            padding: 18px;
+        }
+
+        .command-bar {
+            width: 100%;
+            background: linear-gradient(180deg, rgba(13, 33, 55, 0.98), rgba(10, 24, 41, 0.98));
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            padding: 18px 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .command-left {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .district-name {
+            margin: 0;
+            font-size: clamp(1.3rem, 2vw, 2rem);
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            color: #f4f8fd;
+        }
+
+        .command-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .meta-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border: 1px solid rgba(79, 209, 197, 0.14);
+            border-radius: 999px;
+            background: rgba(79, 209, 197, 0.06);
+            color: #cceff0;
+            white-space: nowrap;
+        }
+
+        .live-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(74, 222, 128, 0.08);
+            border: 1px solid rgba(74, 222, 128, 0.16);
+            color: #d8ffe7;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .live-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.55);
+            animation: pulse 1.8s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.55);
+            }
+            70% {
+                box-shadow: 0 0 0 14px rgba(74, 222, 128, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+            }
+        }
+
+        .kpi-grid {
+            margin-top: 18px;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .kpi-card {
+            background: linear-gradient(180deg, rgba(16, 41, 69, 0.98), rgba(11, 27, 46, 0.98));
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            min-height: 132px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .kpi-label {
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .kpi-value {
+            margin-top: 12px;
+            font-size: clamp(1.8rem, 3vw, 2.5rem);
+            font-weight: 900;
+            line-height: 1;
+            color: #f8fbff;
+        }
+
+        .kpi-footnote {
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .kpi-accent {
+            color: var(--accent);
+        }
+
+        .kpi-blue {
+            color: var(--accent-2);
+        }
+
+        .kpi-warning {
+            color: var(--warning);
+        }
+
+        .section-shell {
+            margin-top: 18px;
+            background: linear-gradient(180deg, rgba(13, 33, 55, 0.95), rgba(8, 21, 36, 0.95));
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            padding: 18px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 1.05rem;
+            letter-spacing: 0.02em;
+            color: #f4f8fd;
+        }
+
+        .section-subtitle {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .refresh-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(53, 176, 255, 0.08);
+            border: 1px solid rgba(53, 176, 255, 0.16);
+            color: #c7e7ff;
+            font-size: 0.88rem;
+            white-space: nowrap;
+        }
+
+        .unit-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 14px;
+        }
+
+        .unit-card {
+            background: linear-gradient(180deg, rgba(16, 41, 69, 0.98), rgba(11, 27, 46, 0.98));
+            border: 1px solid rgba(120, 170, 220, 0.18);
+            border-radius: 18px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .unit-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .unit-id {
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            color: #f4f8fd;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: rgba(74, 222, 128, 0.12);
+            color: #86efac;
+            border: 1px solid rgba(74, 222, 128, 0.24);
+        }
+
+        .status-idle {
+            background: rgba(148, 163, 184, 0.12);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .status-responding {
+            background: rgba(248, 113, 113, 0.12);
+            color: #fca5a5;
+            border: 1px solid rgba(248, 113, 113, 0.24);
+        }
+
+        .unit-label {
+            color: var(--muted);
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 4px;
+        }
+
+        .unit-value {
+            color: #eef6ff;
+            font-size: 0.96rem;
+            line-height: 1.45;
+            word-break: break-word;
+        }
+
+        .unit-meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .empty-state {
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px dashed rgba(120, 170, 220, 0.22);
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .dispatch-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 16px;
+            margin-top: 18px;
+        }
+
+        .panel-card {
+            background: linear-gradient(180deg, rgba(16, 41, 69, 0.98), rgba(11, 27, 46, 0.98));
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 16px;
+            min-height: 320px;
+        }
+
+        .incident-list,
+        .available-unit-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .incident-card,
+        .available-unit-card {
+            border-radius: 16px;
+            padding: 14px;
+            border: 1px solid rgba(120, 170, 220, 0.16);
+            background: rgba(6, 17, 31, 0.55);
+        }
+
+        .incident-row,
+        .available-unit-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .incident-title,
+        .available-unit-title {
+            font-weight: 800;
+            color: #f4f8fd;
+            margin-bottom: 6px;
+        }
+
+        .incident-meta,
+        .available-unit-meta {
+            color: var(--muted);
+            font-size: 0.88rem;
+            line-height: 1.45;
+        }
+
+        .dispatch-btn {
+            border: 0;
+            border-radius: 10px;
+            padding: 10px 14px;
+            background: linear-gradient(180deg, #35b0ff, #2d8fd8);
+            color: white;
+            font-weight: 800;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 10px 24px rgba(53, 176, 255, 0.25);
+        }
+
+        .dispatch-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .unit-mini {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(79, 209, 197, 0.08);
+            border: 1px solid rgba(79, 209, 197, 0.14);
+            color: #d7f8f5;
+            font-size: 0.82rem;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(1, 6, 12, 0.72);
+            backdrop-filter: blur(8px);
+            z-index: 20;
+            padding: 16px;
+        }
+
+        .modal-backdrop.open {
+            display: flex;
+        }
+
+        .modal {
+            width: min(640px, 100%);
+            border-radius: 20px;
+            background: linear-gradient(180deg, rgba(13, 33, 55, 1), rgba(8, 21, 36, 1));
+            border: 1px solid rgba(120, 170, 220, 0.2);
+            box-shadow: var(--shadow);
+            padding: 18px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #f4f8fd;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: 1px solid rgba(120, 170, 220, 0.22);
+            color: #cbd5e1;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .form-row {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .form-label {
+            color: var(--muted);
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 800;
+        }
+
+        .unit-select {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(120, 170, 220, 0.18);
+            background: #0b1b2e;
+            color: #f4f8fd;
+            outline: none;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .secondary-btn {
+            border: 1px solid rgba(120, 170, 220, 0.22);
+            background: transparent;
+            color: #d7e7f7;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .primary-btn {
+            border: 0;
+            background: linear-gradient(180deg, #4ade80, #22c55e);
+            color: #04120b;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .dispatch-feedback {
+            margin-top: 10px;
+            min-height: 20px;
+            font-size: 0.92rem;
+            color: var(--muted);
+        }
+
+        @media (max-width: 1100px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .dispatch-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .command-bar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .page {
+                padding: 12px;
+            }
+
+            .command-bar {
+                padding: 16px;
+                border-radius: 16px;
+            }
+
+            .kpi-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .kpi-card {
+                min-height: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <section class="command-bar" aria-label="Police supervisor command center header">
+            <div class="command-left">
+                <h1 class="district-name">{{ district_name }}</h1>
+                <div class="command-meta">
+                    <span class="meta-pill">Supervisor: {{ supervisor_name }}</span>
+                    <span class="meta-pill">Shift: {{ shift_time }}</span>
+                </div>
+            </div>
+
+            <div class="live-status" aria-label="Live status">
+                <span class="live-dot" aria-hidden="true"></span>
+                <span>Live command feed active</span>
+            </div>
+        </section>
+
+        <section class="kpi-grid" aria-label="Key performance indicators">
+            <article class="kpi-card">
+                <div class="kpi-label">Total Active Incidents</div>
+                <div class="kpi-value kpi-warning">{{ total_active_incidents }}</div>
+                <div class="kpi-footnote">Incidents currently open in the district.</div>
+            </article>
+
+            <article class="kpi-card">
+                <div class="kpi-label">Units Deployed</div>
+                <div class="kpi-value kpi-accent">{{ units_deployed }}</div>
+                <div class="kpi-footnote">Assigned patrol and response units on duty.</div>
+            </article>
+
+            <article class="kpi-card">
+                <div class="kpi-label">Units Available</div>
+                <div class="kpi-value kpi-blue">{{ units_available }}</div>
+                <div class="kpi-footnote">Units ready for immediate redeployment.</div>
+            </article>
+
+            <article class="kpi-card">
+                <div class="kpi-label">Avg Response Time</div>
+                <div class="kpi-value">{{ avg_response_time }}</div>
+                <div class="kpi-footnote">Average response time across active incidents.</div>
+            </article>
+        </section>
+
+        <section class="section-shell" aria-label="Patrol units status board">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Patrol Units Status Board</h2>
+                    <p class="section-subtitle">Live unit positions and status, refreshed every 30 seconds.</p>
+                </div>
+                <div class="refresh-chip">
+                    <span class="live-dot" aria-hidden="true" style="width:10px;height:10px;"></span>
+                    <span id="units-refresh-label">Updated just now</span>
+                </div>
+            </div>
+
+            <div id="patrol-units-grid" class="unit-grid"></div>
+        </section>
+
+        <section class="section-shell" aria-label="Dispatch panel">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Dispatch Panel</h2>
+                    <p class="section-subtitle">Assign an available unit to an unassigned incident.</p>
+                </div>
+                <div class="refresh-chip">
+                    <span id="dispatch-refresh-label">Synced just now</span>
+                </div>
+            </div>
+
+            <div class="dispatch-grid">
+                <div class="panel-card">
+                    <div class="section-header" style="margin-bottom: 12px;">
+                        <div>
+                            <h3 class="section-title" style="font-size: 0.98rem;">Unassigned Incidents</h3>
+                            <p class="section-subtitle">Open incidents awaiting dispatch.</p>
+                        </div>
+                    </div>
+                    <div id="unassigned-incidents-list" class="incident-list"></div>
+                </div>
+
+                <div class="panel-card">
+                    <div class="section-header" style="margin-bottom: 12px;">
+                        <div>
+                            <h3 class="section-title" style="font-size: 0.98rem;">Available Units</h3>
+                            <p class="section-subtitle">Idle units ready to be assigned.</p>
+                        </div>
+                    </div>
+                    <div id="available-units-list" class="available-unit-list"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="dispatch-modal-backdrop" class="modal-backdrop" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dispatch-modal-title">
+            <div class="modal-header">
+                <div>
+                    <h3 id="dispatch-modal-title" class="modal-title">Dispatch Incident</h3>
+                    <div id="dispatch-modal-subtitle" class="section-subtitle">Choose a unit to assign.</div>
+                </div>
+                <button class="close-btn" type="button" aria-label="Close dispatch modal" onclick="closeDispatchModal()">×</button>
+            </div>
+
+            <form id="dispatch-form">
+                <input type="hidden" id="dispatch-incident-id">
+                <div class="form-row">
+                    <label class="form-label" for="dispatch-unit-select">Select Unit</label>
+                    <select id="dispatch-unit-select" class="unit-select" required></select>
+                </div>
+
+                <div class="dispatch-feedback" id="dispatch-feedback"></div>
+
+                <div class="modal-actions">
+                    <button type="button" class="secondary-btn" onclick="closeDispatchModal()">Cancel</button>
+                    <button type="submit" class="primary-btn">Dispatch</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="application/json" id="patrol-units-data">{{ patrol_units | tojson }}</script>
+    <script type="application/json" id="unassigned-incidents-data">{{ unassigned_incidents | tojson }}</script>
+    <script type="application/json" id="available-units-data">{{ available_patrol_units | tojson }}</script>
+    <script>
+        const patrolUnitsGrid = document.getElementById('patrol-units-grid');
+        const patrolUnitsData = document.getElementById('patrol-units-data');
+        const unassignedIncidentsData = document.getElementById('unassigned-incidents-data');
+        const availableUnitsData = document.getElementById('available-units-data');
+        const unitsRefreshLabel = document.getElementById('units-refresh-label');
+        const dispatchRefreshLabel = document.getElementById('dispatch-refresh-label');
+        const incidentList = document.getElementById('unassigned-incidents-list');
+        const availableUnitList = document.getElementById('available-units-list');
+        const modalBackdrop = document.getElementById('dispatch-modal-backdrop');
+        const dispatchForm = document.getElementById('dispatch-form');
+        const dispatchIncidentIdInput = document.getElementById('dispatch-incident-id');
+        const dispatchUnitSelect = document.getElementById('dispatch-unit-select');
+        const dispatchFeedback = document.getElementById('dispatch-feedback');
+        const dispatchModalTitle = document.getElementById('dispatch-modal-title');
+        const dispatchModalSubtitle = document.getElementById('dispatch-modal-subtitle');
+
+        let livePatrolUnits = [];
+        let liveAvailableUnits = [];
+        let liveUnassignedIncidents = [];
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function statusClass(status) {
+            const normalized = String(status || '').toLowerCase();
+            if (normalized === 'idle') return 'status-idle';
+            if (normalized === 'responding') return 'status-responding';
+            return 'status-active';
+        }
+
+        function renderPatrolUnits(units) {
+            const items = Array.isArray(units) ? units : [];
+
+            if (!items.length) {
+                patrolUnitsGrid.innerHTML = '<div class="empty-state">No patrol units available for this district.</div>';
+                return;
+            }
+
+            patrolUnitsGrid.innerHTML = items.map((unit) => {
+                const status = unit.status || 'Active';
+                const badgeClass = statusClass(status);
+                return `
+                    <article class="unit-card">
+                        <div class="unit-top">
+                            <div class="unit-id">${escapeHtml(unit.unit_id || 'Unit')}</div>
+                            <div class="status-badge ${badgeClass}">${escapeHtml(status)}</div>
+                        </div>
+                        <div class="unit-meta">
+                            <div>
+                                <div class="unit-label">Officer</div>
+                                <div class="unit-value">${escapeHtml(unit.officer_name || 'Unknown Officer')}</div>
+                            </div>
+                            <div>
+                                <div class="unit-label">Updated</div>
+                                <div class="unit-value">${escapeHtml(unit.last_updated || '-')}</div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="unit-label">Current Location</div>
+                            <div class="unit-value">${escapeHtml(unit.current_location || 'Unknown location')}</div>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function renderIncidentList(incidents) {
+            const items = Array.isArray(incidents) ? incidents : [];
+            if (!items.length) {
+                incidentList.innerHTML = '<div class="empty-state">No unassigned incidents right now.</div>';
+                return;
+            }
+
+            incidentList.innerHTML = items.map((incident) => `
+                <article class="incident-card">
+                    <div class="incident-row">
+                        <div>
+                            <div class="incident-title">${escapeHtml(incident.description || 'Incident')}</div>
+                            <div class="incident-meta">${escapeHtml(incident.severity || 'unknown')} severity · ${escapeHtml(incident.type || 'traffic')}</div>
+                            <div class="incident-meta">${escapeHtml(incident.start_time || '-')}</div>
+                        </div>
+                        <button class="dispatch-btn" type="button" onclick="openDispatchModal('${escapeHtml(incident.id)}')">Dispatch</button>
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        function renderAvailableUnits(units) {
+            const items = Array.isArray(units) ? units : [];
+            if (!items.length) {
+                availableUnitList.innerHTML = '<div class="empty-state">No available units right now.</div>';
+                return;
+            }
+
+            availableUnitList.innerHTML = items.map((unit) => `
+                <article class="available-unit-card">
+                    <div class="available-unit-row">
+                        <div>
+                            <div class="available-unit-title">${escapeHtml(unit.unit_id || 'Unit')}</div>
+                            <div class="available-unit-meta">${escapeHtml(unit.officer_name || 'Unknown Officer')}</div>
+                            <div class="unit-mini">${escapeHtml(unit.status || 'Idle')} · ${escapeHtml(unit.current_location || 'Available')}</div>
+                        </div>
+                        <div class="status-badge ${statusClass(unit.status)}">${escapeHtml(unit.status || 'Idle')}</div>
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        function fillUnitSelect(units) {
+            const items = Array.isArray(units) ? units : [];
+            dispatchUnitSelect.innerHTML = items.map((unit) => (
+                `<option value="${escapeHtml(unit.unit_id || '')}">${escapeHtml(unit.unit_id || 'Unit')} - ${escapeHtml(unit.officer_name || 'Unknown Officer')}</option>`
+            )).join('');
+            dispatchUnitSelect.disabled = items.length === 0;
+        }
+
+        function openDispatchModal(incidentId) {
+            const incident = liveUnassignedIncidents.find((item) => item.id === incidentId);
+            if (!incident) {
+                return;
+            }
+
+            dispatchIncidentIdInput.value = incidentId;
+            dispatchModalTitle.textContent = `Dispatch ${incident.description || 'Incident'}`;
+            dispatchModalSubtitle.textContent = `${incident.severity || 'unknown'} severity · ${incident.start_time || '-'}`;
+            fillUnitSelect(liveAvailableUnits);
+            dispatchFeedback.textContent = liveAvailableUnits.length ? '' : 'No available units to dispatch.';
+            modalBackdrop.classList.add('open');
+            modalBackdrop.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeDispatchModal() {
+            modalBackdrop.classList.remove('open');
+            modalBackdrop.setAttribute('aria-hidden', 'true');
+            dispatchFeedback.textContent = '';
+            dispatchForm.reset();
+        }
+
+        async function submitDispatch(event) {
+            event.preventDefault();
+            const incidentId = dispatchIncidentIdInput.value;
+            const unitId = dispatchUnitSelect.value;
+
+            if (!incidentId || !unitId) {
+                dispatchFeedback.textContent = 'Select a unit before dispatching.';
+                return;
+            }
+
+            dispatchFeedback.textContent = 'Dispatching...';
+            try {
+                const response = await fetch('/police/dispatch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ incident_id: incidentId, unit_id: unitId })
+                });
+
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(payload.detail || `HTTP ${response.status}`);
+                }
+
+                dispatchFeedback.textContent = payload.message || 'Dispatch completed.';
+                closeDispatchModal();
+                await refreshDispatchState();
+            } catch (error) {
+                dispatchFeedback.textContent = error.message || 'Dispatch failed.';
+            }
+        }
+
+        async function refreshDispatchState() {
+            try {
+                const response = await fetch('/police/units/live', {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                livePatrolUnits = data.patrol_units || [];
+                liveAvailableUnits = data.available_patrol_units || livePatrolUnits.filter((unit) => (unit.status || '').toLowerCase() === 'idle');
+                liveUnassignedIncidents = data.unassigned_incidents || [];
+
+                renderPatrolUnits(livePatrolUnits);
+                renderIncidentList(liveUnassignedIncidents);
+                renderAvailableUnits(liveAvailableUnits);
+
+                fillUnitSelect(liveAvailableUnits);
+
+                if (unitsRefreshLabel) {
+                    const stamp = data.updated_at ? new Date(data.updated_at) : new Date();
+                    unitsRefreshLabel.textContent = `Updated ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                }
+
+                if (dispatchRefreshLabel) {
+                    const stamp = data.updated_at ? new Date(data.updated_at) : new Date();
+                    dispatchRefreshLabel.textContent = `Synced ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                }
+            } catch (error) {
+                console.error('Failed to refresh dispatch state:', error);
+                if (unitsRefreshLabel) {
+                    unitsRefreshLabel.textContent = 'Live update unavailable';
+                }
+                if (dispatchRefreshLabel) {
+                    dispatchRefreshLabel.textContent = 'Sync unavailable';
+                }
+            }
+        }
+
+        let initialUnits = [];
+        let initialIncidents = [];
+        let initialAvailableUnits = [];
+        try {
+            initialUnits = JSON.parse(patrolUnitsData.textContent || '[]');
+            initialIncidents = JSON.parse(unassignedIncidentsData.textContent || '[]');
+            initialAvailableUnits = JSON.parse(availableUnitsData.textContent || '[]');
+        } catch (error) {
+            console.error('Failed to parse initial dashboard data', error);
+        }
+
+        renderPatrolUnits(initialUnits);
+        renderIncidentList(initialIncidents);
+        renderAvailableUnits(initialAvailableUnits);
+        fillUnitSelect(initialAvailableUnits);
+
+        dispatchForm.addEventListener('submit', submitDispatch);
+        modalBackdrop.addEventListener('click', (event) => {
+            if (event.target === modalBackdrop) {
+                closeDispatchModal();
+            }
+        });
+
+        refreshDispatchState();
+        setInterval(refreshDispatchState, 30000);
+    </script>
+</body>
+</html>
