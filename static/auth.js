@@ -2,6 +2,10 @@
 
 let currentUser = null;
 
+function getStoredRole() {
+    return localStorage.getItem('user_role');
+}
+
 // Check if user is logged in
 async function checkAuth() {
     const token = localStorage.getItem('access_token');
@@ -33,6 +37,7 @@ async function checkAuth() {
 // Logout function
 function logout() {
     localStorage.removeItem('access_token');
+    localStorage.removeItem('user_role');
     currentUser = null;
     window.location.href = '/';
 }
@@ -94,6 +99,9 @@ async function navigateToAccount() {
     if (currentUser.is_admin) {
         console.log('Redirecting admin to /admin');
         window.location.href = '/admin';
+    } else if (currentUser.role === 'police_supervisor' || getStoredRole() === 'police_supervisor') {
+        console.log('Redirecting police supervisor to /police/dashboard');
+        window.location.href = '/police/dashboard';
     } else {
         console.log('Redirecting user to /account');
         window.location.href = '/account';

@@ -557,6 +557,7 @@
                     <div class="field-feedback" id="username-feedback"></div>
                 </div>
             </div>
+            <input type="hidden" id="role" name="role" value="police_supervisor">
             <div class="form-group" id="email-group" style="display: none;">
                 <div class="label-wrapper">
                     <label for="email">Email</label>
@@ -809,24 +810,30 @@
                 if (isLogin) {
                     const username = document.getElementById('username').value.trim();
                     const password = document.getElementById('password').value;
+                    const role = document.getElementById('role').value;
 
                     console.log('📝 Form Values:');
                     console.log('  Username:', username);
                     console.log('  Password length:', password.length);
                     console.log('  isLogin flag:', isLogin);
+                    console.log('  Role:', role);
 
                     if (!username || !password) {
                         throw new Error('Please enter both username and password');
                     }
 
-                    const formData = new FormData();
-                    formData.append('username', username);
-                    formData.append('password', password);
-                    
-                    console.log('📤 Sending to /api/auth/login');
-                    console.log('  FormData entries:', Array.from(formData.entries()));
-                    
-                    const res = await fetch('/api/auth/login', { method: 'POST', body: formData });
+                    const rolePayload = { username, password, role };
+                    if (role === 'police_supervisor') {
+                        rolePayload.district_id = 'district_1';
+                    }
+
+                    console.log('📤 Sending to /auth/login');
+                    const res = await fetch('/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(rolePayload)
+                    });
+
                     console.log('📥 Response status:', res.status);
                     
                     if (!res.ok) {
@@ -838,30 +845,23 @@
                     const data = await res.json();
                     console.log('✅ Login successful!');
                     localStorage.setItem('access_token', data.access_token);
+                    localStorage.setItem('user_role', data.role || role);
                     showMessage('Login successful! Redirecting...', 'success');
-                    
-                    try {
-                        const userRes = await fetch('/api/auth/me', {
-                            headers: { 'Authorization': `Bearer ${data.access_token}` }
-                        });
-                        if (userRes.ok) {
-                            const user = await userRes.json();
-                            const urlParams = new URLSearchParams(window.location.search);
-                            const redirect = urlParams.get('redirect');
-                            
-                            setTimeout(() => {
-                                if (redirect) {
-                                    window.location.href = redirect;
-                                } else if (user.is_admin) {
-                                    window.location.href = '/admin';
-                                } else {
-                                    window.location.href = '/';
-                                }
-                            }, 800);
+
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const redirect = urlParams.get('redirect');
+
+                    setTimeout(() => {
+                        if (redirect) {
+                            window.location.href = redirect;
+                        } else if ((data.role || role) === 'police_supervisor') {
+                            window.location.href = `/police/dashboard?token=${encodeURIComponent(data.access_token)}`;
+                        } else if ((data.role || role) === 'admin') {
+                            window.location.href = '/admin';
+                        } else {
+                            window.location.href = '/';
                         }
-                    } catch (error) {
-                        setTimeout(() => window.location.href = '/', 800);
-                    }
+                    }, 800);
                 } else {
                     const email = document.getElementById('email').value.trim();
                     const username = document.getElementById('username').value.trim();

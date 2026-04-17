@@ -4,6 +4,7 @@ Authentication and user management utilities.
 
 import os
 import hashlib
+from enum import Enum
 from datetime import datetime, timedelta, UTC
 from typing import Optional
 from jose import JWTError, jwt
@@ -37,6 +38,28 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+class UserRole(str, Enum):
+    admin = "admin"
+    police_supervisor = "police_supervisor"
+    logistics_manager = "logistics_manager"
+
+
+class RoleLoginRequest(BaseModel):
+    username: str
+    password: str
+    role: UserRole
+    district_id: Optional[str] = None
+    fleet_zone: Optional[str] = None
+
+
+class RoleToken(BaseModel):
+    access_token: str
+    token_type: str
+    role: UserRole
+    district_id: Optional[str] = None
+    fleet_zone: Optional[str] = None
 
 
 class TokenData(BaseModel):
@@ -179,6 +202,39 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
+def create_role_access_token(
+    username: str,
+    role: UserRole,
+    district_id: Optional[str] = None,
+    fleet_zone: Optional[str] = None,
+    expires_delta: Optional[timedelta] = None,
+) -> str:
+    """Create a JWT access token with role-based claims."""
+    claims = {
+        "sub": username,
+        "role": role.value,
+    }
+    if district_id is not None:
+        claims["district_id"] = district_id
+    if fleet_zone is not None:
+        claims["fleet_zone"] = fleet_zone
+    return create_access_token(claims, expires_delta=expires_delta)
+
+
+def require_role(required_role: str):
+    """Return a FastAPI dependency that enforces a specific JWT role."""
+
+    async def _role_dependency(current_user: dict = Depends(get_current_user)) -> dict:
+        if current_user.get("role") != required_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: insufficient role",
+            )
+        return current_user
+
+    return _role_dependency
+
+
 def get_user_by_username(db: Session, username: str) -> Optional[User]:
     """Get user by username."""
     return db.query(User).filter(User.username == username).first()
@@ -254,7 +310,7 @@ def create_user(db: Session, user_data: UserCreate) -> User:
     return db_user
 
 
-async def get_current_user(
+async def get_current_db_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_session)
 ) -> User:
@@ -284,8 +340,57 @@ async def get_current_user(
     return user
 
 
+async def get_current_user(request: Request) -> dict:
+    """Decode a Bearer token and return the JWT payload."""
+    authorization = request.headers.get("Authorization", "")
+    token = ""
+    if authorization.startswith("Bearer "):
+        token = authorization.removeprefix("Bearer ").strip()
+    else:
+        token = (
+            request.query_params.get("token")
+            or request.query_params.get("access_token")
+            or request.cookies.get("access_token")
+            or request.cookies.get("token")
+            or ""
+        )
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing access token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    username = payload.get("sub")
+    role = payload.get("role")
+    if not username or not role:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return {
+        "username": username,
+        "role": role,
+        "district_id": payload.get("district_id"),
+        "fleet_zone": payload.get("fleet_zone"),
+        "exp": payload.get("exp"),
+    }
+
+
 async def get_current_active_user(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_db_user)
 ) -> User:
     """Get current active user."""
     if not current_user.is_active:

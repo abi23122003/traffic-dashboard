@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Query, Depends, status, BackgroundTa
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse, Response, RedirectResponse
 import io
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field, EmailStr, field_validator
@@ -45,7 +46,7 @@ from auth import (
     verify_password, get_password_hash, create_access_token,
     get_current_user, get_current_active_user, get_current_admin_user,
     authenticate_user, create_user, get_user_by_username, Token, UserCreate as AuthUserCreate, UserResponse,
-    get_optional_user
+    get_optional_user, RoleLoginRequest, RoleToken, UserRole, create_role_access_token, require_role
 )
 from analytics import (
     get_peak_hours_analysis, get_day_of_week_analysis,
@@ -79,6 +80,8 @@ app.add_middleware(
 
 # Add rate limiting middleware
 app.add_middleware(RateLimitMiddleware)
+
+templates = Jinja2Templates(directory="templates")
 
 # Initialize database
 init_db()
@@ -117,6 +120,211 @@ def handle_db_errors(func):
                 detail=f"Database operation failed: {str(e)}"
             )
     return wrapper
+
+
+DISTRICT_LOCATIONS = {
+    "district_1": {"lat": 13.0827, "lon": 80.2707, "name": "Central District"},
+    "district_2": {"lat": 13.0545, "lon": 80.2450, "name": "West District"},
+    "district_3": {"lat": 12.9716, "lon": 80.1534, "name": "South District"},
+    "district_4": {"lat": 13.1278, "lon": 80.2270, "name": "North District"},
+}
+
+
+def _normalize_severity(raw_severity: Optional[str]) -> str:
+    value = (raw_severity or "").lower()
+    if value in {"1", "low", "minor"}:
+        return "low"
+    if value in {"2", "moderate", "medium"}:
+        return "moderate"
+    if value in {"3", "high"}:
+        return "high"
+    return "unknown"
+
+
+def _severity_color(severity: Optional[str]) -> str:
+    palette = {
+        "low": "#22c55e",
+        "moderate": "#f59e0b",
+        "high": "#ef4444",
+        "unknown": "#64748b",
+    }
+    return palette.get(_normalize_severity(severity), "#64748b")
+
+
+def _load_police_incidents(district_id: str) -> list[dict]:
+    district = DISTRICT_LOCATIONS.get(district_id, DISTRICT_LOCATIONS["district_1"])
+    incidents = get_traffic_incidents(district["lat"], district["lon"], radius=7000)
+
+    normalized: list[dict] = []
+    for index, incident in enumerate(incidents):
+        location = incident.get("location") or []
+        latitude = None
+        longitude = None
+        if isinstance(location, (list, tuple)) and len(location) >= 2:
+            longitude, latitude = location[0], location[1]
+        normalized.append({
+            "id": incident.get("id") or f"incident-{index}",
+            "type": incident.get("type") or "traffic",
+            "severity": _normalize_severity(incident.get("severity")),
+            "severity_color": _severity_color(incident.get("severity")),
+            "description": incident.get("description") or "Traffic incident",
+            "latitude": latitude,
+            "longitude": longitude,
+            "start_time": incident.get("start_time"),
+            "end_time": incident.get("end_time"),
+            "district_id": district_id,
+            "response_time": incident.get("response_time") or incident.get("responseTime"),
+        })
+
+    return normalized
+
+
+def _build_district_summary(incidents: list[dict]) -> dict:
+    today = datetime.now(UTC).date()
+    today_count = 0
+    response_times: list[float] = []
+
+    for incident in incidents:
+        start_time = incident.get("start_time")
+        if start_time:
+            try:
+                parsed = datetime.fromisoformat(str(start_time).replace("Z", "+00:00"))
+                if parsed.date() == today:
+                    today_count += 1
+            except ValueError:
+                today_count += 1
+        else:
+            today_count += 1
+
+        response_time = incident.get("response_time")
+        if isinstance(response_time, (int, float)):
+            response_times.append(float(response_time))
+
+    avg_response_time = round(sum(response_times) / len(response_times), 2) if response_times else 0.0
+    return {
+        "total_incidents_today": today_count,
+        "avg_response_time": avg_response_time,
+    }
+
+
+def _district_prediction_candidates(district_id: str, incidents: list[dict]) -> list[dict]:
+    district = DISTRICT_LOCATIONS.get(district_id, DISTRICT_LOCATIONS["district_1"])
+    candidates: list[dict] = []
+
+    for incident in incidents:
+        if incident.get("latitude") is not None and incident.get("longitude") is not None:
+            candidates.append({
+                "location": incident.get("description") or "Incident hotspot",
+                "latitude": incident["latitude"],
+                "longitude": incident["longitude"],
+                "base_severity": incident.get("severity", "unknown"),
+                "source": "live_incident",
+            })
+
+    if not candidates:
+        offsets = [
+            (0.0000, 0.0000),
+            (0.0120, 0.0080),
+            (-0.0100, 0.0110),
+            (0.0090, -0.0090),
+            (-0.0080, -0.0100),
+        ]
+        for index, (lat_offset, lon_offset) in enumerate(offsets):
+            candidates.append({
+                "location": f"{district['name']} sector {index + 1}",
+                "latitude": district["lat"] + lat_offset,
+                "longitude": district["lon"] + lon_offset,
+                "base_severity": "unknown",
+                "source": "district_grid",
+            })
+
+    return candidates[:10]
+
+
+def _predict_police_hotspots(district_id: str, incidents: list[dict]) -> list[dict]:
+    """Use the existing loaded ML model to rank likely hotspot locations."""
+    candidates = _district_prediction_candidates(district_id, incidents)
+    if not candidates:
+        return []
+
+    now = datetime.now(UTC)
+    predictions: list[dict] = []
+
+    for candidate in candidates:
+        hourly_scores: list[float] = []
+        for hours_ahead in range(1, 7):
+            future_time = now + timedelta(hours=hours_ahead)
+            distance_km = haversine_m(
+                candidate["latitude"],
+                candidate["longitude"],
+                DISTRICT_LOCATIONS.get(district_id, DISTRICT_LOCATIONS["district_1"])["lat"],
+                DISTRICT_LOCATIONS.get(district_id, DISTRICT_LOCATIONS["district_1"])["lon"],
+            ) / 1000.0
+
+            severity_bias = {
+                "low": 0.05,
+                "moderate": 0.15,
+                "high": 0.30,
+                "unknown": 0.10,
+            }.get(candidate.get("base_severity", "unknown"), 0.10)
+
+            feature_frame = {
+                "hour": future_time.hour,
+                "weekday": future_time.weekday(),
+                "is_weekend": 1 if future_time.weekday() >= 5 else 0,
+                "distance_km": max(distance_km, 0.1),
+                "route_index": 0,
+                "travel_time_s": 900 + int(distance_km * 180) + int(severity_bias * 300),
+                "no_traffic_s": 750 + int(distance_km * 120),
+                "delay_s": 150 + int(severity_bias * 240),
+                "rolling_mean_congestion": 1.0 + severity_bias,
+                "rolling_std_congestion": 0.05 + severity_bias / 2,
+            }
+
+            model_prediction = predict_congestion(feature_frame)
+            if model_prediction is None:
+                model_prediction = 1.0 + severity_bias
+
+            likelihood_score = max(0.0, min(100.0, ((float(model_prediction) - 0.9) / 1.2) * 100 + severity_bias * 15))
+            hourly_scores.append(likelihood_score)
+
+        average_score = round(sum(hourly_scores) / len(hourly_scores), 2)
+        confidence = round(max(0.0, min(100.0, 100.0 - (max(hourly_scores) - min(hourly_scores)) * 0.75)), 2)
+
+        if average_score >= 85:
+            predicted_type = "critical congestion"
+        elif average_score >= 70:
+            predicted_type = "high traffic"
+        elif average_score >= 50:
+            predicted_type = "moderate traffic"
+        else:
+            predicted_type = "light traffic"
+
+        predictions.append({
+            "location": candidate["location"],
+            "likelihood_score": average_score,
+            "confidence": confidence,
+            "predicted_type": predicted_type,
+        })
+
+    predictions.sort(key=lambda item: item["likelihood_score"], reverse=True)
+    return predictions[:5]
+
+
+def _safe_ppt_text(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value)
+
+
+def _format_ppt_timestamp(value: Optional[str]) -> str:
+    if not value:
+        return "-"
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed.strftime("%Y-%m-%d %H:%M")
+    except ValueError:
+        return str(value)
 
 # ============================================================================
 # VALIDATION MODELS (Pydantic V2 Compatible)
@@ -1013,7 +1221,12 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_session
 
 
 @app.post("/api/auth/login", response_model=Token)
-async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_session)):
+async def login_user(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_session),
+    *,
+    response: Response,
+):
     """Login and get access token."""
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
@@ -1026,7 +1239,198 @@ async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Sessi
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
+        max_age=30 * 24 * 60 * 60,
+        path="/",
+    )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/police/dashboard", response_class=HTMLResponse)
+async def police_dashboard(request: Request, current_user: dict = Depends(require_role("police_supervisor"))):
+    """Render the police supervisor dashboard for the user's district."""
+    district_id = current_user.get("district_id")
+    incidents = _load_police_incidents(district_id)
+    district_summary = _build_district_summary(incidents)
+    ml_predictions = _predict_police_hotspots(district_id, incidents)
+    district_info = DISTRICT_LOCATIONS.get(district_id, {"name": district_id or "Unknown District"})
+
+    return templates.TemplateResponse(
+        "police_dashboard.html",
+        {
+            "request": request,
+            "current_user": current_user,
+            "district_id": district_id,
+            "district_info": district_info,
+            "incidents": incidents,
+            "district_summary": district_summary,
+            "ml_predictions": ml_predictions,
+        },
+    )
+
+
+@app.get("/police/export/pptx")
+async def police_export_pptx(current_user: dict = Depends(require_role("police_supervisor"))):
+    """Generate a police supervisor shift report as a PPTX file."""
+    try:
+        from io import BytesIO
+        from pptx import Presentation
+        from pptx.util import Inches, Pt
+        from pptx.enum.shapes import MSO_SHAPE
+
+        district_id = current_user.get("district_id")
+        officer_name = current_user.get("username", "Unknown Officer")
+
+        incidents = _load_police_incidents(district_id)
+        district_summary = _build_district_summary(incidents)
+        ml_predictions = _predict_police_hotspots(district_id, incidents)
+        district_info = DISTRICT_LOCATIONS.get(district_id, {"name": district_id or "Unknown District"})
+
+        prs = Presentation()
+        prs.slide_width = Inches(13.333)
+        prs.slide_height = Inches(7.5)
+
+        title_layout = prs.slide_layouts[0]
+        title_body_layout = prs.slide_layouts[5]
+
+        # Slide 1 - Shift summary
+        slide1 = prs.slides.add_slide(title_layout)
+        slide1.shapes.title.text = "Police Shift Summary"
+        slide1.placeholders[1].text = (
+            f"District: {district_info.get('name', district_id or 'Unknown District')}\n"
+            f"Date: {datetime.now(UTC).strftime('%Y-%m-%d')}\n"
+            f"Officer: {officer_name}\n"
+            f"Total Incidents: {len(incidents)}"
+        )
+
+        # Slide 2 - Incidents table
+        slide2 = prs.slides.add_slide(title_body_layout)
+        slide2.shapes.title.text = "Incident Breakdown"
+        rows = max(len(incidents), 1) + 1
+        cols = 4
+        table_shape = slide2.shapes.add_table(rows, cols, Inches(0.5), Inches(1.4), Inches(12.3), Inches(5.6))
+        table = table_shape.table
+        headers = ["ID", "Description", "Severity", "Start Time"]
+        for index, header in enumerate(headers):
+            table.cell(0, index).text = header
+        for row_index, incident in enumerate(incidents, start=1):
+            table.cell(row_index, 0).text = _safe_ppt_text(incident.get("id"))
+            table.cell(row_index, 1).text = _safe_ppt_text(incident.get("description"))
+            table.cell(row_index, 2).text = _safe_ppt_text(incident.get("severity"))
+            table.cell(row_index, 3).text = _format_ppt_timestamp(incident.get("start_time"))
+
+        # Slide 3 - ML highlights
+        slide3 = prs.slides.add_slide(title_body_layout)
+        slide3.shapes.title.text = "ML Prediction Highlights"
+        text_box = slide3.shapes.add_textbox(Inches(0.7), Inches(1.3), Inches(12), Inches(5.8))
+        text_frame = text_box.text_frame
+        if ml_predictions:
+            for index, prediction in enumerate(ml_predictions, start=1):
+                paragraph = text_frame.paragraphs[0] if index == 1 else text_frame.add_paragraph()
+                paragraph.text = (
+                    f"{index}. {prediction['location']} | "
+                    f"Likelihood: {prediction['likelihood_score']}% | "
+                    f"Confidence: {prediction['confidence']}% | "
+                    f"Type: {prediction['predicted_type']}"
+                )
+                for run in paragraph.runs:
+                    run.font.size = Pt(18)
+        else:
+            text_frame.text = "No ML predictions available for this district."
+
+        # Slide 4 - Map placeholder
+        slide4 = prs.slides.add_slide(title_body_layout)
+        slide4.shapes.title.text = "Map Screenshot Placeholder"
+        placeholder = slide4.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE, Inches(1.1), Inches(1.6), Inches(11.2), Inches(4.6)
+        )
+        placeholder.text_frame.text = (
+            "Insert map screenshot here before final delivery.\n\n"
+            f"District: {district_info.get('name', district_id or 'Unknown District')}\n"
+            f"Incidents on map: {len(incidents)}"
+        )
+
+        output = BytesIO()
+        prs.save(output)
+        output.seek(0)
+
+        filename = f"ShiftReport_District{district_id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M')}.pptx"
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except ImportError as exc:
+        raise HTTPException(status_code=500, detail=f"PPTX export dependency missing: {exc}")
+    except Exception as exc:
+        logger.error(f"Police PPTX export failed: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate PPTX: {exc}")
+
+
+@app.post("/auth/login", response_model=RoleToken)
+async def role_login(
+    login_data: RoleLoginRequest,
+    db: Session = Depends(get_session),
+    *,
+    response: Response,
+):
+    """Login with an explicit role and return a role-aware JWT."""
+    user = authenticate_user(db, login_data.username, login_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    role = login_data.role
+    district_id = login_data.district_id
+    fleet_zone = login_data.fleet_zone
+
+    if role == UserRole.admin and not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+
+    if role == UserRole.police_supervisor and not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for police_supervisor login",
+        )
+
+    if role == UserRole.logistics_manager and not fleet_zone:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="fleet_zone is required for logistics_manager login",
+        )
+
+    access_token = create_role_access_token(
+        username=user.username,
+        role=role,
+        district_id=district_id,
+        fleet_zone=fleet_zone,
+        expires_delta=timedelta(minutes=30 * 24 * 60),
+    )
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
+        max_age=30 * 24 * 60 * 60,
+        path="/",
+    )
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": role,
+        "district_id": district_id,
+        "fleet_zone": fleet_zone,
+    }
 
 
 @app.get("/api/auth/me", response_model=UserResponse)

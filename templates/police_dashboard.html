@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Police Supervisor Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .page {
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(59, 130, 246, 0.15);
+            color: #93c5fd;
+            font-size: 12px;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 16px;
+            padding: 16px;
+        }
+        .card h3 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .card .value {
+            font-size: 30px;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+        .layout {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 20px;
+        }
+        .prediction-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #111827;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .warning-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            font-size: 11px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        #map {
+            height: 560px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid #1f2937;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #111827;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #1f2937;
+            text-align: left;
+            font-size: 14px;
+        }
+        th {
+            background: #0b1220;
+            color: #94a3b8;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.06em;
+        }
+        .severity-low { color: #22c55e; }
+        .severity-moderate { color: #f59e0b; }
+        .severity-high { color: #ef4444; }
+        .severity-unknown { color: #64748b; }
+        .table-wrap {
+            overflow: auto;
+            max-height: 560px;
+            border-radius: 16px;
+            border: 1px solid #1f2937;
+        }
+        @media (max-width: 1000px) {
+            .layout { grid-template-columns: 1fr; }
+            #map { height: 420px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="header">
+            <div>
+                <div class="badge">Police Supervisor</div>
+                <h1 style="margin: 10px 0 6px;">{{ district_info.name }}</h1>
+                <div>District ID: {{ district_id }}</div>
+            </div>
+            <div>
+                <div style="color: #94a3b8; font-size: 13px;">Logged in as {{ current_user.username }}</div>
+            </div>
+        </div>
+
+        <div class="summary-grid">
+            <div class="card">
+                <h3>Total Incidents Today</h3>
+                <div class="value">{{ district_summary.total_incidents_today }}</div>
+            </div>
+            <div class="card">
+                <h3>Avg Response Time</h3>
+                <div class="value">{{ district_summary.avg_response_time }} min</div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 20px;">
+            <h3 style="margin-top: 0;">ML Predictions: Next 6 Hours</h3>
+            <div style="overflow: auto; border-radius: 16px; border: 1px solid #1f2937;">
+                <table class="prediction-table">
+                    <thead>
+                        <tr>
+                            <th>Location</th>
+                            <th>Likelihood Score</th>
+                            <th>Confidence</th>
+                            <th>Predicted Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prediction in ml_predictions %}
+                        <tr>
+                            <td>
+                                {{ prediction.location }}
+                                {% if prediction.likelihood_score > 70 %}
+                                    <span class="warning-badge">Warning</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ prediction.likelihood_score }}%</td>
+                            <td>{{ prediction.confidence }}%</td>
+                            <td>{{ prediction.predicted_type }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4">No ML predictions available for this district.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="layout">
+            <div class="card">
+                <h3 style="margin-top: 0;">Incident Map</h3>
+                <div id="map"></div>
+            </div>
+            <div>
+                <div class="card" style="margin-bottom: 20px;">
+                    <h3 style="margin-top: 0;">Incidents Table</h3>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Description</th>
+                                    <th>Severity</th>
+                                    <th>Start Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for incident in incidents %}
+                                <tr>
+                                    <td>{{ incident.id }}</td>
+                                    <td>{{ incident.description }}</td>
+                                    <td class="severity-{{ incident.severity }}">{{ incident.severity }}</td>
+                                    <td>{{ incident.start_time or '-' }}</td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="4">No incidents found for this district.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script type="application/json" id="police-incidents-data">{{ incidents | tojson }}</script>
+    <script type="application/json" id="police-district-data">{{ district_info | tojson }}</script>
+    <script>
+        const policeIncidents = JSON.parse(document.getElementById('police-incidents-data').textContent || '[]');
+        const policeDistrict = JSON.parse(document.getElementById('police-district-data').textContent || '{}');
+
+        const map = L.map('map').setView([policeDistrict.lat || 13.0827, policeDistrict.lon || 80.2707], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        function severityColor(severity) {
+            const value = (severity || '').toLowerCase();
+            if (value === 'low') return '#22c55e';
+            if (value === 'moderate') return '#f59e0b';
+            if (value === 'high') return '#ef4444';
+            return '#64748b';
+        }
+
+        policeIncidents.forEach((incident) => {
+            if (incident.latitude == null || incident.longitude == null) return;
+            const marker = L.circleMarker([incident.latitude, incident.longitude], {
+                radius: 8,
+                color: severityColor(incident.severity),
+                fillColor: severityColor(incident.severity),
+                fillOpacity: 0.85,
+                weight: 2
+            }).addTo(map);
+
+            marker.bindPopup(`
+                <strong>${incident.description || 'Incident'}</strong><br>
+                Severity: ${incident.severity || 'unknown'}<br>
+                Start: ${incident.start_time || '-'}
+            `);
+        });
+    </script>
+</body>
+</html>
