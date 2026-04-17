@@ -878,42 +878,28 @@
                         throw new Error('Please enter both username and password');
                     }
 
-                    let res;
-                    if (role === 'user') {
-                        const payload = new URLSearchParams();
-                        payload.append('username', username);
-                        payload.append('password', password);
+                    const rolePayload = { username, password, role };
 
-                        console.log('📤 Sending to /api/auth/login');
-                        res = await fetch('/api/auth/login', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            body: payload.toString()
-                        });
-                    } else {
-                        const rolePayload = { username, password, role };
-
-                        if (role === 'police_supervisor') {
-                            if (!districtId) {
-                                throw new Error('District is required for police supervisor login');
-                            }
-                            rolePayload.district_id = districtId;
+                    if (role === 'police_supervisor') {
+                        if (!districtId) {
+                            throw new Error('District is required for police supervisor login');
                         }
-
-                        if (role === 'logistics_manager') {
-                            if (!fleetZone) {
-                                throw new Error('Fleet zone is required for logistics manager login');
-                            }
-                            rolePayload.fleet_zone = fleetZone;
-                        }
-
-                        console.log('📤 Sending to /auth/login');
-                        res = await fetch('/auth/login', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(rolePayload)
-                        });
+                        rolePayload.district_id = districtId;
                     }
+
+                    if (role === 'logistics_manager') {
+                        if (!fleetZone) {
+                            throw new Error('Fleet zone is required for logistics manager login');
+                        }
+                        rolePayload.fleet_zone = fleetZone;
+                    }
+
+                    console.log('📤 Sending to /auth/login');
+                    const res = await fetch('/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(rolePayload)
+                    });
 
                     console.log('📥 Response status:', res.status);
                     

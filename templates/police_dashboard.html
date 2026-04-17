@@ -122,6 +122,11 @@
     </style>
 </head>
 <body>
+    {% if data_error %}
+    <div style="background: #FEF3CD; border: 1px solid #F0A500; border-radius: 6px; font-size: 14px; color: #6b4f00; margin: 16px; padding: 12px 14px;">
+        ⚠️ Some data could not be loaded. Showing last available records. Contact admin if this persists.
+    </div>
+    {% endif %}
     <div class="page">
         <div class="header">
             <div>
@@ -133,15 +138,6 @@
                 <div style="color: #94a3b8; font-size: 13px;">Logged in as {{ current_user.username }}</div>
             </div>
         </div>
-
-        {% if data_error %}
-        <div class="card" style="margin-bottom: 20px; border-color: #b45309; background: rgba(180, 83, 9, 0.12);">
-            <h3 style="margin-top: 0; color: #fdba74;">Data Warning</h3>
-            <div style="color: #fed7aa; line-height: 1.6;">
-                Some dashboard data could not be loaded. Empty values are shown where needed so the page still works.
-            </div>
-        </div>
-        {% endif %}
 
         <div class="summary-grid">
             <div class="card">

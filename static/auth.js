@@ -47,6 +47,22 @@ function getCurrentUser() {
     return currentUser;
 }
 
+function getUserTypeLabel(user) {
+    if (!user) return 'User';
+
+    const department = (user.department || '').toLowerCase();
+    if (user.is_admin || department === 'admin') {
+        return 'Admin (Privileged)';
+    }
+    if (department === 'police') {
+        return 'Police Officer';
+    }
+    if (department === 'logistics') {
+        return 'Logistics Manager';
+    }
+    return 'Normal User';
+}
+
 // Check if user is admin
 function isAdmin() {
     return currentUser && currentUser.is_admin === true;
@@ -70,7 +86,8 @@ function updateUIForAuth() {
             userMenu.style.display = 'flex';
             const usernameSpan = document.getElementById('username-display');
             if (usernameSpan) {
-                usernameSpan.textContent = currentUser.is_admin ? '👑 Admin' : currentUser.username;
+                const userType = getUserTypeLabel(currentUser);
+                usernameSpan.textContent = `${currentUser.username} - ${userType}`;
             }
         }
     } else {

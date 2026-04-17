@@ -8,6 +8,7 @@ from enum import Enum
 from datetime import datetime, timedelta, UTC
 from typing import Optional
 from jose import JWTError, jwt
+from jose.exceptions import ExpiredSignatureError
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
@@ -362,6 +363,8 @@ async def get_current_db_user(
         if username is None:
             raise credentials_exception
         token_data = TokenData(username=username)
+    except ExpiredSignatureError:
+        raise
     except JWTError:
         raise credentials_exception
     
@@ -400,6 +403,8 @@ async def get_current_user(request: Request) -> dict:
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except ExpiredSignatureError:
+        raise
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

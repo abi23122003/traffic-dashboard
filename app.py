@@ -16,6 +16,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field, EmailStr, field_validator
+from jose.exceptions import ExpiredSignatureError
 import joblib
 from datetime import datetime, UTC, timedelta
 import secrets
@@ -70,6 +71,33 @@ app = FastAPI(
     description="Real-time traffic congestion analysis with ML predictions",
     version="1.0.0"
 )
+
+
+@app.exception_handler(ExpiredSignatureError)
+async def expired_signature_exception_handler(request: Request, exc: ExpiredSignatureError):
+    accept_header = (request.headers.get("accept") or "").lower()
+    if "text/html" in accept_header:
+        return RedirectResponse(url="/auth/login?reason=session_expired", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content={"detail": "Session expired. Please log in again."},
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    detail = exc.detail
+    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+        detail = "Unauthorized access. Please log in to continue."
+    elif exc.status_code == status.HTTP_403_FORBIDDEN:
+        detail = "Access denied. You do not have permission to view this resource."
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": detail},
+        headers=getattr(exc, "headers", None),
+    )
 
 # Add CORS middleware
 app.add_middleware(
@@ -722,6 +750,15 @@ async def serve_login():
         content="<h1>Login</h1><p>Login page not found.</p>",
         status_code=404
     )
+
+
+@app.get("/auth/login")
+async def serve_auth_login_alias(request: Request):
+    """Alias route so auth redirects can target /auth/login for browser clients."""
+    reason = request.query_params.get("reason")
+    if reason:
+        return RedirectResponse(url=f"/login?reason={reason}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    return RedirectResponse(url="/login", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
 
 @app.get("/admin", response_class=HTMLResponse)
@@ -1397,35 +1434,32 @@ async def police_dashboard(request: Request, current_user: dict = Depends(requir
     incidents: list[dict] = []
     district_summary: dict = {"total_incidents_today": "N/A", "avg_response_time": "N/A"}
     ml_predictions: list[dict] = []
-    incidents_empty = True
-    summary_empty = True
-    predictions_empty = True
+    incidents_failed = False
+    summary_failed = False
+    predictions_failed = False
 
     try:
         incidents = _load_police_incidents(district_id)
-        incidents_empty = len(incidents) == 0
     except Exception:
         logging.exception("Failed to load police incidents for district %s", district_id)
         incidents = []
-        incidents_empty = True
+        incidents_failed = True
 
     try:
         district_summary = _build_district_summary(incidents)
-        summary_empty = district_summary.get("total_incidents_today") == "N/A" or district_summary.get("avg_response_time") == "N/A"
     except Exception:
         logging.exception("Failed to build district summary for district %s", district_id)
         district_summary = {"total_incidents_today": "N/A", "avg_response_time": "N/A"}
-        summary_empty = True
+        summary_failed = True
 
     try:
         ml_predictions = _predict_police_hotspots(district_id, incidents)
-        predictions_empty = len(ml_predictions) == 0
     except Exception:
         logging.exception("Failed to load ML predictions for district %s", district_id)
         ml_predictions = []
-        predictions_empty = True
+        predictions_failed = True
 
-    data_error = incidents_empty or summary_empty or predictions_empty
+    data_error = incidents_failed or summary_failed or predictions_failed
     district_info = DISTRICT_LOCATIONS.get(district_id, {"name": district_id or "Unknown District"})
 
     return templates.TemplateResponse(
