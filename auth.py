@@ -41,6 +41,7 @@ class Token(BaseModel):
 
 
 class UserRole(str, Enum):
+    user = "user"
     admin = "admin"
     police_supervisor = "police_supervisor"
     logistics_manager = "logistics_manager"
@@ -71,6 +72,7 @@ class UserCreate(BaseModel):
     username: str
     password: str
     full_name: Optional[str] = None
+    department: str = "general"
 
 
 class UserResponse(BaseModel):
@@ -78,6 +80,7 @@ class UserResponse(BaseModel):
     email: str
     username: str
     full_name: Optional[str]
+    department: str
     is_active: bool
     is_admin: bool
     created_at: datetime
@@ -235,6 +238,38 @@ def require_role(required_role: str):
     return _role_dependency
 
 
+def require_police_department_user():
+    """Return a FastAPI dependency that only allows police-department users."""
+
+    async def _police_department_dependency(
+        current_user: dict = Depends(get_current_user),
+        db: Session = Depends(get_session),
+    ) -> dict:
+        if current_user.get("role") != UserRole.police_supervisor.value:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: police supervisor role required",
+            )
+
+        user = get_user_by_username(db, current_user.get("username", ""))
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        if (getattr(user, "department", None) or "").strip().lower() != "police":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Police department access required",
+            )
+
+        return current_user
+
+    return _police_department_dependency
+
+
 def get_user_by_username(db: Session, username: str) -> Optional[User]:
     """Get user by username."""
     return db.query(User).filter(User.username == username).first()
@@ -301,6 +336,7 @@ def create_user(db: Session, user_data: UserCreate) -> User:
         username=user_data.username,
         hashed_password=hashed_password,
         full_name=user_data.full_name,
+        department=(user_data.department or "general").strip().lower(),
         is_active=True,
         is_admin=False
     )
@@ -455,6 +491,7 @@ def ensure_admin_user_exists(db: Session) -> User:
             admin_user.hashed_password = get_password_hash(admin_password)
             admin_user.is_admin = True
             admin_user.is_active = True
+            admin_user.department = "admin"
             db.commit()
             db.refresh(admin_user)
             logger.info(f"✅ Updated admin user password for {admin_username}")
@@ -462,6 +499,7 @@ def ensure_admin_user_exists(db: Session) -> User:
             # User exists but is not admin, make them admin
             admin_user.is_admin = True
             admin_user.is_active = True
+            admin_user.department = "admin"
             db.commit()
             db.refresh(admin_user)
             logger.info(f"✅ Updated user {admin_username} to admin")
@@ -474,6 +512,7 @@ def ensure_admin_user_exists(db: Session) -> User:
             email=admin_email,
             hashed_password=hashed_password,
             full_name="Administrator",
+            department="admin",
             is_active=True,
             is_admin=True
         )

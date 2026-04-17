@@ -5,7 +5,7 @@ Database persistence layer using SQLAlchemy with PostgreSQL or SQLite fallback.
 import os
 import json
 from datetime import datetime, UTC
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, Boolean, ForeignKey, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, Boolean, ForeignKey, JSON, inspect, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
 from logging_config import get_logger
@@ -35,6 +35,7 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=True)
+    department = Column(String(50), nullable=False, default="general")
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
@@ -167,6 +168,22 @@ def _get_sqlite_engine():
     )
 
 
+def _ensure_user_department_column(engine):
+    """Add the users.department column if it does not exist yet."""
+    inspector = inspect(engine)
+    try:
+        user_columns = {column["name"] for column in inspector.get_columns("users")}
+    except Exception:
+        return
+
+    if "department" not in user_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN department VARCHAR(50) NOT NULL DEFAULT 'general'"))
+
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE users SET department = COALESCE(NULLIF(department, ''), 'general')"))
+
+
 def get_session() -> Session:
     """Create and return a database session."""
     engine = get_engine()
@@ -179,6 +196,7 @@ def init_db():
     try:
         engine = get_engine()
         Base.metadata.create_all(bind=engine)
+        _ensure_user_department_column(engine)
         logger.info("✅ Database tables initialized successfully")
         
         # Ensure default admin user exists
@@ -186,6 +204,9 @@ def init_db():
             from auth import ensure_admin_user_exists
             session = get_session()
             ensure_admin_user_exists(session)
+            session.execute(text("UPDATE users SET department = 'admin' WHERE is_admin = 1"))
+            session.execute(text("UPDATE users SET department = 'police' WHERE username = 'officer_raj'"))
+            session.commit()
             session.close()
             logger.info("✅ Default admin user verified/created")
         except Exception as e:

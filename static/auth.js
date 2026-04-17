@@ -95,11 +95,13 @@ async function navigateToAccount() {
     
     console.log('Navigating to account, user:', currentUser);
     console.log('Is admin?', currentUser.is_admin);
+    const role = getStoredRole();
+    const department = (currentUser.department || '').toLowerCase();
     
-    if (currentUser.is_admin) {
+    if (currentUser.is_admin || role === 'admin') {
         console.log('Redirecting admin to /admin');
         window.location.href = '/admin';
-    } else if (currentUser.role === 'police_supervisor' || getStoredRole() === 'police_supervisor') {
+    } else if (department === 'police' || role === 'police_supervisor') {
         console.log('Redirecting police supervisor to /police/dashboard');
         window.location.href = '/police/dashboard';
     } else {

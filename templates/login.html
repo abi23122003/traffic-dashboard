@@ -173,7 +173,8 @@
             position: relative;
         }
 
-        input {
+        input,
+        select {
             width: 100%;
             padding: 16px 20px;
             border: 2px solid rgba(212, 175, 55, 0.2);
@@ -193,7 +194,8 @@
             color: rgba(203, 213, 245, 0.3);
         }
 
-        input:focus {
+        input:focus,
+        select:focus {
             outline: none;
             border-color: rgba(212, 175, 55, 0.6);
             box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.15), 0 0 25px rgba(212, 175, 55, 0.35);
@@ -557,7 +559,34 @@
                     <div class="field-feedback" id="username-feedback"></div>
                 </div>
             </div>
-            <input type="hidden" id="role" name="role" value="police_supervisor">
+            <div class="form-group" id="role-group">
+                <div class="label-wrapper">
+                    <label for="role">Role</label>
+                </div>
+                <div class="input-wrapper">
+                    <select id="role" name="role" required>
+                        <option value="user">Normal User</option>
+                        <option value="police_supervisor">Police Supervisor</option>
+                        <option value="logistics_manager">Logistics Manager</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group" id="district-group" style="display: none;">
+                <div class="label-wrapper">
+                    <label for="district-id">District (Police only)</label>
+                </div>
+                <div class="input-wrapper">
+                    <input type="text" id="district-id" name="district-id" placeholder="e.g. district_1">
+                </div>
+            </div>
+            <div class="form-group" id="fleet-group" style="display: none;">
+                <div class="label-wrapper">
+                    <label for="fleet-zone">Fleet Zone (Logistics only)</label>
+                </div>
+                <div class="input-wrapper">
+                    <input type="text" id="fleet-zone" name="fleet-zone" placeholder="e.g. zone_north">
+                </div>
+            </div>
             <div class="form-group" id="email-group" style="display: none;">
                 <div class="label-wrapper">
                     <label for="email">Email</label>
@@ -782,6 +811,31 @@
             document.getElementById('password-strength').classList.remove('show');
         }
 
+        function updateRoleFields() {
+            const role = document.getElementById('role').value;
+            const districtGroup = document.getElementById('district-group');
+            const fleetGroup = document.getElementById('fleet-group');
+            const districtInput = document.getElementById('district-id');
+            const fleetInput = document.getElementById('fleet-zone');
+
+            districtGroup.style.display = role === 'police_supervisor' ? 'block' : 'none';
+            fleetGroup.style.display = role === 'logistics_manager' ? 'block' : 'none';
+
+            if (role === 'police_supervisor') {
+                districtInput.setAttribute('required', 'required');
+            } else {
+                districtInput.removeAttribute('required');
+                districtInput.value = '';
+            }
+
+            if (role === 'logistics_manager') {
+                fleetInput.setAttribute('required', 'required');
+            } else {
+                fleetInput.removeAttribute('required');
+                fleetInput.value = '';
+            }
+        }
+
         function showMessage(message, type) {
             const messageDiv = type === 'error' ? 
                 document.getElementById('error-message') : 
@@ -811,6 +865,8 @@
                     const username = document.getElementById('username').value.trim();
                     const password = document.getElementById('password').value;
                     const role = document.getElementById('role').value;
+                    const districtId = document.getElementById('district-id').value.trim();
+                    const fleetZone = document.getElementById('fleet-zone').value.trim();
 
                     console.log('📝 Form Values:');
                     console.log('  Username:', username);
@@ -822,17 +878,42 @@
                         throw new Error('Please enter both username and password');
                     }
 
-                    const rolePayload = { username, password, role };
-                    if (role === 'police_supervisor') {
-                        rolePayload.district_id = 'district_1';
-                    }
+                    let res;
+                    if (role === 'user') {
+                        const payload = new URLSearchParams();
+                        payload.append('username', username);
+                        payload.append('password', password);
 
-                    console.log('📤 Sending to /auth/login');
-                    const res = await fetch('/auth/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(rolePayload)
-                    });
+                        console.log('📤 Sending to /api/auth/login');
+                        res = await fetch('/api/auth/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: payload.toString()
+                        });
+                    } else {
+                        const rolePayload = { username, password, role };
+
+                        if (role === 'police_supervisor') {
+                            if (!districtId) {
+                                throw new Error('District is required for police supervisor login');
+                            }
+                            rolePayload.district_id = districtId;
+                        }
+
+                        if (role === 'logistics_manager') {
+                            if (!fleetZone) {
+                                throw new Error('Fleet zone is required for logistics manager login');
+                            }
+                            rolePayload.fleet_zone = fleetZone;
+                        }
+
+                        console.log('📤 Sending to /auth/login');
+                        res = await fetch('/auth/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(rolePayload)
+                        });
+                    }
 
                     console.log('📥 Response status:', res.status);
                     
@@ -845,7 +926,7 @@
                     const data = await res.json();
                     console.log('✅ Login successful!');
                     localStorage.setItem('access_token', data.access_token);
-                    localStorage.setItem('user_role', data.role || role);
+                    localStorage.setItem('user_role', data.role || role || 'user');
                     showMessage('Login successful! Redirecting...', 'success');
 
                     const urlParams = new URLSearchParams(window.location.search);
@@ -858,6 +939,8 @@
                             window.location.href = `/police/dashboard?token=${encodeURIComponent(data.access_token)}`;
                         } else if ((data.role || role) === 'admin') {
                             window.location.href = '/admin';
+                        } else if ((data.role || role) === 'logistics_manager') {
+                            window.location.href = '/account';
                         } else {
                             window.location.href = '/';
                         }
@@ -868,6 +951,7 @@
                     const password = document.getElementById('password').value;
                     const confirmPassword = document.getElementById('confirm-password').value;
                     const fullName = document.getElementById('full-name').value.trim() || null;
+                    const role = document.getElementById('role').value;
                     
                     if (!email || !username || !password || !confirmPassword) {
                         throw new Error('Please fill in all required fields');
@@ -897,7 +981,8 @@
                             username: username,
                             email: email,
                             password: password,
-                            full_name: fullName
+                            full_name: fullName,
+                            role: role
                         })
                     });
                     
@@ -950,9 +1035,13 @@
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 console.log('✅ Page fully loaded');
+                document.getElementById('role').addEventListener('change', updateRoleFields);
+                updateRoleFields();
             });
         } else {
             console.log('✅ Page already loaded');
+            document.getElementById('role').addEventListener('change', updateRoleFields);
+            updateRoleFields();
         }
     </script>
 </body>

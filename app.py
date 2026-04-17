@@ -5,6 +5,7 @@ Provides endpoints for autocomplete, route analysis, and serving the frontend.
 
 import os
 import json
+import logging
 from typing import Optional, Union, List
 from functools import wraps
 from fastapi import FastAPI, HTTPException, Query, Depends, status, BackgroundTasks, Request
@@ -46,7 +47,8 @@ from auth import (
     verify_password, get_password_hash, create_access_token,
     get_current_user, get_current_active_user, get_current_admin_user,
     authenticate_user, create_user, get_user_by_username, Token, UserCreate as AuthUserCreate, UserResponse,
-    get_optional_user, RoleLoginRequest, RoleToken, UserRole, create_role_access_token, require_role
+    get_optional_user, RoleLoginRequest, RoleToken, UserRole, create_role_access_token, require_role,
+    require_police_department_user
 )
 from analytics import (
     get_peak_hours_analysis, get_day_of_week_analysis,
@@ -326,6 +328,91 @@ def _format_ppt_timestamp(value: Optional[str]) -> str:
     except ValueError:
         return str(value)
 
+
+def generate_shift_pptx(
+    district_id: str,
+    officer_name: str,
+    incidents: list[dict],
+    district_summary: dict,
+    ml_predictions: list[dict],
+) -> io.BytesIO:
+    """Generate a police shift PPTX report and return an in-memory stream."""
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.enum.shapes import MSO_SHAPE
+
+    district_info = DISTRICT_LOCATIONS.get(district_id, {"name": district_id or "Unknown District"})
+
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+
+    title_layout = prs.slide_layouts[0]
+    title_body_layout = prs.slide_layouts[5]
+
+    # Slide 1 - Shift summary
+    slide1 = prs.slides.add_slide(title_layout)
+    slide1.shapes.title.text = "Police Shift Summary"
+    slide1.placeholders[1].text = (
+        f"District: {district_info.get('name', district_id or 'Unknown District')}\n"
+        f"Date: {datetime.now(UTC).strftime('%Y-%m-%d')}\n"
+        f"Officer: {officer_name}\n"
+        f"Total Incidents: {len(incidents)}\n"
+        f"Avg Response Time: {district_summary.get('avg_response_time', 'N/A')}"
+    )
+
+    # Slide 2 - Incidents table
+    slide2 = prs.slides.add_slide(title_body_layout)
+    slide2.shapes.title.text = "Incident Breakdown"
+    rows = max(len(incidents), 1) + 1
+    cols = 4
+    table_shape = slide2.shapes.add_table(rows, cols, Inches(0.5), Inches(1.4), Inches(12.3), Inches(5.6))
+    table = table_shape.table
+    headers = ["ID", "Description", "Severity", "Start Time"]
+    for index, header in enumerate(headers):
+        table.cell(0, index).text = header
+    for row_index, incident in enumerate(incidents, start=1):
+        table.cell(row_index, 0).text = _safe_ppt_text(incident.get("id"))
+        table.cell(row_index, 1).text = _safe_ppt_text(incident.get("description"))
+        table.cell(row_index, 2).text = _safe_ppt_text(incident.get("severity"))
+        table.cell(row_index, 3).text = _format_ppt_timestamp(incident.get("start_time"))
+
+    # Slide 3 - ML highlights
+    slide3 = prs.slides.add_slide(title_body_layout)
+    slide3.shapes.title.text = "ML Prediction Highlights"
+    text_box = slide3.shapes.add_textbox(Inches(0.7), Inches(1.3), Inches(12), Inches(5.8))
+    text_frame = text_box.text_frame
+    if ml_predictions:
+        for index, prediction in enumerate(ml_predictions, start=1):
+            paragraph = text_frame.paragraphs[0] if index == 1 else text_frame.add_paragraph()
+            paragraph.text = (
+                f"{index}. {prediction['location']} | "
+                f"Likelihood: {prediction['likelihood_score']}% | "
+                f"Confidence: {prediction['confidence']}% | "
+                f"Type: {prediction['predicted_type']}"
+            )
+            for run in paragraph.runs:
+                run.font.size = Pt(18)
+    else:
+        text_frame.text = "No ML predictions available for this district."
+
+    # Slide 4 - Map placeholder
+    slide4 = prs.slides.add_slide(title_body_layout)
+    slide4.shapes.title.text = "Map Screenshot Placeholder"
+    placeholder = slide4.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, Inches(1.1), Inches(1.6), Inches(11.2), Inches(4.6)
+    )
+    placeholder.text_frame.text = (
+        "Insert map screenshot here before final delivery.\n\n"
+        f"District: {district_info.get('name', district_id or 'Unknown District')}\n"
+        f"Incidents on map: {len(incidents)}"
+    )
+
+    output = io.BytesIO()
+    prs.save(output)
+    output.seek(0)
+    return output
+
 # ============================================================================
 # VALIDATION MODELS (Pydantic V2 Compatible)
 # ============================================================================
@@ -389,6 +476,7 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6)
     full_name: Optional[str] = None
+    role: str = Field("user", description="user | police_supervisor | logistics_manager")
 
 
 class UserLogin(BaseModel):
@@ -637,7 +725,7 @@ async def serve_login():
 
 
 @app.get("/admin", response_class=HTMLResponse)
-async def serve_admin():
+async def serve_admin(current_user: dict = Depends(require_role("admin"))):
     """Serve the admin dashboard page."""
     admin_path = os.path.join("templates", "admin.html")
     if os.path.exists(admin_path):
@@ -650,8 +738,14 @@ async def serve_admin():
 
 
 @app.get("/account", response_class=HTMLResponse)
-async def serve_account():
+async def serve_account(current_user: dict = Depends(get_current_user)):
     """Serve the user account page."""
+    role = current_user.get("role")
+    if role == UserRole.police_supervisor.value:
+        return RedirectResponse(url="/police/dashboard", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    if role == UserRole.admin.value:
+        return RedirectResponse(url="/admin", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
     account_path = os.path.join("templates", "account.html")
     if os.path.exists(account_path):
         with open(account_path, "r", encoding="utf-8") as f:
@@ -1205,8 +1299,24 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_session
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Password is too long. Maximum {MAX_PASSWORD_LENGTH} characters allowed."
             )
+
+        requested_role = (user_data.role or "user").strip().lower()
+        department_map = {
+            "user": "general",
+            "police_supervisor": "police",
+            "logistics_manager": "logistics",
+        }
+        if requested_role not in department_map:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid role selected during registration",
+            )
         
-        user = create_user(db, AuthUserCreate(**user_data.dict()))
+        user_payload = user_data.dict()
+        user_payload["department"] = department_map[requested_role]
+        user_payload.pop("role", None)
+
+        user = create_user(db, AuthUserCreate(**user_payload))
         return UserResponse.model_validate(user)
     except HTTPException:
         raise
@@ -1220,7 +1330,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_session
         raise HTTPException(status_code=500, detail=f"Registration failed: {error_msg}")
 
 
-@app.post("/api/auth/login", response_model=Token)
+@app.post("/api/auth/login", response_model=RoleToken)
 async def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_session),
@@ -1236,8 +1346,26 @@ async def login_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=30 * 24 * 60)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+    user_department = (getattr(user, "department", None) or "general").strip().lower()
+
+    role = UserRole.user
+    district_id = None
+    fleet_zone = None
+    if user.is_admin:
+        role = UserRole.admin
+    elif user_department == "police":
+        role = UserRole.police_supervisor
+        district_id = "district_1"
+    elif user_department == "logistics":
+        role = UserRole.logistics_manager
+        fleet_zone = "zone_default"
+
+    access_token = create_role_access_token(
+        username=user.username,
+        role=role,
+        district_id=district_id,
+        fleet_zone=fleet_zone,
+        expires_delta=access_token_expires,
     )
     response.set_cookie(
         key="access_token",
@@ -1247,16 +1375,57 @@ async def login_user(
         max_age=30 * 24 * 60 * 60,
         path="/",
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": role,
+        "district_id": district_id,
+        "fleet_zone": fleet_zone,
+    }
 
 
 @app.get("/police/dashboard", response_class=HTMLResponse)
-async def police_dashboard(request: Request, current_user: dict = Depends(require_role("police_supervisor"))):
+async def police_dashboard(request: Request, current_user: dict = Depends(require_police_department_user())):
     """Render the police supervisor dashboard for the user's district."""
     district_id = current_user.get("district_id")
-    incidents = _load_police_incidents(district_id)
-    district_summary = _build_district_summary(incidents)
-    ml_predictions = _predict_police_hotspots(district_id, incidents)
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for police dashboard access",
+        )
+
+    incidents: list[dict] = []
+    district_summary: dict = {"total_incidents_today": "N/A", "avg_response_time": "N/A"}
+    ml_predictions: list[dict] = []
+    incidents_empty = True
+    summary_empty = True
+    predictions_empty = True
+
+    try:
+        incidents = _load_police_incidents(district_id)
+        incidents_empty = len(incidents) == 0
+    except Exception:
+        logging.exception("Failed to load police incidents for district %s", district_id)
+        incidents = []
+        incidents_empty = True
+
+    try:
+        district_summary = _build_district_summary(incidents)
+        summary_empty = district_summary.get("total_incidents_today") == "N/A" or district_summary.get("avg_response_time") == "N/A"
+    except Exception:
+        logging.exception("Failed to build district summary for district %s", district_id)
+        district_summary = {"total_incidents_today": "N/A", "avg_response_time": "N/A"}
+        summary_empty = True
+
+    try:
+        ml_predictions = _predict_police_hotspots(district_id, incidents)
+        predictions_empty = len(ml_predictions) == 0
+    except Exception:
+        logging.exception("Failed to load ML predictions for district %s", district_id)
+        ml_predictions = []
+        predictions_empty = True
+
+    data_error = incidents_empty or summary_empty or predictions_empty
     district_info = DISTRICT_LOCATIONS.get(district_id, {"name": district_id or "Unknown District"})
 
     return templates.TemplateResponse(
@@ -1269,94 +1438,27 @@ async def police_dashboard(request: Request, current_user: dict = Depends(requir
             "incidents": incidents,
             "district_summary": district_summary,
             "ml_predictions": ml_predictions,
+            "data_error": data_error,
         },
     )
 
 
 @app.get("/police/export/pptx")
-async def police_export_pptx(current_user: dict = Depends(require_role("police_supervisor"))):
+async def police_export_pptx(current_user: dict = Depends(require_police_department_user())):
     """Generate a police supervisor shift report as a PPTX file."""
+    district_id = current_user.get("district_id")
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for police report export",
+        )
+
     try:
-        from io import BytesIO
-        from pptx import Presentation
-        from pptx.util import Inches, Pt
-        from pptx.enum.shapes import MSO_SHAPE
-
-        district_id = current_user.get("district_id")
         officer_name = current_user.get("username", "Unknown Officer")
-
         incidents = _load_police_incidents(district_id)
         district_summary = _build_district_summary(incidents)
         ml_predictions = _predict_police_hotspots(district_id, incidents)
-        district_info = DISTRICT_LOCATIONS.get(district_id, {"name": district_id or "Unknown District"})
-
-        prs = Presentation()
-        prs.slide_width = Inches(13.333)
-        prs.slide_height = Inches(7.5)
-
-        title_layout = prs.slide_layouts[0]
-        title_body_layout = prs.slide_layouts[5]
-
-        # Slide 1 - Shift summary
-        slide1 = prs.slides.add_slide(title_layout)
-        slide1.shapes.title.text = "Police Shift Summary"
-        slide1.placeholders[1].text = (
-            f"District: {district_info.get('name', district_id or 'Unknown District')}\n"
-            f"Date: {datetime.now(UTC).strftime('%Y-%m-%d')}\n"
-            f"Officer: {officer_name}\n"
-            f"Total Incidents: {len(incidents)}"
-        )
-
-        # Slide 2 - Incidents table
-        slide2 = prs.slides.add_slide(title_body_layout)
-        slide2.shapes.title.text = "Incident Breakdown"
-        rows = max(len(incidents), 1) + 1
-        cols = 4
-        table_shape = slide2.shapes.add_table(rows, cols, Inches(0.5), Inches(1.4), Inches(12.3), Inches(5.6))
-        table = table_shape.table
-        headers = ["ID", "Description", "Severity", "Start Time"]
-        for index, header in enumerate(headers):
-            table.cell(0, index).text = header
-        for row_index, incident in enumerate(incidents, start=1):
-            table.cell(row_index, 0).text = _safe_ppt_text(incident.get("id"))
-            table.cell(row_index, 1).text = _safe_ppt_text(incident.get("description"))
-            table.cell(row_index, 2).text = _safe_ppt_text(incident.get("severity"))
-            table.cell(row_index, 3).text = _format_ppt_timestamp(incident.get("start_time"))
-
-        # Slide 3 - ML highlights
-        slide3 = prs.slides.add_slide(title_body_layout)
-        slide3.shapes.title.text = "ML Prediction Highlights"
-        text_box = slide3.shapes.add_textbox(Inches(0.7), Inches(1.3), Inches(12), Inches(5.8))
-        text_frame = text_box.text_frame
-        if ml_predictions:
-            for index, prediction in enumerate(ml_predictions, start=1):
-                paragraph = text_frame.paragraphs[0] if index == 1 else text_frame.add_paragraph()
-                paragraph.text = (
-                    f"{index}. {prediction['location']} | "
-                    f"Likelihood: {prediction['likelihood_score']}% | "
-                    f"Confidence: {prediction['confidence']}% | "
-                    f"Type: {prediction['predicted_type']}"
-                )
-                for run in paragraph.runs:
-                    run.font.size = Pt(18)
-        else:
-            text_frame.text = "No ML predictions available for this district."
-
-        # Slide 4 - Map placeholder
-        slide4 = prs.slides.add_slide(title_body_layout)
-        slide4.shapes.title.text = "Map Screenshot Placeholder"
-        placeholder = slide4.shapes.add_shape(
-            MSO_SHAPE.RECTANGLE, Inches(1.1), Inches(1.6), Inches(11.2), Inches(4.6)
-        )
-        placeholder.text_frame.text = (
-            "Insert map screenshot here before final delivery.\n\n"
-            f"District: {district_info.get('name', district_id or 'Unknown District')}\n"
-            f"Incidents on map: {len(incidents)}"
-        )
-
-        output = BytesIO()
-        prs.save(output)
-        output.seek(0)
+        output = generate_shift_pptx(district_id, officer_name, incidents, district_summary, ml_predictions)
 
         filename = f"ShiftReport_District{district_id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M')}.pptx"
         return StreamingResponse(
@@ -1364,11 +1466,12 @@ async def police_export_pptx(current_user: dict = Depends(require_role("police_s
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
-    except ImportError as exc:
-        raise HTTPException(status_code=500, detail=f"PPTX export dependency missing: {exc}")
     except Exception as exc:
-        logger.error(f"Police PPTX export failed: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate PPTX: {exc}")
+        logger.error(f"Police PPTX export failed: {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail="Report generation failed. Please try again or contact admin.",
+        )
 
 
 @app.post("/auth/login", response_model=RoleToken)
@@ -1390,11 +1493,39 @@ async def role_login(
     role = login_data.role
     district_id = login_data.district_id
     fleet_zone = login_data.fleet_zone
+    user_department = (getattr(user, "department", None) or "").strip().lower()
+
+    if user.is_admin:
+        allowed_role = UserRole.admin
+    elif user_department == "police":
+        allowed_role = UserRole.police_supervisor
+    elif user_department == "logistics":
+        allowed_role = UserRole.logistics_manager
+    else:
+        allowed_role = UserRole.user
+
+    if role != allowed_role:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Selected role does not match your account role",
+        )
 
     if role == UserRole.admin and not user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
+        )
+
+    if role == UserRole.police_supervisor and user_department != "police":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Police department access required",
+        )
+
+    if role == UserRole.logistics_manager and user_department != "logistics":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Logistics department access required",
         )
 
     if role == UserRole.police_supervisor and not district_id:
