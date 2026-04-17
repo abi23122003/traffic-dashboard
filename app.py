@@ -249,6 +249,72 @@ def _format_police_timestamp(value: object) -> str:
         return str(value)
 
 
+def _incident_sort_value(incident: dict) -> datetime:
+    raw_value = incident.get("start_time")
+    if isinstance(raw_value, datetime):
+        return raw_value if raw_value.tzinfo else raw_value.replace(tzinfo=UTC)
+    if raw_value:
+        try:
+            parsed = datetime.fromisoformat(str(raw_value).replace("Z", "+00:00"))
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+        except ValueError:
+            return datetime.min.replace(tzinfo=UTC)
+    return datetime.min.replace(tzinfo=UTC)
+
+
+def _build_incidents_feed(district_id: str, incidents: list[dict], assignments: list[PoliceDispatchAssignment]) -> list[dict]:
+    assignment_map = {assignment.incident_id: assignment for assignment in assignments}
+
+    feed_items: list[dict] = []
+    for incident in incidents:
+        incident_id = incident.get("id")
+        assignment = assignment_map.get(incident_id)
+        feed_items.append({
+            "incident_id": incident_id,
+            "type": incident.get("type") or "traffic",
+            "location_name": incident.get("description") or "Unknown location",
+            "severity": incident.get("severity") or "unknown",
+            "time_reported": incident.get("start_time") or "-",
+            "assigned_unit": assignment.unit_id if assignment else None,
+            "is_assigned": assignment is not None,
+        })
+
+    feed_items.sort(
+        key=lambda item: _incident_sort_value({"start_time": item.get("time_reported")}),
+        reverse=True,
+    )
+    return feed_items
+
+
+def _build_heatmap_points(incidents: list[dict]) -> list[dict]:
+    severity_intensity = {
+        "low": 0.35,
+        "moderate": 0.65,
+        "medium": 0.65,
+        "high": 1.0,
+        "unknown": 0.45,
+    }
+
+    points: list[dict] = []
+    for incident in incidents:
+        lat = incident.get("latitude")
+        lng = incident.get("longitude")
+        if lat is None or lng is None:
+            continue
+        try:
+            severity = str(incident.get("severity") or "unknown").lower()
+            intensity = severity_intensity.get(severity, 0.45)
+            points.append({
+                "lat": float(lat),
+                "lng": float(lng),
+                "intensity": float(intensity),
+            })
+        except (TypeError, ValueError):
+            continue
+
+    return points
+
+
 def _normalize_patrol_status(raw_status: object) -> str:
     status_value = str(raw_status or "").strip().lower()
     if status_value in {"responding", "response", "enroute", "en route"}:
@@ -352,6 +418,7 @@ def _build_patrol_units(
 def _build_police_dashboard_context(current_user: dict, district_id: str) -> dict:
     incidents = _load_police_incidents(district_id)
     assignments = _get_dispatch_assignments(district_id)
+    incidents_feed = _build_incidents_feed(district_id, incidents, assignments)
     district_summary = _build_district_summary(incidents)
     district_info = DISTRICT_LOCATIONS.get(district_id, {"name": district_id or "Unknown District"})
     supervisor_name = current_user.get("username", "Unknown Supervisor")
@@ -374,6 +441,7 @@ def _build_police_dashboard_context(current_user: dict, district_id: str) -> dic
         "patrol_units": patrol_units,
         "available_patrol_units": available_patrol_units,
         "unassigned_incidents": unassigned_incidents,
+        "incidents_feed": incidents_feed,
         "incidents": incidents,
         "district_summary": district_summary,
     }
@@ -1621,6 +1689,40 @@ async def live_patrol_units(current_user: dict = Depends(require_police_departme
         "unassigned_incidents": unassigned_incidents,
         "updated_at": datetime.now(UTC).isoformat(),
     }
+
+
+@app.get("/police/incidents/feed")
+async def live_incidents_feed(current_user: dict = Depends(require_police_department_user())):
+    """Return district-scoped incident feed sorted by reported time (desc)."""
+    district_id = current_user.get("district_id")
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for incident feed",
+        )
+
+    incidents = _load_police_incidents(district_id)
+    assignments = _get_dispatch_assignments(district_id)
+    incidents_feed = _build_incidents_feed(district_id, incidents, assignments)
+
+    return {
+        "incidents": incidents_feed,
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
+
+
+@app.get("/police/heatmap/data")
+async def police_heatmap_data(current_user: dict = Depends(require_police_department_user())):
+    """Return district-scoped incident heatmap points for the supervisor."""
+    district_id = current_user.get("district_id")
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for heatmap data",
+        )
+
+    incidents = _load_police_incidents(district_id)
+    return _build_heatmap_points(incidents)
 
 
 @app.post("/police/dispatch")

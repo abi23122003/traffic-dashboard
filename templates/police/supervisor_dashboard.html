@@ -512,12 +512,193 @@
             color: var(--muted);
         }
 
+        .incident-feed-shell {
+            margin-top: 18px;
+        }
+
+        .incident-feed-list {
+            max-height: 360px;
+            overflow-y: auto;
+            display: grid;
+            gap: 10px;
+            padding-right: 4px;
+        }
+
+        .feed-item {
+            border-radius: 14px;
+            padding: 12px;
+            border: 1px solid rgba(120, 170, 220, 0.16);
+            background: rgba(6, 17, 31, 0.55);
+            display: grid;
+            gap: 8px;
+        }
+
+        .feed-item.feed-new {
+            animation: feedPulse 1.4s ease;
+        }
+
+        @keyframes feedPulse {
+            0% {
+                background: rgba(53, 176, 255, 0.24);
+                border-color: rgba(53, 176, 255, 0.48);
+                transform: translateY(-4px);
+            }
+            100% {
+                background: rgba(6, 17, 31, 0.55);
+                border-color: rgba(120, 170, 220, 0.16);
+                transform: translateY(0);
+            }
+        }
+
+        .feed-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .feed-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 800;
+            color: #f4f8fd;
+        }
+
+        .feed-location {
+            color: #deecfb;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .feed-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            font-size: 0.84rem;
+            color: var(--muted);
+        }
+
+        .severity-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 9px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border: 1px solid transparent;
+        }
+
+        .severity-low {
+            color: #86efac;
+            background: rgba(74, 222, 128, 0.12);
+            border-color: rgba(74, 222, 128, 0.24);
+        }
+
+        .severity-moderate {
+            color: #fcd34d;
+            background: rgba(251, 191, 36, 0.12);
+            border-color: rgba(251, 191, 36, 0.24);
+        }
+
+        .severity-high {
+            color: #fca5a5;
+            background: rgba(248, 113, 113, 0.12);
+            border-color: rgba(248, 113, 113, 0.24);
+        }
+
+        .severity-unknown {
+            color: #cbd5e1;
+            background: rgba(148, 163, 184, 0.12);
+            border-color: rgba(148, 163, 184, 0.24);
+        }
+
+        .assigned-unit {
+            color: #8ef8c9;
+            font-weight: 700;
+        }
+
+        .assigned-unit.unassigned {
+            color: #f87171;
+        }
+
+        .heatmap-shell {
+            margin-top: 18px;
+        }
+
+        .heatmap-layout {
+            display: grid;
+            grid-template-columns: 1fr 220px;
+            gap: 14px;
+        }
+
+        .heatmap-map {
+            height: 360px;
+            border-radius: 16px;
+            border: 1px solid rgba(120, 170, 220, 0.16);
+            overflow: hidden;
+        }
+
+        .heatmap-legend {
+            border-radius: 16px;
+            border: 1px solid rgba(120, 170, 220, 0.16);
+            background: rgba(6, 17, 31, 0.6);
+            padding: 14px;
+            display: grid;
+            align-content: start;
+            gap: 10px;
+        }
+
+        .legend-title {
+            margin: 0;
+            color: #f4f8fd;
+            font-weight: 800;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #d7e7f7;
+            font-size: 0.9rem;
+        }
+
+        .legend-swatch {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+        }
+
+        .swatch-low {
+            background: #3b82f6;
+        }
+
+        .swatch-medium {
+            background: #f59e0b;
+        }
+
+        .swatch-high {
+            background: #ef4444;
+        }
+
         @media (max-width: 1100px) {
             .kpi-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
             .dispatch-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .heatmap-layout {
                 grid-template-columns: 1fr;
             }
 
@@ -606,6 +787,28 @@
             <div id="patrol-units-grid" class="unit-grid"></div>
         </section>
 
+        <section class="section-shell heatmap-shell" aria-label="Incident severity heatmap">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Incident Severity Heatmap</h2>
+                    <p class="section-subtitle">Live district heat intensity refreshed every 60 seconds.</p>
+                </div>
+                <div class="refresh-chip">
+                    <span id="heatmap-refresh-label">Heatmap synced just now</span>
+                </div>
+            </div>
+
+            <div class="heatmap-layout">
+                <div id="incident-heatmap" class="heatmap-map"></div>
+                <aside class="heatmap-legend" aria-label="Heatmap legend">
+                    <h3 class="legend-title">Intensity Legend</h3>
+                    <div class="legend-item"><span class="legend-swatch swatch-low"></span><span>Low</span></div>
+                    <div class="legend-item"><span class="legend-swatch swatch-medium"></span><span>Medium</span></div>
+                    <div class="legend-item"><span class="legend-swatch swatch-high"></span><span>High</span></div>
+                </aside>
+            </div>
+        </section>
+
         <section class="section-shell" aria-label="Dispatch panel">
             <div class="section-header">
                 <div>
@@ -639,6 +842,20 @@
                 </div>
             </div>
         </section>
+
+        <section class="section-shell incident-feed-shell" aria-label="Live incident feed">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Live Incident Feed</h2>
+                    <p class="section-subtitle">Newest incidents appear at the top. Auto-refresh every 20 seconds.</p>
+                </div>
+                <div class="refresh-chip">
+                    <span id="feed-refresh-label">Feed synced just now</span>
+                </div>
+            </div>
+
+            <div id="incident-feed-list" class="incident-feed-list"></div>
+        </section>
     </main>
 
     <div id="dispatch-modal-backdrop" class="modal-backdrop" aria-hidden="true">
@@ -671,15 +888,26 @@
     <script type="application/json" id="patrol-units-data">{{ patrol_units | tojson }}</script>
     <script type="application/json" id="unassigned-incidents-data">{{ unassigned_incidents | tojson }}</script>
     <script type="application/json" id="available-units-data">{{ available_patrol_units | tojson }}</script>
+    <script type="application/json" id="incidents-feed-data">{{ incidents_feed | tojson }}</script>
+    <script type="application/json" id="district-info-data">{{ district_info | tojson }}</script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script>
         const patrolUnitsGrid = document.getElementById('patrol-units-grid');
         const patrolUnitsData = document.getElementById('patrol-units-data');
         const unassignedIncidentsData = document.getElementById('unassigned-incidents-data');
         const availableUnitsData = document.getElementById('available-units-data');
+        const incidentsFeedData = document.getElementById('incidents-feed-data');
+        const districtInfoData = document.getElementById('district-info-data');
         const unitsRefreshLabel = document.getElementById('units-refresh-label');
         const dispatchRefreshLabel = document.getElementById('dispatch-refresh-label');
+        const feedRefreshLabel = document.getElementById('feed-refresh-label');
+        const heatmapRefreshLabel = document.getElementById('heatmap-refresh-label');
         const incidentList = document.getElementById('unassigned-incidents-list');
+        const incidentFeedList = document.getElementById('incident-feed-list');
         const availableUnitList = document.getElementById('available-units-list');
+        const incidentHeatmap = document.getElementById('incident-heatmap');
         const modalBackdrop = document.getElementById('dispatch-modal-backdrop');
         const dispatchForm = document.getElementById('dispatch-form');
         const dispatchIncidentIdInput = document.getElementById('dispatch-incident-id');
@@ -691,6 +919,11 @@
         let livePatrolUnits = [];
         let liveAvailableUnits = [];
         let liveUnassignedIncidents = [];
+        let liveIncidentFeed = [];
+        let districtInfo = {};
+        let heatmapMap = null;
+        let heatLayer = null;
+        const seenIncidentFeedIds = new Set();
 
         function escapeHtml(value) {
             return String(value ?? '')
@@ -706,6 +939,144 @@
             if (normalized === 'idle') return 'status-idle';
             if (normalized === 'responding') return 'status-responding';
             return 'status-active';
+        }
+
+        function severityClass(severity) {
+            const normalized = String(severity || 'unknown').toLowerCase();
+            if (normalized === 'low') return 'severity-low';
+            if (normalized === 'moderate' || normalized === 'medium') return 'severity-moderate';
+            if (normalized === 'high') return 'severity-high';
+            return 'severity-unknown';
+        }
+
+        function incidentIcon(type) {
+            const normalized = String(type || '').toLowerCase();
+            if (normalized.includes('accident')) return '🚨';
+            if (normalized.includes('construction')) return '🚧';
+            if (normalized.includes('closure')) return '⛔';
+            return '🚓';
+        }
+
+        function createFeedItemMarkup(item, isNew) {
+            const assignedUnitText = item.assigned_unit ? escapeHtml(item.assigned_unit) : 'Unassigned';
+            const assignedClass = item.assigned_unit ? 'assigned-unit' : 'assigned-unit unassigned';
+            const newClass = isNew ? 'feed-item feed-new' : 'feed-item';
+            return `
+                <article class="${newClass}" data-incident-id="${escapeHtml(item.incident_id || '')}">
+                    <div class="feed-top">
+                        <div class="feed-type">${incidentIcon(item.type)} <span>${escapeHtml(item.type || 'traffic')}</span></div>
+                        <span class="severity-badge ${severityClass(item.severity)}">${escapeHtml(item.severity || 'unknown')}</span>
+                    </div>
+                    <div class="feed-location">${escapeHtml(item.location_name || 'Unknown location')}</div>
+                    <div class="feed-meta">
+                        <span>Reported: ${escapeHtml(item.time_reported || '-')}</span>
+                        <span>•</span>
+                        <span class="${assignedClass}">Unit: ${assignedUnitText}</span>
+                    </div>
+                </article>
+            `;
+        }
+
+        function renderIncidentFeed(items) {
+            const list = Array.isArray(items) ? items : [];
+            if (!list.length) {
+                incidentFeedList.innerHTML = '<div class="empty-state">No incidents available for this district.</div>';
+                return;
+            }
+
+            incidentFeedList.innerHTML = list.map((item) => createFeedItemMarkup(item, false)).join('');
+            seenIncidentFeedIds.clear();
+            list.forEach((item) => {
+                if (item.incident_id) {
+                    seenIncidentFeedIds.add(item.incident_id);
+                }
+            });
+        }
+
+        function initializeHeatmap() {
+            if (heatmapMap || !incidentHeatmap || typeof L === 'undefined') {
+                return;
+            }
+
+            const centerLat = Number(districtInfo.lat ?? 13.0827);
+            const centerLng = Number(districtInfo.lon ?? 80.2707);
+
+            heatmapMap = L.map('incident-heatmap', {
+                zoomControl: true,
+                attributionControl: true
+            }).setView([centerLat, centerLng], 12);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+            }).addTo(heatmapMap);
+
+            heatLayer = L.heatLayer([], {
+                radius: 26,
+                blur: 22,
+                maxZoom: 17,
+                gradient: {
+                    0.25: '#3b82f6',
+                    0.6: '#f59e0b',
+                    1.0: '#ef4444'
+                }
+            }).addTo(heatmapMap);
+        }
+
+        function updateHeatLayer(points) {
+            if (!heatLayer) {
+                return;
+            }
+
+            const heatPoints = (Array.isArray(points) ? points : [])
+                .map((point) => [Number(point.lat), Number(point.lng), Number(point.intensity ?? 0.5)])
+                .filter((point) => Number.isFinite(point[0]) && Number.isFinite(point[1]));
+
+            heatLayer.setLatLngs(heatPoints);
+        }
+
+        async function refreshHeatmapData() {
+            try {
+                const response = await fetch('/police/heatmap/data', {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const points = await response.json();
+                updateHeatLayer(points);
+
+                if (heatmapRefreshLabel) {
+                    const stamp = new Date();
+                    heatmapRefreshLabel.textContent = `Heatmap synced ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                }
+            } catch (error) {
+                console.error('Failed to refresh heatmap data:', error);
+                if (heatmapRefreshLabel) {
+                    heatmapRefreshLabel.textContent = 'Heatmap sync unavailable';
+                }
+            }
+        }
+
+        function prependNewFeedItems(items) {
+            const list = Array.isArray(items) ? items : [];
+            if (!list.length) {
+                return;
+            }
+
+            const newItems = list.filter((item) => item.incident_id && !seenIncidentFeedIds.has(item.incident_id));
+            if (!newItems.length) {
+                return;
+            }
+
+            for (let index = newItems.length - 1; index >= 0; index -= 1) {
+                const item = newItems[index];
+                incidentFeedList.insertAdjacentHTML('afterbegin', createFeedItemMarkup(item, true));
+                seenIncidentFeedIds.add(item.incident_id);
+            }
         }
 
         function renderPatrolUnits(units) {
@@ -846,8 +1217,41 @@
                 dispatchFeedback.textContent = payload.message || 'Dispatch completed.';
                 closeDispatchModal();
                 await refreshDispatchState();
+                await refreshIncidentFeed();
             } catch (error) {
                 dispatchFeedback.textContent = error.message || 'Dispatch failed.';
+            }
+        }
+
+        async function refreshIncidentFeed() {
+            try {
+                const response = await fetch('/police/incidents/feed', {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                const incidents = data.incidents || [];
+                if (!incidentFeedList.children.length || incidentFeedList.firstElementChild?.classList.contains('empty-state')) {
+                    renderIncidentFeed(incidents);
+                } else {
+                    prependNewFeedItems(incidents);
+                }
+                liveIncidentFeed = incidents;
+
+                if (feedRefreshLabel) {
+                    const stamp = data.updated_at ? new Date(data.updated_at) : new Date();
+                    feedRefreshLabel.textContent = `Feed synced ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                }
+            } catch (error) {
+                console.error('Failed to refresh incident feed:', error);
+                if (feedRefreshLabel) {
+                    feedRefreshLabel.textContent = 'Feed sync unavailable';
+                }
             }
         }
 
@@ -896,10 +1300,13 @@
         let initialUnits = [];
         let initialIncidents = [];
         let initialAvailableUnits = [];
+        let initialIncidentFeed = [];
         try {
             initialUnits = JSON.parse(patrolUnitsData.textContent || '[]');
             initialIncidents = JSON.parse(unassignedIncidentsData.textContent || '[]');
             initialAvailableUnits = JSON.parse(availableUnitsData.textContent || '[]');
+            initialIncidentFeed = JSON.parse(incidentsFeedData.textContent || '[]');
+            districtInfo = JSON.parse(districtInfoData.textContent || '{}');
         } catch (error) {
             console.error('Failed to parse initial dashboard data', error);
         }
@@ -907,6 +1314,7 @@
         renderPatrolUnits(initialUnits);
         renderIncidentList(initialIncidents);
         renderAvailableUnits(initialAvailableUnits);
+        renderIncidentFeed(initialIncidentFeed);
         fillUnitSelect(initialAvailableUnits);
 
         dispatchForm.addEventListener('submit', submitDispatch);
@@ -916,8 +1324,14 @@
             }
         });
 
+        initializeHeatmap();
+
         refreshDispatchState();
+        refreshIncidentFeed();
+        refreshHeatmapData();
         setInterval(refreshDispatchState, 30000);
+        setInterval(refreshIncidentFeed, 20000);
+        setInterval(refreshHeatmapData, 60000);
     </script>
 </body>
 </html>
