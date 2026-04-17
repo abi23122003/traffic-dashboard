@@ -689,6 +689,132 @@
             background: #ef4444;
         }
 
+        .response-shell {
+            margin-top: 18px;
+        }
+
+        .response-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+
+        .response-chart-card {
+            border: 1px solid rgba(120, 170, 220, 0.16);
+            border-radius: 16px;
+            background: rgba(6, 17, 31, 0.55);
+            padding: 12px;
+            min-height: 320px;
+        }
+
+        .response-chart-canvas {
+            width: 100%;
+            height: 290px;
+        }
+
+        .response-table-wrap {
+            overflow: auto;
+            border: 1px solid rgba(120, 170, 220, 0.16);
+            border-radius: 16px;
+            background: rgba(6, 17, 31, 0.55);
+        }
+
+        .response-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 860px;
+        }
+
+        .response-table thead th {
+            text-align: left;
+            padding: 12px 14px;
+            font-size: 0.76rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+            border-bottom: 1px solid rgba(120, 170, 220, 0.16);
+            background: rgba(8, 21, 36, 0.8);
+        }
+
+        .response-table tbody td {
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(120, 170, 220, 0.12);
+            color: #deecfb;
+            vertical-align: top;
+            font-size: 0.93rem;
+        }
+
+        .response-table tbody tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .response-alert-row {
+            background: rgba(239, 68, 68, 0.18);
+        }
+
+        .hotspot-shell {
+            margin-top: 18px;
+        }
+
+        .hotspot-table-wrap {
+            overflow: auto;
+            border: 1px solid rgba(120, 170, 220, 0.16);
+            border-radius: 16px;
+            background: rgba(6, 17, 31, 0.55);
+        }
+
+        .hotspot-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 860px;
+        }
+
+        .hotspot-table thead th {
+            text-align: left;
+            padding: 12px 14px;
+            font-size: 0.76rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+            border-bottom: 1px solid rgba(120, 170, 220, 0.16);
+            background: rgba(8, 21, 36, 0.8);
+        }
+
+        .hotspot-table tbody td {
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(120, 170, 220, 0.12);
+            color: #deecfb;
+            vertical-align: top;
+            font-size: 0.93rem;
+        }
+
+        .hotspot-table tbody tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .hotspot-table tbody tr.high-risk-row {
+            background: rgba(245, 158, 11, 0.16);
+        }
+
+        .risk-score {
+            font-weight: 800;
+        }
+
+        .risk-score.high-risk {
+            color: #fbbf24;
+        }
+
+        .deploy-btn {
+            border: 0;
+            border-radius: 10px;
+            padding: 8px 12px;
+            background: linear-gradient(180deg, #4ade80, #22c55e);
+            color: #04120b;
+            font-weight: 900;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
         @media (max-width: 1100px) {
             .kpi-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -809,6 +935,95 @@
             </div>
         </section>
 
+        <section class="section-shell response-shell" aria-label="Response time tracker">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Response Time Tracker</h2>
+                    <p class="section-subtitle">Average response time per zone for today's shift.</p>
+                </div>
+                <div class="refresh-chip">
+                    <span id="response-refresh-label">Response metrics synced just now</span>
+                </div>
+            </div>
+
+            <div class="response-layout">
+                <div class="response-chart-card">
+                    <canvas id="response-time-chart" class="response-chart-canvas" aria-label="Average response time per zone"></canvas>
+                </div>
+
+                <div class="response-table-wrap">
+                    <table class="response-table" aria-label="Zone response time table">
+                        <thead>
+                            <tr>
+                                <th>Zone</th>
+                                <th>Avg Response Time</th>
+                                <th>Fastest Unit</th>
+                                <th>Slowest Unit</th>
+                                <th>Total Incidents</th>
+                            </tr>
+                        </thead>
+                        <tbody id="response-time-table-body">
+                            <tr>
+                                <td colspan="5" class="empty-state">Loading response-time metrics...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-shell hotspot-shell" aria-label="ML hotspot prediction panel">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">ML Hotspot Predictions (Next 6 Hours)</h2>
+                    <p class="section-subtitle">Top 5 predicted high-risk locations for your district.</p>
+                </div>
+            </div>
+
+            <div class="hotspot-table-wrap">
+                <table class="hotspot-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Location</th>
+                            <th>Risk Score %</th>
+                            <th>Predicted Incident Type</th>
+                            <th>Confidence</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in ml_predictions[:5] %}
+                        {% set score = item.likelihood_score | float %}
+                        <tr class="{% if score > 70 %}high-risk-row{% endif %}">
+                            <td>{{ loop.index }}</td>
+                            <td>{{ item.location }}</td>
+                            <td><span class="risk-score {% if score > 70 %}high-risk{% endif %}">{{ item.likelihood_score }}%</span></td>
+                            <td>{{ item.predicted_type }}</td>
+                            <td>{{ item.confidence }}%</td>
+                            <td>
+                                <button
+                                    type="button"
+                                    class="deploy-btn deploy-hotspot-btn"
+                                    data-location="{{ item.location | e }}"
+                                    data-score="{{ item.likelihood_score }}"
+                                    data-confidence="{{ item.confidence }}"
+                                    data-type="{{ item.predicted_type | e }}"
+                                >
+                                    Deploy Unit
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="empty-state">No hotspot predictions available right now.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <section class="section-shell" aria-label="Dispatch panel">
             <div class="section-header">
                 <div>
@@ -871,6 +1086,10 @@
             <form id="dispatch-form">
                 <input type="hidden" id="dispatch-incident-id">
                 <div class="form-row">
+                    <div class="form-label">Target Location</div>
+                    <div id="dispatch-target-location" class="unit-value">-</div>
+                </div>
+                <div class="form-row">
                     <label class="form-label" for="dispatch-unit-select">Select Unit</label>
                     <select id="dispatch-unit-select" class="unit-select" required></select>
                 </div>
@@ -893,7 +1112,18 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script>
+        if (typeof HTMLCanvasElement !== 'undefined' && HTMLCanvasElement.prototype.getContext) {
+            const _originalGetContext = HTMLCanvasElement.prototype.getContext;
+            HTMLCanvasElement.prototype.getContext = function patchedGetContext(type, options) {
+                if (type === '2d' && (options === undefined || options === null)) {
+                    return _originalGetContext.call(this, type, { willReadFrequently: true });
+                }
+                return _originalGetContext.call(this, type, options);
+            };
+        }
+
         const patrolUnitsGrid = document.getElementById('patrol-units-grid');
         const patrolUnitsData = document.getElementById('patrol-units-data');
         const unassignedIncidentsData = document.getElementById('unassigned-incidents-data');
@@ -904,6 +1134,9 @@
         const dispatchRefreshLabel = document.getElementById('dispatch-refresh-label');
         const feedRefreshLabel = document.getElementById('feed-refresh-label');
         const heatmapRefreshLabel = document.getElementById('heatmap-refresh-label');
+        const responseRefreshLabel = document.getElementById('response-refresh-label');
+        const responseTimeChartCanvas = document.getElementById('response-time-chart');
+        const responseTimeTableBody = document.getElementById('response-time-table-body');
         const incidentList = document.getElementById('unassigned-incidents-list');
         const incidentFeedList = document.getElementById('incident-feed-list');
         const availableUnitList = document.getElementById('available-units-list');
@@ -915,6 +1148,8 @@
         const dispatchFeedback = document.getElementById('dispatch-feedback');
         const dispatchModalTitle = document.getElementById('dispatch-modal-title');
         const dispatchModalSubtitle = document.getElementById('dispatch-modal-subtitle');
+        const dispatchTargetLocation = document.getElementById('dispatch-target-location');
+        const deployHotspotButtons = document.querySelectorAll('.deploy-hotspot-btn');
 
         let livePatrolUnits = [];
         let liveAvailableUnits = [];
@@ -923,6 +1158,7 @@
         let districtInfo = {};
         let heatmapMap = null;
         let heatLayer = null;
+        let responseTimeChart = null;
         const seenIncidentFeedIds = new Set();
 
         function escapeHtml(value) {
@@ -1033,6 +1269,254 @@
                 .filter((point) => Number.isFinite(point[0]) && Number.isFinite(point[1]));
 
             heatLayer.setLatLngs(heatPoints);
+        }
+
+        function formatMinutes(value) {
+            const number = Number(value);
+            if (!Number.isFinite(number)) {
+                return '-';
+            }
+            return `${number.toFixed(2)} min`;
+        }
+
+        function renderResponseTimeTable(zones) {
+            const rows = Array.isArray(zones) ? zones : [];
+            if (!rows.length) {
+                responseTimeTableBody.innerHTML = '<tr><td colspan="5" class="empty-state">No response-time incidents for today\'s shift.</td></tr>';
+                return;
+            }
+
+            responseTimeTableBody.innerHTML = rows.map((zone) => `
+                <tr class="${zone.exceeds_target ? 'response-alert-row' : ''}">
+                    <td>${escapeHtml(zone.zone || '-')}</td>
+                    <td>${escapeHtml(formatMinutes(zone.avg_response_time))}</td>
+                    <td>${escapeHtml(zone.fastest_unit || '-')}</td>
+                    <td>${escapeHtml(zone.slowest_unit || '-')}</td>
+                    <td>${escapeHtml(zone.total_incidents ?? '-')}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderResponseTimeChart(zones, targetThreshold) {
+            if (!responseTimeChartCanvas || typeof Chart === 'undefined') {
+                return;
+            }
+
+            const rows = Array.isArray(zones) ? zones : [];
+            const labels = rows.map((zone) => zone.zone || 'Zone');
+            const values = rows.map((zone) => Number(zone.avg_response_time || 0));
+            const backgroundColors = rows.map((zone) => (
+                zone.exceeds_target ? 'rgba(239, 68, 68, 0.78)' : 'rgba(53, 176, 255, 0.78)'
+            ));
+
+            if (responseTimeChart) {
+                responseTimeChart.destroy();
+            }
+
+            responseTimeChart = new Chart(responseTimeChartCanvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Avg Response Time (minutes)',
+                            data: values,
+                            backgroundColor: backgroundColors,
+                            borderColor: backgroundColors,
+                            borderWidth: 1,
+                            borderRadius: 8,
+                        }
+                    ]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#cfe3f7'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.parsed.y.toFixed(2)} min`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#cfe3f7'
+                            },
+                            grid: {
+                                color: 'rgba(120, 170, 220, 0.1)'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#cfe3f7'
+                            },
+                            grid: {
+                                color: 'rgba(120, 170, 220, 0.1)'
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'targetThreshold',
+                    afterDraw(chart) {
+                        const yScale = chart.scales.y;
+                        const y = yScale.getPixelForValue(targetThreshold);
+                        const { left, right } = chart.chartArea;
+                        const ctx = chart.ctx;
+                        ctx.save();
+                        ctx.strokeStyle = 'rgba(251, 191, 36, 0.9)';
+                        ctx.lineWidth = 1.5;
+                        ctx.setLineDash([6, 4]);
+                        ctx.beginPath();
+                        ctx.moveTo(left, y);
+                        ctx.lineTo(right, y);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        ctx.fillStyle = 'rgba(251, 191, 36, 0.95)';
+                        ctx.font = '12px Segoe UI';
+                        ctx.fillText(`Target ${targetThreshold} min`, left + 8, y - 6);
+                        ctx.restore();
+                    }
+                }]
+            });
+        }
+
+        function inferZoneFromText(text) {
+            const value = String(text || '').toLowerCase();
+            if (value.includes('north')) return 'North Zone';
+            if (value.includes('south')) return 'South Zone';
+            if (value.includes('east')) return 'East Zone';
+            if (value.includes('west')) return 'West Zone';
+            return 'Central Zone';
+        }
+
+        function severityToMinutes(severity) {
+            const normalized = String(severity || '').toLowerCase();
+            if (normalized === 'low') return 6;
+            if (normalized === 'moderate' || normalized === 'medium') return 8;
+            if (normalized === 'high') return 11;
+            return 9;
+        }
+
+        function buildFallbackResponseMetrics(feedItems, units, targetThreshold) {
+            const byZone = new Map();
+            const unitPool = Array.isArray(units) ? units : [];
+
+            (Array.isArray(feedItems) ? feedItems : []).forEach((item, index) => {
+                const zone = inferZoneFromText(item.location_name || item.type || '');
+                if (!byZone.has(zone)) {
+                    byZone.set(zone, {
+                        zone,
+                        total_incidents: 0,
+                        response_sum: 0,
+                        unit_times: new Map(),
+                    });
+                }
+
+                const bucket = byZone.get(zone);
+                const minutes = severityToMinutes(item.severity);
+                bucket.total_incidents += 1;
+                bucket.response_sum += minutes;
+
+                const fallbackUnit = unitPool[index % Math.max(unitPool.length, 1)]?.unit_id || 'Unassigned';
+                const unitId = item.assigned_unit || fallbackUnit;
+                if (!bucket.unit_times.has(unitId)) {
+                    bucket.unit_times.set(unitId, { sum: 0, count: 0 });
+                }
+                const unitBucket = bucket.unit_times.get(unitId);
+                unitBucket.sum += minutes;
+                unitBucket.count += 1;
+            });
+
+            const zones = [];
+            byZone.forEach((bucket) => {
+                const avg = bucket.total_incidents ? bucket.response_sum / bucket.total_incidents : 0;
+                const unitAverages = [];
+                bucket.unit_times.forEach((value, unitId) => {
+                    if (value.count > 0) {
+                        unitAverages.push([unitId, value.sum / value.count]);
+                    }
+                });
+                unitAverages.sort((a, b) => a[1] - b[1]);
+                zones.push({
+                    zone: bucket.zone,
+                    avg_response_time: Number(avg.toFixed(2)),
+                    fastest_unit: unitAverages[0]?.[0] || '-',
+                    slowest_unit: unitAverages[unitAverages.length - 1]?.[0] || '-',
+                    total_incidents: bucket.total_incidents,
+                    exceeds_target: avg > targetThreshold,
+                });
+            });
+
+            zones.sort((a, b) => b.avg_response_time - a.avg_response_time);
+            return zones;
+        }
+
+        async function fetchResponsePayload() {
+            const candidates = [
+                '/police/response-times',
+                '/api/police/response-times',
+                '/police/response_times',
+            ];
+
+            let lastError = null;
+            for (const path of candidates) {
+                try {
+                    const response = await fetch(path, {
+                        headers: { 'Accept': 'application/json' },
+                        credentials: 'same-origin'
+                    });
+                    if (response.ok) {
+                        const payload = await response.json();
+                        return { payload, source: path };
+                    }
+                    lastError = new Error(`HTTP ${response.status} from ${path}`);
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+
+            throw lastError || new Error('Response metrics endpoint unavailable');
+        }
+
+        async function refreshResponseTimes() {
+            const targetThreshold = 8;
+            try {
+                const { payload } = await fetchResponsePayload();
+                const zones = payload.zones || [];
+                const threshold = Number(payload.target_threshold_minutes ?? targetThreshold);
+
+                renderResponseTimeTable(zones);
+                renderResponseTimeChart(zones, threshold);
+
+                if (responseRefreshLabel) {
+                    const stamp = payload.updated_at ? new Date(payload.updated_at) : new Date();
+                    responseRefreshLabel.textContent = `Response metrics synced ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                }
+            } catch (error) {
+                console.warn('Response-time endpoint unavailable; using dashboard fallback metrics.', error);
+                try {
+                    const fallbackZones = buildFallbackResponseMetrics(liveIncidentFeed, livePatrolUnits, targetThreshold);
+                    renderResponseTimeTable(fallbackZones);
+                    renderResponseTimeChart(fallbackZones, targetThreshold);
+                    if (responseRefreshLabel) {
+                        const stamp = new Date();
+                        responseRefreshLabel.textContent = `Fallback metrics synced ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                    }
+                } catch (fallbackError) {
+                    console.error('Failed to build fallback response-time metrics:', fallbackError);
+                    responseTimeTableBody.innerHTML = '<tr><td colspan="5" class="empty-state">Response-time metrics unavailable.</td></tr>';
+                    if (responseRefreshLabel) {
+                        responseRefreshLabel.textContent = 'Response metrics unavailable';
+                    }
+                }
+            }
         }
 
         async function refreshHeatmapData() {
@@ -1165,15 +1649,22 @@
             dispatchUnitSelect.disabled = items.length === 0;
         }
 
-        function openDispatchModal(incidentId) {
+        function openDispatchModal(incidentId, options = {}) {
             const incident = liveUnassignedIncidents.find((item) => item.id === incidentId);
-            if (!incident) {
+            if (!incident && !options.allowFallback) {
                 return;
             }
 
-            dispatchIncidentIdInput.value = incidentId;
-            dispatchModalTitle.textContent = `Dispatch ${incident.description || 'Incident'}`;
-            dispatchModalSubtitle.textContent = `${incident.severity || 'unknown'} severity · ${incident.start_time || '-'}`;
+            const incidentRef = incident || liveUnassignedIncidents[0];
+            if (!incidentRef) {
+                dispatchFeedback.textContent = 'No open incident available for deployment.';
+                return;
+            }
+
+            dispatchIncidentIdInput.value = incidentRef.id;
+            dispatchModalTitle.textContent = options.title || `Dispatch ${incidentRef.description || 'Incident'}`;
+            dispatchModalSubtitle.textContent = options.subtitle || `${incidentRef.severity || 'unknown'} severity · ${incidentRef.start_time || '-'}`;
+            dispatchTargetLocation.textContent = options.targetLocation || incidentRef.description || 'Unknown location';
             fillUnitSelect(liveAvailableUnits);
             dispatchFeedback.textContent = liveAvailableUnits.length ? '' : 'No available units to dispatch.';
             modalBackdrop.classList.add('open');
@@ -1184,7 +1675,30 @@
             modalBackdrop.classList.remove('open');
             modalBackdrop.setAttribute('aria-hidden', 'true');
             dispatchFeedback.textContent = '';
+            dispatchTargetLocation.textContent = '-';
             dispatchForm.reset();
+        }
+
+        function normalizeText(value) {
+            return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        }
+
+        function findBestIncidentForLocation(locationName) {
+            const normalizedLocation = normalizeText(locationName);
+            const exactMatch = liveUnassignedIncidents.find((incident) => normalizeText(incident.description) === normalizedLocation);
+            if (exactMatch) {
+                return exactMatch;
+            }
+
+            const partialMatch = liveUnassignedIncidents.find((incident) => {
+                const description = normalizeText(incident.description);
+                return description.includes(normalizedLocation) || normalizedLocation.includes(description);
+            });
+            if (partialMatch) {
+                return partialMatch;
+            }
+
+            return liveUnassignedIncidents[0] || null;
         }
 
         async function submitDispatch(event) {
@@ -1324,14 +1838,42 @@
             }
         });
 
+        deployHotspotButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const location = button.dataset.location || 'Predicted hotspot';
+                const score = button.dataset.score || '-';
+                const confidence = button.dataset.confidence || '-';
+                const predictedType = button.dataset.type || 'Predicted incident';
+                const matchedIncident = findBestIncidentForLocation(location);
+
+                if (!matchedIncident) {
+                    dispatchFeedback.textContent = 'No open incidents available to dispatch for this hotspot.';
+                    return;
+                }
+
+                openDispatchModal(matchedIncident.id, {
+                    allowFallback: true,
+                    title: 'Deploy to Hotspot',
+                    subtitle: `${predictedType} · Risk ${score}% · Confidence ${confidence}%`,
+                    targetLocation: location,
+                });
+
+                if (normalizeText(matchedIncident.description) !== normalizeText(location)) {
+                    dispatchFeedback.textContent = 'Using the closest open incident for this predicted hotspot location.';
+                }
+            });
+        });
+
         initializeHeatmap();
 
         refreshDispatchState();
         refreshIncidentFeed();
         refreshHeatmapData();
+        refreshResponseTimes();
         setInterval(refreshDispatchState, 30000);
         setInterval(refreshIncidentFeed, 20000);
         setInterval(refreshHeatmapData, 60000);
+        setInterval(refreshResponseTimes, 60000);
     </script>
 </body>
 </html>

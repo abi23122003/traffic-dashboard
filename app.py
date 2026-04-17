@@ -315,6 +315,134 @@ def _build_heatmap_points(incidents: list[dict]) -> list[dict]:
     return points
 
 
+def _parse_police_datetime(value: object) -> Optional[datetime]:
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+    except ValueError:
+        return None
+
+
+def _incident_response_minutes(incident: dict) -> float:
+    response_value = incident.get("response_time")
+    if isinstance(response_value, (int, float)) and float(response_value) > 0:
+        return float(response_value)
+
+    severity_default = {
+        "low": 6.0,
+        "moderate": 8.0,
+        "medium": 8.0,
+        "high": 11.0,
+        "unknown": 9.0,
+    }
+    severity = str(incident.get("severity") or "unknown").lower()
+    return severity_default.get(severity, 9.0)
+
+
+def _infer_zone_name(district_id: str, incident: dict) -> str:
+    district = DISTRICT_LOCATIONS.get(district_id, DISTRICT_LOCATIONS["district_1"])
+    lat = incident.get("latitude")
+    lon = incident.get("longitude")
+
+    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+        delta_lat = float(lat) - float(district["lat"])
+        delta_lon = float(lon) - float(district["lon"])
+        core_radius = 0.004
+
+        if abs(delta_lat) <= core_radius and abs(delta_lon) <= core_radius:
+            return "Central Zone"
+        if abs(delta_lat) >= abs(delta_lon):
+            return "North Zone" if delta_lat >= 0 else "South Zone"
+        return "East Zone" if delta_lon >= 0 else "West Zone"
+
+    description = str(incident.get("description") or "").strip().lower()
+    if "north" in description:
+        return "North Zone"
+    if "south" in description:
+        return "South Zone"
+    if "east" in description:
+        return "East Zone"
+    if "west" in description:
+        return "West Zone"
+    return "Central Zone"
+
+
+def _build_response_time_by_zone(
+    district_id: str,
+    incidents: list[dict],
+    assignments: list[PoliceDispatchAssignment],
+    target_threshold_minutes: float = 8.0,
+) -> list[dict]:
+    assignment_map = {assignment.incident_id: assignment for assignment in assignments}
+    today = datetime.now(UTC).date()
+    def aggregate_rows(source_incidents: list[dict], today_only: bool) -> dict[str, dict]:
+        zone_stats: dict[str, dict] = {}
+        for incident in source_incidents:
+            start_time = _parse_police_datetime(incident.get("start_time"))
+            if today_only and start_time and start_time.date() != today:
+                continue
+
+            zone_name = _infer_zone_name(district_id, incident)
+            bucket = zone_stats.setdefault(
+                zone_name,
+                {
+                    "zone": zone_name,
+                    "total_incidents": 0,
+                    "response_sum": 0.0,
+                    "response_count": 0,
+                    "unit_times": {},
+                },
+            )
+
+            bucket["total_incidents"] += 1
+            response_minutes = _incident_response_minutes(incident)
+            bucket["response_sum"] += response_minutes
+            bucket["response_count"] += 1
+
+            assignment = assignment_map.get(incident.get("id"))
+            unit_id = assignment.unit_id if assignment else "Unassigned"
+            unit_bucket = bucket["unit_times"].setdefault(unit_id, {"sum": 0.0, "count": 0})
+            unit_bucket["sum"] += response_minutes
+            unit_bucket["count"] += 1
+
+        return zone_stats
+
+    zone_stats = aggregate_rows(incidents, today_only=True)
+    if not zone_stats:
+        # Fallback for sparse/legacy datasets that don't carry today's timestamps.
+        zone_stats = aggregate_rows(incidents, today_only=False)
+
+    response_rows: list[dict] = []
+    for zone_name, stats in zone_stats.items():
+        avg_response = round(stats["response_sum"] / max(stats["response_count"], 1), 2)
+
+        unit_averages = []
+        for unit_id, values in stats["unit_times"].items():
+            if values["count"] <= 0:
+                continue
+            unit_averages.append((unit_id, values["sum"] / values["count"]))
+
+        unit_averages.sort(key=lambda item: item[1])
+        fastest_unit = unit_averages[0][0] if unit_averages else "-"
+        slowest_unit = unit_averages[-1][0] if unit_averages else "-"
+
+        response_rows.append({
+            "zone": zone_name,
+            "avg_response_time": avg_response,
+            "fastest_unit": fastest_unit,
+            "slowest_unit": slowest_unit,
+            "total_incidents": stats["total_incidents"],
+            "exceeds_target": avg_response > float(target_threshold_minutes),
+        })
+
+    response_rows.sort(key=lambda item: item["avg_response_time"], reverse=True)
+    return response_rows
+
+
 def _normalize_patrol_status(raw_status: object) -> str:
     status_value = str(raw_status or "").strip().lower()
     if status_value in {"responding", "response", "enroute", "en route"}:
@@ -1723,6 +1851,36 @@ async def police_heatmap_data(current_user: dict = Depends(require_police_depart
 
     incidents = _load_police_incidents(district_id)
     return _build_heatmap_points(incidents)
+
+
+@app.get("/police/response-times")
+@app.get("/police/response_times")
+@app.get("/api/police/response-times")
+async def police_response_times(current_user: dict = Depends(require_police_department_user())):
+    """Return zone-wise average response metrics for today's shift."""
+    district_id = current_user.get("district_id")
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for response time metrics",
+        )
+
+    incidents = _load_police_incidents(district_id)
+    assignments = _get_dispatch_assignments(district_id)
+    target_threshold_minutes = 8.0
+    zone_metrics = _build_response_time_by_zone(
+        district_id=district_id,
+        incidents=incidents,
+        assignments=assignments,
+        target_threshold_minutes=target_threshold_minutes,
+    )
+
+    return {
+        "district_id": district_id,
+        "target_threshold_minutes": target_threshold_minutes,
+        "zones": zone_metrics,
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
 
 
 @app.post("/police/dispatch")
