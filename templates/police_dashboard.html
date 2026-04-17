@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Police Supervisor Dashboard</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/static/leaflet.css" />
     <style>
         body {
             margin: 0;
@@ -222,7 +222,7 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/static/leaflet.js"></script>
     <script type="application/json" id="police-incidents-data">{{ incidents | tojson }}</script>
     <script type="application/json" id="police-district-data">{{ district_info | tojson }}</script>
     <script>

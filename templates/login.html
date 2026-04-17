@@ -559,16 +559,17 @@
                     <div class="field-feedback" id="username-feedback"></div>
                 </div>
             </div>
-            <div class="form-group" id="role-group">
+            <div class="form-group" id="role-group" style="display: none;">
                 <div class="label-wrapper">
-                    <label for="role">Role</label>
+                    <label for="role">Role (Auto-detected)</label>
                 </div>
                 <div class="input-wrapper">
-                    <select id="role" name="role" required>
+                    <select id="role" name="role" disabled>
                         <option value="user">Normal User</option>
                         <option value="police_supervisor">Police Supervisor</option>
                         <option value="logistics_manager">Logistics Manager</option>
                     </select>
+                    <p style="font-size: 12px; color: #cbd5f5; margin-top: 8px;">Your role will be auto-detected based on your account type.</p>
                 </div>
             </div>
             <div class="form-group" id="district-group" style="display: none;">
@@ -878,21 +879,15 @@
                         throw new Error('Please enter both username and password');
                     }
 
-                    const rolePayload = { username, password, role };
+                    // Always send 'user' role - backend will auto-detect actual role
+                    // This prevents users from selecting the wrong role
+                    const rolePayload = { username, password, role: 'user' };
 
-                    if (role === 'police_supervisor') {
-                        if (!districtId) {
-                            throw new Error('District is required for police supervisor login');
-                        }
-                        rolePayload.district_id = districtId;
-                    }
-
-                    if (role === 'logistics_manager') {
-                        if (!fleetZone) {
-                            throw new Error('Fleet zone is required for logistics manager login');
-                        }
-                        rolePayload.fleet_zone = fleetZone;
-                    }
+                    // Backend will auto-detect the correct role based on user's account
+                    // Police users will get police_supervisor role
+                    // Logistics users will get logistics_manager role
+                    // Admins will get admin role
+                    // Others will get user role
 
                     console.log('📤 Sending to /auth/login');
                     const res = await fetch('/auth/login', {

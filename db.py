@@ -112,6 +112,35 @@ class PoliceDispatchAssignment(Base):
     status = Column(String, nullable=False, default="active")
 
 
+class Shift(Base):
+    """Tracks police supervisor shifts and operations."""
+    __tablename__ = "police_shifts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    district_id = Column(String, nullable=False, index=True)
+    supervisor_id = Column(String, nullable=False)
+    supervisor_name = Column(String, nullable=False)
+    start_time = Column(DateTime, default=lambda: datetime.now(UTC), index=True)
+    end_time = Column(DateTime, nullable=True)
+    status = Column(String, nullable=False, default="active")
+    incidents_count = Column(Integer, default=0)
+    officers_on_duty = Column(Integer, default=0)
+    notes = Column(Text, nullable=True)
+
+
+class ShiftAttendance(Base):
+    """Tracks officer attendance during shifts."""
+    __tablename__ = "shift_attendance"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shift_id = Column(Integer, ForeignKey("police_shifts.id"), nullable=False, index=True)
+    officer_username = Column(String, nullable=False)
+    officer_name = Column(String, nullable=False)
+    clock_in_time = Column(DateTime, default=lambda: datetime.now(UTC))
+    clock_out_time = Column(DateTime, nullable=True)
+    status = Column(String, nullable=False, default="present")
+
+
 class AnalysisResult(Base):
     """SQLAlchemy model for analysis results table."""
     __tablename__ = "analysis_results"

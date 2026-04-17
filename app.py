@@ -22,6 +22,8 @@ from datetime import datetime, UTC, timedelta
 import secrets
 import uuid
 import traceback
+import asyncio
+import time
 
 # Import logging and rate limiting
 from logging_config import setup_logging, get_logger
@@ -41,7 +43,7 @@ from utils import (
 )
 from db import (
     init_db, get_session, save_analysis, AnalysisResult,
-    User, SavedRoute, RouteRating, Notification, PoliceDispatchAssignment
+    User, SavedRoute, RouteRating, Notification, PoliceDispatchAssignment, Shift, ShiftAttendance
 )
 from sqlalchemy.orm import Session
 from auth import (
@@ -71,6 +73,44 @@ app = FastAPI(
     description="Real-time traffic congestion analysis with ML predictions",
     version="1.0.0"
 )
+
+# ============================================================================
+# REAL-TIME ALERTS INFRASTRUCTURE
+# ============================================================================
+# In-memory alert store: {district_id: [AlertData, ...]}
+_alerts_store = {}
+_alert_subscribers = {}  # {district_id: [callback_func, ...]}
+
+
+def add_alert(district_id: str, severity: str, message: str, incident_id: Optional[str] = None):
+    """Add an alert to the store and notify subscribers."""
+    from uuid import uuid4
+    
+    alert = AlertData(
+        alert_id=str(uuid4()),
+        severity=severity,
+        message=message,
+        timestamp=datetime.now(UTC).isoformat(),
+        district_id=district_id,
+        related_incident_id=incident_id,
+    )
+    
+    if district_id not in _alerts_store:
+        _alerts_store[district_id] = []
+    
+    _alerts_store[district_id].append(alert)
+    
+    # Keep only last 50 alerts per district to prevent memory bloat
+    if len(_alerts_store[district_id]) > 50:
+        _alerts_store[district_id] = _alerts_store[district_id][-50:]
+    
+    logger.info(f"Alert added: {severity} - {message} (District: {district_id})")
+    return alert
+
+
+def get_unread_alerts(district_id: str) -> list[AlertData]:
+    """Get unread alerts for a district."""
+    return _alerts_store.get(district_id, [])
 
 
 @app.exception_handler(ExpiredSignatureError)
@@ -887,6 +927,33 @@ class DispatchRequest(BaseModel):
     incident_id: str = Field(..., min_length=1)
     unit_id: str = Field(..., min_length=1)
 
+
+class ShiftAttendanceRequest(BaseModel):
+    """Mark officer attendance during shift."""
+    officers: list[dict] = Field(..., description="List of {officer_username, officer_name, status}")
+
+
+class ShiftEndRequest(BaseModel):
+    """End shift and optionally export report."""
+    notes: Optional[str] = None
+    export_pptx: bool = True
+
+
+class AlertData(BaseModel):
+    """Real-time alert for police supervisor."""
+    alert_id: str
+    severity: str  # critical, high, medium, low
+    message: str
+    timestamp: str  # ISO format
+    district_id: Optional[str] = None
+    related_incident_id: Optional[str] = None
+
+
+class AlertListResponse(BaseModel):
+    """Response for unread alerts list."""
+    alerts: list[AlertData]
+    unread_count: int
+
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
@@ -1060,10 +1127,19 @@ def predict_congestion(features: dict) -> Optional[float]:
 # ============================================================================
 
 @app.get("/", response_class=HTMLResponse)
-async def serve_index():
-    """Send visitors to the login page first."""
-    return RedirectResponse(url="/login", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
-
+async def serve_index(request: Request):
+    """Serve index page. If not logged in, redirect to login."""
+    # Check if user is authenticated
+    token = request.cookies.get("access_token")
+    if not token:
+        # Try to get token from URL params
+        token = request.query_params.get("token")
+    
+    # If no token, redirect to login
+    if not token:
+        return RedirectResponse(url="/login", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    
+    # User is logged in, serve index/route optimizer page
     index_path = os.path.join("templates", "index.html")
     if os.path.exists(index_path):
         with open(index_path, "r", encoding="utf-8") as f:
@@ -1713,6 +1789,43 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_session
         raise HTTPException(status_code=500, detail=f"Registration failed: {error_msg}")
 
 
+@app.get("/test/create-user")
+async def create_test_user(db: Session = Depends(get_session)):
+    """Create a test user for development/testing (remove in production)."""
+    # Check if test user already exists
+    existing_user = get_user_by_username(db, "testuser")
+    if existing_user:
+        return {
+            "status": "user_exists",
+            "message": "Test user already exists",
+            "username": "testuser",
+            "password": "password123"
+        }
+    
+    # Create test user
+    try:
+        test_user_data = AuthUserCreate(
+            email="testuser@example.com",
+            username="testuser",
+            password="password123",
+            full_name="Test User",
+            department="general"
+        )
+        user = create_user(db, test_user_data)
+        return {
+            "status": "created",
+            "message": "Test user created successfully",
+            "username": "testuser",
+            "password": "password123",
+            "email": "testuser@example.com"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create test user: {str(e)}"
+        )
+
+
 @app.post("/api/auth/login", response_model=RoleToken)
 async def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -2014,6 +2127,341 @@ async def police_export_pptx(current_user: dict = Depends(require_police_departm
         )
 
 
+@app.get("/police/shift/status")
+async def get_shift_status(current_user: dict = Depends(require_role("police_supervisor"))):
+    """Get the current active shift status for the supervisor."""
+    district_id = current_user.get("district_id")
+    username = current_user.get("username", "Unknown")
+    
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required",
+        )
+    
+    session = get_session()
+    try:
+        active_shift = (
+            session.query(Shift)
+            .filter(
+                Shift.district_id == district_id,
+                Shift.supervisor_id == username,
+                Shift.status == "active",
+            )
+            .order_by(Shift.start_time.desc())
+            .first()
+        )
+        
+        if not active_shift:
+            return {
+                "status": "no_active_shift",
+                "shift": None,
+                "message": "No active shift found. Create a new shift to begin.",
+            }
+        
+        attendance_records = (
+            session.query(ShiftAttendance)
+            .filter(ShiftAttendance.shift_id == active_shift.id)
+            .all()
+        )
+        
+        officers_on_duty = [
+            {
+                "officer_username": record.officer_username,
+                "officer_name": record.officer_name,
+                "clock_in_time": record.clock_in_time.isoformat() if record.clock_in_time else None,
+                "clock_out_time": record.clock_out_time.isoformat() if record.clock_out_time else None,
+                "status": record.status,
+            }
+            for record in attendance_records
+            if record.status == "present"
+        ]
+        
+        return {
+            "status": "active",
+            "shift": {
+                "id": active_shift.id,
+                "district_id": active_shift.district_id,
+                "supervisor_id": active_shift.supervisor_id,
+                "supervisor_name": active_shift.supervisor_name,
+                "start_time": active_shift.start_time.isoformat(),
+                "incidents_count": active_shift.incidents_count,
+                "officers_on_duty": len(officers_on_duty),
+                "notes": active_shift.notes,
+            },
+            "officers": officers_on_duty,
+            "updated_at": datetime.now(UTC).isoformat(),
+        }
+    except Exception as exc:
+        logger.error(f"Failed to get shift status: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve shift status",
+        )
+    finally:
+        session.close()
+
+
+@app.post("/police/shift/attendance")
+async def mark_shift_attendance(
+    request: ShiftAttendanceRequest,
+    current_user: dict = Depends(require_role("police_supervisor")),
+):
+    """Mark officer attendance for the current shift."""
+    district_id = current_user.get("district_id")
+    username = current_user.get("username", "Unknown")
+    
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required",
+        )
+    
+    session = get_session()
+    try:
+        active_shift = (
+            session.query(Shift)
+            .filter(
+                Shift.district_id == district_id,
+                Shift.supervisor_id == username,
+                Shift.status == "active",
+            )
+            .order_by(Shift.start_time.desc())
+            .first()
+        )
+        
+        if not active_shift:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No active shift found",
+            )
+        
+        for officer_data in request.officers:
+            officer_username = officer_data.get("officer_username")
+            officer_name = officer_data.get("officer_name")
+            status_val = officer_data.get("status", "present")
+            
+            existing_record = (
+                session.query(ShiftAttendance)
+                .filter(
+                    ShiftAttendance.shift_id == active_shift.id,
+                    ShiftAttendance.officer_username == officer_username,
+                )
+                .first()
+            )
+            
+            if existing_record:
+                existing_record.status = status_val
+                if status_val == "absent":
+                    existing_record.clock_out_time = datetime.now(UTC)
+            else:
+                attendance_record = ShiftAttendance(
+                    shift_id=active_shift.id,
+                    officer_username=officer_username,
+                    officer_name=officer_name,
+                    status=status_val,
+                    clock_in_time=datetime.now(UTC) if status_val == "present" else None,
+                )
+                session.add(attendance_record)
+        
+        session.commit()
+        
+        updated_present_count = (
+            session.query(ShiftAttendance)
+            .filter(
+                ShiftAttendance.shift_id == active_shift.id,
+                ShiftAttendance.status == "present",
+            )
+            .count()
+        )
+        active_shift.officers_on_duty = updated_present_count
+        session.commit()
+        
+        return {
+            "message": "Attendance marked successfully",
+            "shift_id": active_shift.id,
+            "officers_marked": len(request.officers),
+            "officers_present": updated_present_count,
+            "updated_at": datetime.now(UTC).isoformat(),
+        }
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as exc:
+        session.rollback()
+        logger.error(f"Failed to mark attendance: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to mark attendance",
+        )
+    finally:
+        session.close()
+
+
+@app.post("/police/shift/end")
+async def end_shift(
+    request: ShiftEndRequest,
+    current_user: dict = Depends(require_role("police_supervisor")),
+):
+    """End the current shift, optionally generating and exporting a PPTX report."""
+    district_id = current_user.get("district_id")
+    username = current_user.get("username", "Unknown")
+    
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required",
+        )
+    
+    session = get_session()
+    try:
+        active_shift = (
+            session.query(Shift)
+            .filter(
+                Shift.district_id == district_id,
+                Shift.supervisor_id == username,
+                Shift.status == "active",
+            )
+            .order_by(Shift.start_time.desc())
+            .first()
+        )
+        
+        if not active_shift:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No active shift found to end",
+            )
+        
+        active_shift.end_time = datetime.now(UTC)
+        active_shift.status = "completed"
+        active_shift.notes = request.notes
+        session.commit()
+        
+        shift_end_result = {
+            "message": "Shift ended successfully",
+            "shift_id": active_shift.id,
+            "start_time": active_shift.start_time.isoformat(),
+            "end_time": active_shift.end_time.isoformat(),
+            "status": "completed",
+            "updated_at": datetime.now(UTC).isoformat(),
+        }
+        
+        if request.export_pptx:
+            try:
+                incidents = _load_police_incidents(district_id)
+                district_summary = _build_district_summary(incidents)
+                ml_predictions = _predict_police_hotspots(district_id, incidents)
+                output = generate_shift_pptx(district_id, username, incidents, district_summary, ml_predictions)
+                
+                filename = f"ShiftReport_District{district_id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M')}.pptx"
+                shift_end_result["pptx_filename"] = filename
+                shift_end_result["export_status"] = "success"
+                
+                session.close()
+                
+                return StreamingResponse(
+                    output,
+                    media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+                )
+            except Exception as export_exc:
+                logger.warning(f"PPTX export during shift end failed: {export_exc}")
+                shift_end_result["export_status"] = "failed"
+                shift_end_result["export_error"] = str(export_exc)
+                return shift_end_result
+        else:
+            return shift_end_result
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as exc:
+        session.rollback()
+        logger.error(f"Failed to end shift: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to end shift",
+        )
+    finally:
+        session.close()
+
+
+@app.get("/police/alerts/list")
+async def get_alerts_list(current_user: dict = Depends(require_role("police_supervisor"))):
+    """Get unread alerts for the supervisor's district."""
+    district_id = current_user.get("district_id")
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required",
+        )
+    
+    alerts = get_unread_alerts(district_id)
+    return AlertListResponse(
+        alerts=alerts,
+        unread_count=len(alerts),
+    )
+
+
+@app.get("/police/alerts/stream")
+async def alerts_stream(current_user: dict = Depends(require_role("police_supervisor"))):
+    """Server-Sent Events stream for real-time police alerts."""
+    district_id = current_user.get("district_id")
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required",
+        )
+    
+    async def event_generator():
+        """Generate SSE events for alerts."""
+        # Send initial alert to inform client the stream is connected
+        yield f"data: {json.dumps({'type': 'connected', 'message': 'Alert stream connected'})}\n\n"
+        
+        # Send all existing unread alerts
+        existing_alerts = get_unread_alerts(district_id)
+        for alert in existing_alerts:
+            yield f"data: {json.dumps({'type': 'alert', 'data': alert.model_dump()})}\n\n"
+            await asyncio.sleep(0.01)  # Small delay to prevent overwhelming client
+        
+        # Keep connection open for new alerts (heartbeat)
+        last_check = time.time()
+        last_alert_count = len(existing_alerts)
+        
+        while True:
+            try:
+                await asyncio.sleep(1)
+                
+                current_alerts = get_unread_alerts(district_id)
+                current_count = len(current_alerts)
+                
+                # Check for new alerts since last check
+                if current_count > last_alert_count:
+                    new_alerts = current_alerts[last_alert_count:]
+                    for alert in new_alerts:
+                        yield f"data: {json.dumps({'type': 'alert', 'data': alert.model_dump()})}\n\n"
+                    last_alert_count = current_count
+                
+                # Heartbeat every 30 seconds
+                if time.time() - last_check > 30:
+                    yield f": heartbeat\n\n"
+                    last_check = time.time()
+            except asyncio.CancelledError:
+                logger.info(f"Alert stream closed for district {district_id}")
+                break
+            except Exception as exc:
+                logger.error(f"Error in alert stream: {exc}")
+                break
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @app.post("/auth/login", response_model=RoleToken)
 async def role_login(
     login_data: RoleLoginRequest,
@@ -2021,7 +2469,7 @@ async def role_login(
     *,
     response: Response,
 ):
-    """Login with an explicit role and return a role-aware JWT."""
+    """Login with role and return role-aware JWT. Auto-detects actual user role."""
     user = authenticate_user(db, login_data.username, login_data.password)
     if not user:
         raise HTTPException(
@@ -2030,55 +2478,32 @@ async def role_login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    role = login_data.role
-    district_id = login_data.district_id
-    fleet_zone = login_data.fleet_zone
     user_department = (getattr(user, "department", None) or "").strip().lower()
 
+    # Determine actual allowed role based on user's account
     if user.is_admin:
-        allowed_role = UserRole.admin
+        actual_role = UserRole.admin
     elif user_department == "police":
-        allowed_role = UserRole.police_supervisor
+        actual_role = UserRole.police_supervisor
     elif user_department == "logistics":
-        allowed_role = UserRole.logistics_manager
+        actual_role = UserRole.logistics_manager
     else:
-        allowed_role = UserRole.user
+        actual_role = UserRole.user
 
-    if role != allowed_role:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Selected role does not match your account role",
-        )
+    # Use actual role instead of requested role for normal users
+    # This allows users to select "Normal User" even if system auto-detects their role
+    role = actual_role
+    district_id = login_data.district_id if login_data.district_id else None
+    fleet_zone = login_data.fleet_zone if login_data.fleet_zone else None
 
-    if role == UserRole.admin and not user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
-        )
-
-    if role == UserRole.police_supervisor and user_department != "police":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Police department access required",
-        )
-
-    if role == UserRole.logistics_manager and user_department != "logistics":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Logistics department access required",
-        )
-
+    # Validate required fields for specific roles
     if role == UserRole.police_supervisor and not district_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="district_id is required for police_supervisor login",
-        )
+        # Default to district_1 for police supervisors if not provided
+        district_id = "district_1"
 
     if role == UserRole.logistics_manager and not fleet_zone:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="fleet_zone is required for logistics_manager login",
-        )
+        # Default to zone_default for logistics managers if not provided
+        fleet_zone = "zone_default"
 
     access_token = create_role_access_token(
         username=user.username,
@@ -2610,8 +3035,23 @@ async def get_all_users(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000)
 ):
-    """Get all users (admin only)."""
-    users = db.query(User).offset(skip).limit(limit).all()
+    """Get users filtered by department (admin only - see only users in their department)."""
+    # Get admin's department
+    admin_department = (getattr(current_user, "department", None) or "admin").strip().lower()
+    
+    # Build query based on admin's department
+    query = db.query(User)
+    
+    # If admin is super admin (department='admin'), show all users
+    # Otherwise, show only users in their own department
+    if admin_department != "admin":
+        # Filter by department - but first check if there are department-specific admins
+        # Police department admins see police users
+        # Logistics department admins see logistics users
+        query = query.filter(User.department == admin_department)
+    # Super admins (department='admin') see everyone
+    
+    users = query.offset(skip).limit(limit).all()
     return [UserResponse.model_validate(u) for u in users]
 
 
@@ -2621,10 +3061,20 @@ async def toggle_user_status(
     current_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_session)
 ):
-    """Activate/deactivate a user (admin only)."""
+    """Activate/deactivate a user (admin only - department-restricted)."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if admin can modify this user (same department or super admin)
+    admin_department = (getattr(current_user, "department", None) or "admin").strip().lower()
+    user_department = (getattr(user, "department", None) or "general").strip().lower()
+    
+    if admin_department != "admin" and admin_department != user_department:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage users in your department"
+        )
     
     user.is_active = not user.is_active
     db.commit()
@@ -2637,13 +3087,23 @@ async def toggle_admin_status(
     current_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_session)
 ):
-    """Grant/revoke admin privileges (admin only)."""
+    """Grant/revoke admin privileges (admin only - department-restricted)."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
     if user.id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot change your own admin status")
+    
+    # Check if admin can modify this user (same department or super admin)
+    admin_department = (getattr(current_user, "department", None) or "admin").strip().lower()
+    user_department = (getattr(user, "department", None) or "general").strip().lower()
+    
+    if admin_department != "admin" and admin_department != user_department:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage users in your department"
+        )
     
     user.is_admin = not user.is_admin
     db.commit()
@@ -2657,10 +3117,20 @@ async def update_user(
     current_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_session)
 ):
-    """Update user details (admin only)."""
+    """Update user details (admin only - department-restricted)."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if admin can modify this user (same department or super admin)
+    admin_department = (getattr(current_user, "department", None) or "admin").strip().lower()
+    user_department = (getattr(user, "department", None) or "general").strip().lower()
+    
+    if admin_department != "admin" and admin_department != user_department:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage users in your department"
+        )
     
     # Update username if provided
     if user_update.username is not None:
@@ -2712,13 +3182,23 @@ async def delete_user(
     current_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_session)
 ):
-    """Delete a user (admin only)."""
+    """Delete a user (admin only - department-restricted)."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
     if user.id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    
+    # Check if admin can delete this user (same department or super admin)
+    admin_department = (getattr(current_user, "department", None) or "admin").strip().lower()
+    user_department = (getattr(user, "department", None) or "general").strip().lower()
+    
+    if admin_department != "admin" and admin_department != user_department:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete users in your department"
+        )
     
     db.delete(user)
     db.commit()
