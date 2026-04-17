@@ -8,6 +8,7 @@ from typing import Optional, Dict, List
 from sqlalchemy.orm import Session
 import requests
 import os
+import math
 
 from db import AnalysisResult, SavedRoute
 from utils import tomtom_route, summarize_route
@@ -17,19 +18,49 @@ logger = get_logger(__name__)
 TOMTOM_KEY = os.getenv("TOMTOM_KEY")
 
 
+def _build_bbox(lat: float, lon: float, radius_m: int) -> str:
+    """Build TomTom bbox string as minLon,minLat,maxLon,maxLat from center and radius."""
+    lat_delta = radius_m / 111320.0
+    cos_lat = max(0.1, abs(math.cos(math.radians(lat))))
+    lon_delta = radius_m / (111320.0 * cos_lat)
+
+    min_lat = lat - lat_delta
+    max_lat = lat + lat_delta
+    min_lon = lon - lon_delta
+    max_lon = lon + lon_delta
+    return f"{min_lon:.6f},{min_lat:.6f},{max_lon:.6f},{max_lat:.6f}"
+
+
+def _extract_location(geometry: Dict) -> List[float]:
+    """Extract a representative [lon, lat] location from incident geometry."""
+    geometry_type = geometry.get("type")
+    coordinates = geometry.get("coordinates")
+
+    if geometry_type == "Point" and isinstance(coordinates, list) and len(coordinates) >= 2:
+        return [coordinates[0], coordinates[1]]
+
+    if geometry_type == "LineString" and isinstance(coordinates, list) and coordinates:
+        first = coordinates[0]
+        if isinstance(first, list) and len(first) >= 2:
+            return [first[0], first[1]]
+
+    return []
+
+
 def get_traffic_incidents(lat: float, lon: float, radius: int = 5000) -> List[Dict]:
     """Get traffic incidents near a location."""
     if not TOMTOM_KEY:
         return []
     
     try:
-        url = f"https://api.tomtom.com/traffic/services/4/incidentDetails"
+        url = "https://api.tomtom.com/traffic/services/5/incidentDetails"
+        bbox = _build_bbox(lat, lon, radius)
         params = {
             "key": TOMTOM_KEY,
-            "point": f"{lat},{lon}",
-            "radius": radius,
-            "language": "en",
-            "projection": "EPSG4326"
+            "bbox": bbox,
+            "fields": "{incidents{type,geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,startTime,endTime,from,to,length,delay,roadNumbers,timeValidity}}}",
+            "language": "en-GB",
+            "timeValidityFilter": "present",
         }
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
@@ -37,14 +68,29 @@ def get_traffic_incidents(lat: float, lon: float, radius: int = 5000) -> List[Di
         
         incidents = []
         for incident in data.get("incidents", []):
+            properties = incident.get("properties", {})
+            geometry = incident.get("geometry", {})
+
+            description_parts = [
+                properties.get("from"),
+                properties.get("to"),
+            ]
+            description = " -> ".join([part for part in description_parts if part])
+            if not description:
+                description = f"Incident category {properties.get('iconCategory', 'unknown')}"
+
             incidents.append({
-                "id": incident.get("id"),
+                "id": properties.get("id"),
                 "type": incident.get("type"),
-                "severity": incident.get("properties", {}).get("iconCategory"),
-                "description": incident.get("properties", {}).get("description"),
-                "location": incident.get("geometry", {}).get("coordinates"),
-                "start_time": incident.get("properties", {}).get("startTime"),
-                "end_time": incident.get("properties", {}).get("endTime")
+                "severity": properties.get("iconCategory") or properties.get("magnitudeOfDelay"),
+                "description": description,
+                "location": _extract_location(geometry),
+                "start_time": properties.get("startTime"),
+                "end_time": properties.get("endTime"),
+                "delay": properties.get("delay"),
+                "length": properties.get("length"),
+                "road_numbers": properties.get("roadNumbers"),
+                "time_validity": properties.get("timeValidity"),
             })
         
         return incidents

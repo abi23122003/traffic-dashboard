@@ -161,7 +161,7 @@ DISTRICT_LOCATIONS = {
 
 
 def _normalize_severity(raw_severity: Optional[str]) -> str:
-    value = (raw_severity or "").lower()
+    value = str(raw_severity or "").lower()
     if value in {"1", "low", "minor"}:
         return "low"
     if value in {"2", "moderate", "medium"}:
@@ -1458,6 +1458,10 @@ async def police_dashboard(request: Request, current_user: dict = Depends(requir
         logging.exception("Failed to load ML predictions for district %s", district_id)
         ml_predictions = []
         predictions_failed = True
+
+    print("[DEBUG][police_dashboard] incidents_raw:", incidents)
+    print("[DEBUG][police_dashboard] district_summary_raw:", district_summary)
+    print("[DEBUG][police_dashboard] ml_predictions_raw:", ml_predictions)
 
     data_error = incidents_failed or summary_failed or predictions_failed
     district_info = DISTRICT_LOCATIONS.get(district_id, {"name": district_id or "Unknown District"})
