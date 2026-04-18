@@ -3,269 +3,741 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Police Command Center Dashboard</title>
+    <title>Police Supervisor Command Center</title>
     <style>
+        :root {
+            --bg: #0f1720;
+            --panel: #131f2b;
+            --panel-soft: #1b2a3a;
+            --text: #edf2f7;
+            --muted: #9db2c6;
+            --accent: #45c4ff;
+            --critical: #ff4f4f;
+            --high: #ff9a3d;
+            --medium: #ffd34d;
+            --low: #57d77a;
+            --available: #3fd672;
+            --enroute: #ff9a3d;
+            --busy: #e45a6f;
+        }
+
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
         }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #1a1a1a;
-            color: #fff;
+            background: radial-gradient(circle at 15% 10%, #1b3049, var(--bg));
+            color: var(--text);
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
         }
-        .container {
+
+        .layout {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            padding: 20px;
-            height: 100vh;
+            grid-template-columns: minmax(320px, 380px) 1fr;
+            gap: 14px;
+            padding: 14px;
+            min-height: 100vh;
+        }
+
+        .panel {
+            background: linear-gradient(165deg, var(--panel), var(--panel-soft));
+            border: 1px solid #2c3e51;
+            border-radius: 14px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        .sidebar {
+            display: grid;
+            grid-template-rows: auto auto auto 1fr 1fr;
+            gap: 12px;
+            padding: 14px;
             overflow: hidden;
         }
-        .panel {
-            background-color: #2a2a2a;
-            border: 1px solid #444;
-            border-radius: 8px;
-            padding: 20px;
-            overflow-y: auto;
+
+        .map-wrap {
+            position: relative;
+            overflow: hidden;
         }
-        .panel h2 {
-            margin-bottom: 15px;
-            border-bottom: 2px solid #0066cc;
-            padding-bottom: 10px;
+
+        #map {
+            width: 100%;
+            height: calc(100vh - 28px);
+            border-radius: 14px;
         }
-        .incident-card {
-            background-color: #333;
-            border-left: 4px solid;
-            padding: 12px;
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+
+        .connection-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--busy);
+            box-shadow: 0 0 10px rgba(228, 90, 111, 0.8);
+        }
+
+        .connection-dot.live {
+            background: var(--available);
+            box-shadow: 0 0 10px rgba(63, 214, 114, 0.8);
+        }
+
+        .section-title {
+            font-size: 0.95rem;
+            color: var(--accent);
+            letter-spacing: 0.02em;
             margin-bottom: 10px;
-            border-radius: 4px;
-            cursor: pointer;
         }
-        .incident-card.critical { border-left-color: #ff4444; }
-        .incident-card.high { border-left-color: #ff9900; }
-        .incident-card.medium { border-left-color: #ffdd00; color: #000; }
-        .incident-card.low { border-left-color: #00aa00; }
-        .incident-card h3 {
-            margin-bottom: 5px;
+
+        .legend {
+            display: grid;
+            gap: 8px;
+            font-size: 0.86rem;
+            color: var(--muted);
         }
-        .incident-card small {
-            display: block;
-            opacity: 0.8;
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .officer-card {
-            background-color: #333;
-            border: 1px solid #555;
-            padding: 12px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-        }
-        .officer-card.available { border-left: 4px solid #00aa00; }
-        .officer-card.en-route { border-left: 4px solid #ff9900; }
-        .officer-card.occupied { border-left: 4px solid #ff4444; }
-        .officer-card h3 {
-            margin-bottom: 5px;
-        }
-        .officer-card .badge {
-            display: inline-block;
-            background-color: #555;
-            padding: 2px 8px;
+
+        .swatch {
+            width: 12px;
+            height: 12px;
             border-radius: 3px;
-            font-size: 0.85em;
-            margin-right: 8px;
         }
-        .officer-card .skills {
-            font-size: 0.85em;
-            opacity: 0.8;
-            margin-top: 5px;
+
+        .swatch.critical { background: var(--critical); }
+        .swatch.high { background: var(--high); }
+        .swatch.medium { background: var(--medium); }
+        .swatch.low { background: var(--low); }
+        .swatch.available { background: var(--available); border-radius: 50%; }
+        .swatch.en-route { background: var(--enroute); border-radius: 50%; }
+        .swatch.occupied { background: var(--busy); border-radius: 50%; }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
         }
+
+        button {
+            border: 0;
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: #264563;
+            color: var(--text);
+            cursor: pointer;
+            transition: transform 0.15s ease, background 0.15s ease;
+            font-size: 0.86rem;
+        }
+
+        button:hover {
+            background: #2f5f89;
+            transform: translateY(-1px);
+        }
+
+        .recommend {
+            background: linear-gradient(120deg, #0d7cc0, #1c9ee0);
+            font-weight: 600;
+        }
+
+        .list {
+            overflow: auto;
+            border-top: 1px solid #274056;
+            padding-top: 8px;
+        }
+
+        .card {
+            background: rgba(18, 31, 45, 0.85);
+            border: 1px solid #274056;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: border-color 0.15s ease, transform 0.15s ease;
+        }
+
+        .card:hover {
+            border-color: #3f6790;
+            transform: translateY(-1px);
+        }
+
+        .card.selected {
+            border-color: var(--accent);
+            box-shadow: inset 0 0 0 1px rgba(69, 196, 255, 0.35);
+        }
+
+        .card h4 {
+            font-size: 0.92rem;
+            margin-bottom: 6px;
+        }
+
+        .meta {
+            font-size: 0.8rem;
+            color: var(--muted);
+            line-height: 1.4;
+        }
+
+        .eta-card {
+            background: rgba(26, 40, 54, 0.9);
+            border: 1px solid #3c556b;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+
+        .eta-card.best {
+            border-color: #2dc06d;
+            box-shadow: inset 0 0 0 1px rgba(45, 192, 109, 0.4);
+        }
+
         .toast {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #333;
-            border-left: 4px solid #0066cc;
-            padding: 15px;
-            border-radius: 4px;
-            max-width: 300px;
-            animation: slideIn 0.3s ease-out;
+            right: 18px;
+            bottom: 18px;
             z-index: 1000;
+            background: #203346;
+            border-left: 4px solid var(--accent);
+            border-radius: 8px;
+            padding: 12px;
+            min-width: 240px;
+            max-width: 320px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            animation: slideIn 0.2s ease;
         }
-        .toast.critical { border-left-color: #ff4444; }
-        .toast.high { border-left-color: #ff9900; }
+
+        .toast.critical { border-left-color: var(--critical); }
+        .toast.high { border-left-color: var(--high); }
+        .toast.medium { border-left-color: var(--medium); }
+        .toast.low { border-left-color: var(--low); }
+
+        .floating-panel {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            z-index: 2;
+            background: rgba(20, 34, 47, 0.92);
+            border: 1px solid #2f465c;
+            border-radius: 10px;
+            padding: 10px;
+            min-width: 220px;
+        }
+
+        .floating-panel h3 {
+            font-size: 0.9rem;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .floating-panel .small {
+            font-size: 0.8rem;
+            color: var(--muted);
+            line-height: 1.4;
+        }
+
         @keyframes slideIn {
             from {
-                transform: translateX(400px);
+                transform: translateY(8px);
                 opacity: 0;
             }
             to {
-                transform: translateX(0);
+                transform: translateY(0);
                 opacity: 1;
             }
         }
-        .connection-status {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 0.9em;
-        }
-        .connection-status.connected {
-            background-color: #00aa00;
-            color: white;
-        }
-        .connection-status.disconnected {
-            background-color: #ff4444;
-            color: white;
+
+        @media (max-width: 1100px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+            #map {
+                height: 60vh;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="connection-status disconnected" id="connectionStatus">Disconnected</div>
-    
-    <div class="container">
-        <div class="panel">
-            <h2>Active Incidents</h2>
-            <div id="incidentsList"></div>
-        </div>
-        <div class="panel">
-            <h2>Officers on Duty</h2>
-            <div id="officersList"></div>
-        </div>
+    <div class="layout">
+        <aside class="panel sidebar">
+            <div>
+                <h2>Supervisor Command Center</h2>
+                <div class="connection-status">
+                    <span class="connection-dot" id="connDot"></span>
+                    <span id="connText">Disconnected</span>
+                </div>
+            </div>
+
+            <section>
+                <div class="section-title">Map Legend</div>
+                <div class="legend">
+                    <div class="legend-item"><span class="swatch critical"></span>Incident: Critical</div>
+                    <div class="legend-item"><span class="swatch high"></span>Incident: High</div>
+                    <div class="legend-item"><span class="swatch medium"></span>Incident: Medium</div>
+                    <div class="legend-item"><span class="swatch low"></span>Incident: Low</div>
+                    <div class="legend-item"><span class="swatch available"></span>Officer: Available</div>
+                    <div class="legend-item"><span class="swatch en-route"></span>Officer: En-Route</div>
+                    <div class="legend-item"><span class="swatch occupied"></span>Officer: Busy</div>
+                </div>
+            </section>
+
+            <section>
+                <div class="controls">
+                    <button class="recommend" id="recommendBtn">Recommend Best Officer</button>
+                    <button id="refreshHotspotsBtn">Refresh Hotspots</button>
+                </div>
+                <p class="meta" style="margin-top:8px;">
+                    Select an incident, then rank officers by live distance, traffic ETA, and skill match.
+                </p>
+            </section>
+
+            <section class="list" id="incidentsList"></section>
+            <section class="list" id="etaCards"></section>
+        </aside>
+
+        <main class="panel map-wrap">
+            <div id="map"></div>
+            <div class="floating-panel">
+                <h3>Live Route</h3>
+                <div class="small" id="routeInfo">No route selected.</div>
+            </div>
+        </main>
     </div>
 
     <script>
-        // Initialize native WebSocket connection
-        const ws = new WebSocket('ws://localhost:5000/ws/incidents');
-
-        ws.onopen = function() {
-            console.log('WebSocket connected');
-            document.getElementById('connectionStatus').textContent = 'Connected';
-            document.getElementById('connectionStatus').className = 'connection-status connected';
+        const state = {
+            map: null,
+            trafficLayer: null,
+            heatmapLayer: null,
+            directionsService: null,
+            directionsRenderer: null,
+            incidents: [],
+            officers: [],
+            incidentMarkers: new Map(),
+            officerMarkers: new Map(),
+            selectedIncidentId: null,
+            selectedOfficerId: null,
+            ws: null,
         };
 
-        ws.onclose = function() {
-            console.log('WebSocket disconnected');
-            document.getElementById('connectionStatus').textContent = 'Disconnected';
-            document.getElementById('connectionStatus').className = 'connection-status disconnected';
+        const severityColors = {
+            critical: '#ff4f4f',
+            high: '#ff9a3d',
+            medium: '#ffd34d',
+            low: '#57d77a',
         };
 
-        ws.onmessage = function(event) {
-            try {
-                const data = JSON.parse(event.data);
-
-                if (data.type === 'incident_update') {
-                    addOrUpdateIncident(data.data);
-                    showToast(data.data.title, data.data.severity);
-                }
-
-                if (data.type === 'officer_update') {
-                    updateOfficerCard(data.data);
-                }
-            } catch (error) {
-                console.error('Failed to parse WebSocket message:', error);
-            }
+        const officerIconByStatus = {
+            available: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
+            'en-route': 'http://maps.google.com/mapfiles/ms/icons/orange-dot.png',
+            occupied: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
         };
 
-        // Load initial data on page load
-        function loadInitialData() {
-            fetchIncidents();
-            fetchOfficers();
+        function setConnectionStatus(isLive) {
+            const connDot = document.getElementById('connDot');
+            const connText = document.getElementById('connText');
+            connDot.classList.toggle('live', isLive);
+            connText.textContent = isLive ? 'Live Feed Active' : 'Disconnected';
         }
 
-        // Fetch incidents from API
-        function fetchIncidents() {
-            fetch('/api/incidents')
-                .then(response => response.json())
-                .then(incidents => {
-                    incidents.forEach(incident => addOrUpdateIncident(incident));
-                })
-                .catch(error => console.error('Error fetching incidents:', error));
-        }
-
-        // Fetch officers from API
-        function fetchOfficers() {
-            fetch('/api/officers/status')
-                .then(response => response.json())
-                .then(officers => {
-                    officers.forEach(officer => updateOfficerCard(officer));
-                })
-                .catch(error => console.error('Error fetching officers:', error));
-        }
-
-        // Add or update an incident in the UI
-        function addOrUpdateIncident(incident) {
-            const list = document.getElementById('incidentsList');
-            let card = document.getElementById(`incident-${incident.id}`);
-            
-            if (!card) {
-                card = document.createElement('div');
-                card.id = `incident-${incident.id}`;
-                card.className = `incident-card ${incident.severity}`;
-                list.appendChild(card);
+        async function fetchJSON(url, options) {
+            const res = await fetch(url, options);
+            if (!res.ok) {
+                throw new Error(`Request failed for ${url}: ${res.status}`);
             }
-            
-            const timestamp = new Date(incident.created_at).toLocaleTimeString();
-            card.innerHTML = `
-                <h3>${incident.title}</h3>
-                <small>Severity: ${incident.severity.toUpperCase()} | Status: ${incident.status}</small>
-                <small>Location: ${incident.lat.toFixed(4)}, ${incident.lng.toFixed(4)}</small>
-                <small>Time: ${timestamp}</small>
-            `;
-            card.className = `incident-card ${incident.severity}`;
+            return res.json();
         }
 
-        // Update or create an officer card in the UI
-        function updateOfficerCard(officer) {
-            const list = document.getElementById('officersList');
-            let card = document.getElementById(`officer-${officer.id}`);
-            
-            if (!card) {
-                card = document.createElement('div');
-                card.id = `officer-${officer.id}`;
-                list.appendChild(card);
-            }
-            
-            const lastPing = officer.last_ping ? new Date(officer.last_ping).toLocaleTimeString() : 'Never';
-            const skillsList = officer.skills.length > 0 ? officer.skills.join(', ') : 'No skills listed';
-            
-            card.innerHTML = `
-                <h3>${officer.name}</h3>
-                <div>
-                    <span class="badge">Badge: ${officer.badge}</span>
-                    <span class="badge">Status: ${officer.status}</span>
-                </div>
-                <small>Location: ${officer.lat ? officer.lat.toFixed(4) : 'N/A'}, ${officer.lng ? officer.lng.toFixed(4) : 'N/A'}</small>
-                <small>Last Ping: ${lastPing}</small>
-                <div class="skills">Skills: ${skillsList}</div>
-            `;
-            card.className = `officer-card ${officer.status}`;
-        }
-
-        // Show toast notification
         function showToast(title, severity) {
             const toast = document.createElement('div');
-            toast.className = `toast ${severity}`;
-            toast.innerHTML = `<strong>${severity.toUpperCase()}</strong><br>${title}`;
+            toast.className = `toast ${String(severity || 'low').toLowerCase()}`;
+            toast.innerHTML = `<strong>${String(severity || 'low').toUpperCase()}</strong><br>${title}`;
             document.body.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.style.animation = 'slideOut 0.3s ease-out';
-                setTimeout(() => toast.remove(), 300);
-            }, 5000);
+            setTimeout(() => toast.remove(), 3800);
         }
 
-        // Fallback polling: fetch officers every 30 seconds
-        setInterval(() => {
-            fetchOfficers();
-        }, 30000);
+        function toLatLng(item) {
+            if (item.lat !== undefined && item.lng !== undefined) {
+                return { lat: Number(item.lat), lng: Number(item.lng) };
+            }
+            return null;
+        }
 
-        // Load data when page is ready
-        document.addEventListener('DOMContentLoaded', function() {
-            loadInitialData();
-        });
+        function clearMarkers(markerMap) {
+            for (const marker of markerMap.values()) {
+                marker.setMap(null);
+            }
+            markerMap.clear();
+        }
+
+        function ensureMapCenter() {
+            if (!state.map) return;
+            if (state.incidents.length > 0) {
+                const pts = state.incidents
+                    .map(toLatLng)
+                    .filter(Boolean);
+                if (!pts.length) return;
+                const bounds = new google.maps.LatLngBounds();
+                pts.forEach((pt) => bounds.extend(pt));
+                state.map.fitBounds(bounds, 80);
+                return;
+            }
+            state.map.setCenter({ lat: 11.0168, lng: 76.9558 });
+            state.map.setZoom(13);
+        }
+
+        function drawIncidentMarkers() {
+            clearMarkers(state.incidentMarkers);
+            state.incidents.forEach((incident) => {
+                const pos = toLatLng(incident);
+                if (!pos) return;
+                const color = severityColors[String(incident.severity || 'low').toLowerCase()] || '#57d77a';
+                const marker = new google.maps.Marker({
+                    position: pos,
+                    map: state.map,
+                    title: incident.title || 'Incident',
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 9,
+                        fillColor: color,
+                        fillOpacity: 1,
+                        strokeColor: '#0b1118',
+                        strokeWeight: 2,
+                    },
+                    zIndex: 5,
+                });
+                marker.addListener('click', () => {
+                    state.selectedIncidentId = String(incident.id);
+                    renderIncidentList();
+                    recommendOfficer();
+                });
+                state.incidentMarkers.set(String(incident.id), marker);
+            });
+        }
+
+        function drawOfficerMarkers() {
+            clearMarkers(state.officerMarkers);
+            state.officers.forEach((officer) => {
+                const pos = toLatLng(officer);
+                if (!pos) return;
+                const status = String(officer.status || 'available').toLowerCase();
+                const marker = new google.maps.Marker({
+                    position: pos,
+                    map: state.map,
+                    title: `${officer.name} (${status})`,
+                    icon: officerIconByStatus[status] || officerIconByStatus.available,
+                    zIndex: 3,
+                });
+                marker.addListener('click', () => {
+                    state.selectedOfficerId = Number(officer.id);
+                    maybeDrawRoute(state.selectedOfficerId, state.selectedIncidentId);
+                });
+                state.officerMarkers.set(String(officer.id), marker);
+            });
+        }
+
+        function upsertIncident(incident) {
+            const index = state.incidents.findIndex((item) => String(item.id) === String(incident.id));
+            if (index >= 0) {
+                state.incidents[index] = incident;
+            } else {
+                state.incidents.unshift(incident);
+            }
+            drawIncidentMarkers();
+            renderIncidentList();
+            ensureMapCenter();
+        }
+
+        function upsertOfficer(officer) {
+            const index = state.officers.findIndex((item) => Number(item.id) === Number(officer.id));
+            if (index >= 0) {
+                state.officers[index] = officer;
+            } else {
+                state.officers.push(officer);
+            }
+            drawOfficerMarkers();
+        }
+
+        function addOrUpdateIncident(incident) {
+            upsertIncident(incident);
+        }
+
+        function updateOfficerCard(officer) {
+            upsertOfficer(officer);
+        }
+
+        function renderIncidentList() {
+            const list = document.getElementById('incidentsList');
+            list.innerHTML = '';
+            state.incidents.forEach((incident) => {
+                const card = document.createElement('article');
+                card.className = 'card';
+                if (String(incident.id) === String(state.selectedIncidentId)) {
+                    card.classList.add('selected');
+                }
+                card.innerHTML = `
+                    <h4>${incident.title || 'Untitled Incident'}</h4>
+                    <div class="meta">Severity: ${String(incident.severity || 'low').toUpperCase()}</div>
+                    <div class="meta">Status: ${incident.status || 'open'}</div>
+                    <div class="meta">Lat/Lng: ${Number(incident.lat || 0).toFixed(4)}, ${Number(incident.lng || 0).toFixed(4)}</div>
+                `;
+                card.addEventListener('click', () => {
+                    state.selectedIncidentId = String(incident.id);
+                    renderIncidentList();
+                    recommendOfficer();
+                });
+                list.appendChild(card);
+            });
+        }
+
+        function renderEtaCards(ranked, recommendedOfficerId) {
+            const container = document.getElementById('etaCards');
+            container.innerHTML = '<div class="section-title">ETA Cards</div>';
+            ranked.forEach((item) => {
+                const card = document.createElement('article');
+                card.className = 'eta-card';
+                if (Number(item.officer_id) === Number(recommendedOfficerId)) {
+                    card.classList.add('best');
+                }
+                card.innerHTML = `
+                    <h4>${item.name} ${Number(item.officer_id) === Number(recommendedOfficerId) ? ' - Recommended' : ''}</h4>
+                    <div class="meta">ETA: ${item.eta_minutes} min</div>
+                    <div class="meta">Distance: ${item.distance_km} km</div>
+                    <div class="meta">Score: ${item.score}</div>
+                    <div class="meta">Skills: ${(item.skills || []).join(', ') || 'N/A'}</div>
+                `;
+                card.addEventListener('click', () => {
+                    state.selectedOfficerId = Number(item.officer_id);
+                    maybeDrawRoute(state.selectedOfficerId, state.selectedIncidentId);
+                });
+                container.appendChild(card);
+            });
+        }
+
+        async function loadIncidents() {
+            state.incidents = await fetchJSON('/api/incidents');
+            renderIncidentList();
+            drawIncidentMarkers();
+            ensureMapCenter();
+        }
+
+        async function loadOfficers() {
+            state.officers = await fetchJSON('/api/officers/status');
+            drawOfficerMarkers();
+        }
+
+        async function loadHotspots() {
+            const payload = await fetchJSON('/api/hotspots');
+            const points = (payload.hotspots || [])
+                .filter((h) => Number.isFinite(Number(h.lat)) && Number.isFinite(Number(h.lng)))
+                .map((h) => ({
+                    location: new google.maps.LatLng(Number(h.lat), Number(h.lng)),
+                    weight: Number(h.intensity || 0.6),
+                }));
+
+            if (!state.heatmapLayer) {
+                state.heatmapLayer = new google.maps.visualization.HeatmapLayer({
+                    map: state.map,
+                    radius: 36,
+                    opacity: 0.65,
+                });
+            }
+            state.heatmapLayer.setData(points);
+        }
+
+        async function recommendOfficer() {
+            if (!state.selectedIncidentId) {
+                showToast('Select an incident first', 'low');
+                return;
+            }
+
+            const payload = await fetchJSON('/api/recommend-officer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ incident_id: state.selectedIncidentId }),
+            });
+
+            const ranked = payload.ranked_officers || [];
+            const recommended = payload.recommended_officer || null;
+            renderEtaCards(ranked, recommended ? recommended.officer_id : null);
+
+            if (recommended) {
+                state.selectedOfficerId = Number(recommended.officer_id);
+                document.getElementById('routeInfo').innerHTML =
+                    `<strong>Recommended Officer:</strong> ${recommended.name}<br>` +
+                    `<strong>Reason:</strong> ${payload.reason || 'Lowest composite score'}`;
+                await maybeDrawRoute(state.selectedOfficerId, state.selectedIncidentId);
+            }
+        }
+
+        async function maybeDrawRoute(officerId, incidentId) {
+            if (!officerId || !incidentId) return;
+
+            const payload = await fetchJSON('/api/routes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ officer_id: officerId, incident_id: incidentId }),
+            });
+
+            const incident = state.incidents.find((i) => String(i.id) === String(incidentId));
+            const officer = state.officers.find((o) => Number(o.id) === Number(officerId));
+
+            document.getElementById('routeInfo').innerHTML =
+                `<strong>${officer ? officer.name : 'Officer'}</strong> -> ` +
+                `<strong>${incident ? incident.title : 'Incident'}</strong><br>` +
+                `Distance: ${payload.distance_km} km<br>` +
+                `ETA: ${payload.eta_minutes} min (${payload.traffic_based ? 'live traffic' : 'estimated'})`;
+
+            if (!state.directionsRenderer) {
+                state.directionsRenderer = new google.maps.DirectionsRenderer({
+                    map: state.map,
+                    suppressMarkers: false,
+                    polylineOptions: {
+                        strokeColor: '#45c4ff',
+                        strokeOpacity: 0.9,
+                        strokeWeight: 5,
+                    },
+                });
+            }
+
+            if (payload.route && payload.route.polyline) {
+                const path = google.maps.geometry.encoding.decodePath(payload.route.polyline);
+                const routeLine = new google.maps.Polyline({
+                    path,
+                    strokeColor: '#45c4ff',
+                    strokeOpacity: 0.9,
+                    strokeWeight: 5,
+                });
+                routeLine.setMap(state.map);
+
+                // Simple smooth draw effect.
+                let opacity = 0;
+                const timer = setInterval(() => {
+                    opacity += 0.15;
+                    routeLine.setOptions({ strokeOpacity: Math.min(opacity, 0.9) });
+                    if (opacity >= 0.9) {
+                        clearInterval(timer);
+                    }
+                }, 50);
+                return;
+            }
+
+            if (state.directionsService && officer && incident) {
+                state.directionsService.route(
+                    {
+                        origin: { lat: Number(officer.lat), lng: Number(officer.lng) },
+                        destination: { lat: Number(incident.lat), lng: Number(incident.lng) },
+                        travelMode: google.maps.TravelMode.DRIVING,
+                        drivingOptions: {
+                            departureTime: new Date(),
+                            trafficModel: 'bestguess',
+                        },
+                    },
+                    (result, status) => {
+                        if (status === 'OK') {
+                            state.directionsRenderer.setDirections(result);
+                        }
+                    }
+                );
+            }
+        }
+
+        function wireRealtime() {
+            const wsUrl = 'ws://localhost:5000/ws/incidents';
+            state.ws = new WebSocket(wsUrl);
+
+            state.ws.onopen = () => {
+                console.log('Live feed connected');
+                setConnectionStatus(true);
+            };
+
+            state.ws.onclose = () => {
+                console.log('Disconnected');
+                setConnectionStatus(false);
+                // Lightweight reconnect
+                setTimeout(wireRealtime, 2500);
+            };
+
+            state.ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'incident_update') {
+                        addOrUpdateIncident(data.data);
+                        showToast(data.data.title, data.data.severity);
+                    } else if (data.type === 'officer_update' || data.type === 'officer_location_update') {
+                        updateOfficerCard(data.data);
+                    } else if (data.type === 'dispatch_status_update') {
+                        showToast(`Dispatch updated: Officer ${data.data.officer_id} -> Incident ${data.data.incident_id}`, 'high');
+                    }
+                } catch (err) {
+                    console.error('Invalid realtime payload', err);
+                }
+            };
+        }
+
+        async function bootstrap() {
+            try {
+                await loadMapsApi();
+                await Promise.all([loadIncidents(), loadOfficers(), loadHotspots()]);
+                wireRealtime();
+
+                document.getElementById('recommendBtn').addEventListener('click', recommendOfficer);
+                document.getElementById('refreshHotspotsBtn').addEventListener('click', loadHotspots);
+
+                // Fallback safety-net polling retained from Phase 1.
+                setInterval(loadOfficers, 30000);
+            } catch (error) {
+                console.error('Dashboard bootstrap failed', error);
+                showToast('Failed to initialize dashboard', 'critical');
+            }
+        }
+
+        async function loadMapsApi() {
+            const cfg = await fetchJSON('/api/maps-config');
+            const apiKey = cfg.google_maps_api_key;
+            if (!apiKey) {
+                throw new Error('GOOGLE_MAPS_API_KEY is not configured');
+            }
+
+            await new Promise((resolve, reject) => {
+                window.initPhase2Map = () => {
+                    state.map = new google.maps.Map(document.getElementById('map'), {
+                        center: { lat: 11.0168, lng: 76.9558 },
+                        zoom: 13,
+                        mapTypeControl: false,
+                        streetViewControl: false,
+                        fullscreenControl: true,
+                        styles: [
+                            { elementType: 'geometry', stylers: [{ color: '#1f2f3d' }] },
+                            { elementType: 'labels.text.fill', stylers: [{ color: '#9eb8cf' }] },
+                            { elementType: 'labels.text.stroke', stylers: [{ color: '#1b2935' }] },
+                        ],
+                    });
+
+                    state.trafficLayer = new google.maps.TrafficLayer();
+                    state.trafficLayer.setMap(state.map);
+                    state.directionsService = new google.maps.DirectionsService();
+                    resolve();
+                };
+
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=visualization,geometry&callback=initPhase2Map`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = () => reject(new Error('Google Maps script failed to load'));
+                document.head.appendChild(script);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', bootstrap);
     </script>
 </body>
 </html>

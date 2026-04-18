@@ -8,6 +8,7 @@ import asyncio
 import secrets
 import traceback
 import logging
+import math
 from datetime import datetime, timedelta, UTC
 from typing import Optional, Union, List
 from functools import wraps
@@ -50,6 +51,7 @@ from fastapi.responses import JSONResponse, StreamingResponse, RedirectResponse,
 from jose.exceptions import ExpiredSignatureError
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from typing import List
+import requests as http_requests
 
 class ConnectionManager:
     def __init__(self):
@@ -3377,9 +3379,206 @@ _police_officers = [
     {"id": 3, "name": "Officer Rajan", "badge": "TN003", "status": "occupied", "lat": 11.0100, "lng": 76.9500, "skills": ["armed"]},
 ]
 
+# Lightweight TTL caches to reduce repeated external routing calls.
+_CACHE_TTL_SECONDS = 30
+_route_cache = {}
+_hotspots_cache = {"payload": None, "expires_at": 0.0}
+
+_DISTANCE_WEIGHT = 0.45
+_TRAFFIC_WEIGHT = 0.45
+_SKILL_MATCH_WEIGHT = 0.10
+
+
+class RouteRequest(BaseModel):
+    officer_id: int
+    incident_id: str
+
+
+class RecommendOfficerRequest(BaseModel):
+    incident_id: str
+
+
+class OfficerLocationUpdateRequest(BaseModel):
+    officer_id: int
+    lat: float
+    lng: float
+    status: Optional[str] = None
+
+
+def _cache_get(cache: dict, key: str):
+    item = cache.get(key)
+    if not item:
+        return None
+    if time.time() > item["expires_at"]:
+        cache.pop(key, None)
+        return None
+    return item["value"]
+
+
+def _cache_set(cache: dict, key: str, value, ttl_seconds: int = _CACHE_TTL_SECONDS):
+    cache[key] = {
+        "value": value,
+        "expires_at": time.time() + ttl_seconds,
+    }
+
+
+def _find_officer(officer_id: int):
+    return next((o for o in _police_officers if int(o["id"]) == int(officer_id)), None)
+
+
+def _find_incident(incident_id: str):
+    return next((i for i in _police_incidents if str(i["id"]) == str(incident_id)), None)
+
+
+def _severity_intensity(severity: str) -> float:
+    values = {
+        "critical": 1.0,
+        "high": 0.75,
+        "medium": 0.5,
+        "low": 0.25,
+    }
+    return values.get(str(severity).lower(), 0.5)
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    earth_radius_km = 6371.0
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(d_lon / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return earth_radius_km * c
+
+
+def _estimate_eta_minutes(distance_km: float) -> float:
+    # Conservative urban-speed estimate used only when external routing is unavailable.
+    average_kmph = 28.0
+    return round((distance_km / average_kmph) * 60.0, 1)
+
+
+def _infer_skill_penalty(officer: dict, incident: dict) -> float:
+    title = str(incident.get("title") or "").lower()
+    officer_skills = [str(skill).lower() for skill in officer.get("skills", [])]
+
+    needed_skills = set()
+    if "armed" in title or "shooter" in title or "weapon" in title:
+        needed_skills.add("armed")
+    if "traffic" in title or "collision" in title or "accident" in title:
+        needed_skills.add("traffic")
+    if "k9" in title or "canine" in title:
+        needed_skills.add("k9")
+
+    if not needed_skills:
+        return 0.2
+
+    matched = sum(1 for needed in needed_skills if needed in officer_skills)
+    match_ratio = matched / float(len(needed_skills))
+    # Penalty scale: 0.0 is perfect skill match, 1.0 is worst match.
+    return round(1.0 - match_ratio, 3)
+
+
+def _normalize_officer_skills(officer: dict):
+    skills = officer.get("skills", [])
+    if isinstance(skills, str):
+        officer["skills"] = [s.strip() for s in skills.split(",") if s.strip()]
+
+
+def _fetch_google_directions(origin: str, destination: str):
+    api_key = os.getenv("GOOGLE_MAPS_SERVER_API_KEY") or os.getenv("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        return None
+
+    try:
+        response = http_requests.get(
+            "https://maps.googleapis.com/maps/api/directions/json",
+            params={
+                "origin": origin,
+                "destination": destination,
+                "departure_time": "now",
+                "traffic_model": "best_guess",
+                "mode": "driving",
+                "key": api_key,
+            },
+            timeout=8,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        routes = payload.get("routes", [])
+        if not routes:
+            return None
+
+        route = routes[0]
+        leg = route.get("legs", [{}])[0]
+        distance_m = (leg.get("distance") or {}).get("value")
+        duration_in_traffic_sec = (leg.get("duration_in_traffic") or {}).get("value")
+        duration_sec = (leg.get("duration") or {}).get("value")
+
+        if not distance_m:
+            return None
+
+        eta_sec = duration_in_traffic_sec or duration_sec
+        if not eta_sec:
+            return None
+
+        return {
+            "distance_km": round(distance_m / 1000.0, 2),
+            "eta_minutes": round(eta_sec / 60.0, 1),
+            "polyline": (route.get("overview_polyline") or {}).get("points"),
+            "traffic_based": True,
+            "provider": "google-directions",
+        }
+    except Exception as exc:
+        logger.warning("Google Directions lookup failed: %s", exc)
+        return None
+
+
+def _compute_route_snapshot(officer: dict, incident: dict):
+    cache_key = f"{officer['id']}::{incident['id']}"
+    cached = _cache_get(_route_cache, cache_key)
+    if cached:
+        return cached
+
+    origin = f"{officer['lat']},{officer['lng']}"
+    destination = f"{incident['lat']},{incident['lng']}"
+    external = _fetch_google_directions(origin, destination)
+    if external:
+        _cache_set(_route_cache, cache_key, external)
+        return external
+
+    distance_km = round(
+        _haversine_km(
+            float(officer["lat"]),
+            float(officer["lng"]),
+            float(incident["lat"]),
+            float(incident["lng"]),
+        ),
+        2,
+    )
+    fallback = {
+        "distance_km": distance_km,
+        "eta_minutes": _estimate_eta_minutes(distance_km),
+        "polyline": None,
+        "traffic_based": False,
+        "provider": "fallback-haversine",
+    }
+    _cache_set(_route_cache, cache_key, fallback)
+    return fallback
+
+
+def _sort_incidents_newest_first():
+    return sorted(
+        _police_incidents,
+        key=lambda item: item.get("created_at") or "",
+        reverse=True,
+    )
+
 @app.get("/api/incidents")
 async def list_incidents():
-    return _police_incidents
+    return _sort_incidents_newest_first()
 
 @app.post("/api/incidents")
 async def add_incident(request: Request):
@@ -3400,18 +3599,212 @@ async def add_incident(request: Request):
 
 @app.get("/api/officers/status")
 async def list_officers():
+    for officer in _police_officers:
+        _normalize_officer_skills(officer)
     return _police_officers
 
 @app.post("/api/dispatch")
 async def dispatch_officer(request: Request):
     data = await request.json()
     officer_id = data.get("officer_id")
+    incident_id = data.get("incident_id")
+    target_incident = _find_incident(incident_id) if incident_id else None
+
     for officer in _police_officers:
         if officer["id"] == officer_id:
             officer["status"] = "en-route"
+            officer["last_ping"] = datetime.now(UTC).isoformat()
             await manager.broadcast({"type": "officer_update", "data": officer})
-            return {"status": "dispatched", "officer": officer}
+            await manager.broadcast(
+                {
+                    "type": "dispatch_status_update",
+                    "data": {
+                        "officer_id": officer_id,
+                        "incident_id": incident_id,
+                        "status": "en-route",
+                        "updated_at": officer["last_ping"],
+                    },
+                }
+            )
+            return {
+                "status": "dispatched",
+                "officer": officer,
+                "incident": target_incident,
+            }
     raise HTTPException(status_code=404, detail="Officer not found")
+
+
+@app.post("/api/officers/location")
+async def update_officer_location(payload: OfficerLocationUpdateRequest):
+    officer = _find_officer(payload.officer_id)
+    if not officer:
+        raise HTTPException(status_code=404, detail="Officer not found")
+
+    officer["lat"] = payload.lat
+    officer["lng"] = payload.lng
+    if payload.status:
+        officer["status"] = payload.status
+    officer["last_ping"] = datetime.now(UTC).isoformat()
+
+    await manager.broadcast({"type": "officer_location_update", "data": officer})
+    await manager.broadcast({"type": "officer_update", "data": officer})
+
+    return {
+        "message": "Officer location updated",
+        "officer": officer,
+    }
+
+
+@app.post("/api/routes")
+async def get_dispatch_route(payload: RouteRequest):
+    officer = _find_officer(payload.officer_id)
+    if not officer:
+        raise HTTPException(status_code=404, detail="Officer not found")
+
+    incident = _find_incident(payload.incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    route_snapshot = _compute_route_snapshot(officer, incident)
+    return {
+        "officer_id": officer["id"],
+        "incident_id": incident["id"],
+        "eta_minutes": route_snapshot["eta_minutes"],
+        "distance_km": route_snapshot["distance_km"],
+        "traffic_based": route_snapshot["traffic_based"],
+        "provider": route_snapshot["provider"],
+        "route": {
+            "origin": {"lat": officer["lat"], "lng": officer["lng"]},
+            "destination": {"lat": incident["lat"], "lng": incident["lng"]},
+            "polyline": route_snapshot.get("polyline"),
+        },
+    }
+
+
+@app.post("/api/recommend-officer")
+async def recommend_best_officer(payload: RecommendOfficerRequest):
+    incident = _find_incident(payload.incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    candidates = [
+        officer for officer in _police_officers if str(officer.get("status", "")).lower() in {"available", "en-route"}
+    ]
+    if not candidates:
+        return {
+            "incident_id": payload.incident_id,
+            "recommended_officer": None,
+            "ranked_officers": [],
+            "reason": "No available officers",
+        }
+
+    ranked = []
+    for officer in candidates:
+        _normalize_officer_skills(officer)
+        route_snapshot = _compute_route_snapshot(officer, incident)
+        skill_penalty = _infer_skill_penalty(officer, incident)
+
+        score = (
+            _DISTANCE_WEIGHT * route_snapshot["distance_km"]
+            + _TRAFFIC_WEIGHT * route_snapshot["eta_minutes"]
+            + _SKILL_MATCH_WEIGHT * (skill_penalty * 10.0)
+        )
+
+        ranked.append(
+            {
+                "officer_id": officer["id"],
+                "name": officer["name"],
+                "status": officer.get("status"),
+                "distance_km": route_snapshot["distance_km"],
+                "eta_minutes": route_snapshot["eta_minutes"],
+                "skill_penalty": skill_penalty,
+                "score": round(score, 3),
+                "skills": officer.get("skills", []),
+            }
+        )
+
+    ranked.sort(key=lambda item: item["score"])
+    best = ranked[0]
+    reason = (
+        f"Closest + Lowest ETA + Skill match ({best['name']} at {best['eta_minutes']} min, "
+        f"{best['distance_km']} km)."
+    )
+
+    return {
+        "incident_id": payload.incident_id,
+        "recommended_officer": best,
+        "ranked_officers": ranked,
+        "weights": {
+            "distance_weight": _DISTANCE_WEIGHT,
+            "traffic_weight": _TRAFFIC_WEIGHT,
+            "skill_match_weight": _SKILL_MATCH_WEIGHT,
+        },
+        "reason": reason,
+    }
+
+
+@app.get("/api/hotspots")
+async def get_command_hotspots(days: int = Query(7, ge=1, le=30)):
+    if _hotspots_cache["payload"] and time.time() < _hotspots_cache["expires_at"]:
+        return _hotspots_cache["payload"]
+
+    hotspots = []
+    db_session = None
+    try:
+        db_session = get_session()
+        raw_hotspots = get_traffic_hotspots(db_session, days)
+        if isinstance(raw_hotspots, list):
+            for item in raw_hotspots:
+                lat = item.get("lat") or item.get("latitude")
+                lng = item.get("lng") or item.get("lon") or item.get("longitude")
+                if lat is None or lng is None:
+                    continue
+                hotspots.append(
+                    {
+                        "lat": float(lat),
+                        "lng": float(lng),
+                        "intensity": float(item.get("intensity") or item.get("weight") or 0.6),
+                        "label": item.get("label") or "Predicted hotspot",
+                        "source": "ml",
+                    }
+                )
+    except Exception as exc:
+        logger.warning("ML hotspots unavailable, switching to incident-derived fallback: %s", exc)
+    finally:
+        try:
+            if db_session:
+                db_session.close()
+        except Exception:
+            pass
+
+    if not hotspots:
+        for incident in _sort_incidents_newest_first()[:25]:
+            hotspots.append(
+                {
+                    "lat": float(incident.get("lat", 0)),
+                    "lng": float(incident.get("lng", 0)),
+                    "intensity": _severity_intensity(incident.get("severity", "medium")),
+                    "label": incident.get("title", "Incident hotspot"),
+                    "source": "incident-fallback",
+                }
+            )
+
+    payload = {
+        "generated_at": datetime.now(UTC).isoformat(),
+        "hotspots": hotspots,
+    }
+    _hotspots_cache["payload"] = payload
+    _hotspots_cache["expires_at"] = time.time() + _CACHE_TTL_SECONDS
+    return payload
+
+
+@app.get("/api/maps-config")
+async def maps_config():
+    # Browser Maps API keys are public by design; restrict by referrer in GCP.
+    return {
+        "google_maps_api_key": os.getenv("GOOGLE_MAPS_API_KEY", ""),
+        "traffic_enabled": True,
+    }
 
 @app.websocket("/ws/incidents")
 async def websocket_incidents(websocket: WebSocket):
