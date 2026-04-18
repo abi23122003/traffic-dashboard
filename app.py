@@ -2206,6 +2206,360 @@ async def police_export_pptx(current_user: dict = Depends(require_police_departm
         )
 
 
+def generate_detailed_shift_report_pptx(
+    shift_id: int,
+    shift_data: dict,
+    incidents: list[dict],
+    officer_workload: list[dict],
+    dispatch_assignments: list[dict],
+) -> io.BytesIO:
+    """Generate a comprehensive shift report PPTX with 5 slides.
+    
+    Slides:
+    1. Shift summary (date, supervisor, total incidents, avg response time)
+    2. Incident breakdown table (ID, type, severity, location, officer, resolved)
+    3. Officer performance (name, incidents handled, avg response time)
+    4. Unresolved/escalated cases
+    5. Zone heatmap / incident distribution
+    """
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.enum.text import PP_ALIGN
+    from pptx.dml.color import RGBColor
+
+    prs = Presentation()
+    prs.slide_width = Inches(10)
+    prs.slide_height = Inches(7.5)
+
+    blank_layout = prs.slide_layouts[6]
+    title_layout = prs.slide_layouts[0]
+
+    # ========== SLIDE 1: SHIFT SUMMARY ==========
+    slide1 = prs.slides.add_slide(title_layout)
+    slide1.shapes.title.text = "Shift Summary Report"
+    
+    shift_start = shift_data.get("start_time")
+    shift_end = shift_data.get("end_time")
+    if isinstance(shift_start, str):
+        shift_start = datetime.fromisoformat(shift_start.replace('Z', '+00:00'))
+    if isinstance(shift_end, str):
+        shift_end = datetime.fromisoformat(shift_end.replace('Z', '+00:00'))
+    
+    duration_mins = 0
+    if shift_start and shift_end:
+        duration_mins = int((shift_end - shift_start).total_seconds() / 60)
+    
+    avg_response_time = "N/A"
+    if dispatch_assignments:
+        response_times = [a.get("response_time_s", 0) for a in dispatch_assignments if a.get("response_time_s")]
+        if response_times:
+            avg_response_time = f"{sum(response_times) / len(response_times):.1f}s"
+    
+    unresolved_count = sum(1 for inc in incidents if inc.get("status") != "resolved")
+    
+    summary_text = (
+        f"District: {shift_data.get('district_id', 'Unknown')}\n"
+        f"Supervisor: {shift_data.get('supervisor_name', 'Unknown')}\n"
+        f"Date: {shift_start.strftime('%Y-%m-%d') if shift_start else 'N/A'}\n"
+        f"Shift Duration: {duration_mins // 60}h {duration_mins % 60}m\n"
+        f"\n"
+        f"Total Incidents: {len(incidents)}\n"
+        f"Resolved: {len(incidents) - unresolved_count}\n"
+        f"Unresolved: {unresolved_count}\n"
+        f"Avg Response Time: {avg_response_time}\n"
+        f"Officers on Duty: {shift_data.get('officers_on_duty', 0)}"
+    )
+    
+    slide1.placeholders[1].text = summary_text
+
+    # ========== SLIDE 2: INCIDENT BREAKDOWN TABLE ==========
+    slide2 = prs.slides.add_slide(blank_layout)
+    title_box = slide2.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.4))
+    title_frame = title_box.text_frame
+    title_frame.text = "Incident Breakdown"
+    title_frame.paragraphs[0].font.size = Pt(40)
+    title_frame.paragraphs[0].font.bold = True
+
+    # Create incident table
+    rows = min(len(incidents) + 1, 12)  # Cap at 12 rows for slide fit
+    cols = 6
+    table_shape = slide2.shapes.add_table(rows, cols, Inches(0.4), Inches(1), Inches(9.2), Inches(6))
+    table = table_shape.table
+    
+    # Set column widths
+    table.columns[0].width = Inches(1.2)  # ID
+    table.columns[1].width = Inches(1.5)  # Type
+    table.columns[2].width = Inches(1.2)  # Severity
+    table.columns[3].width = Inches(2)    # Location
+    table.columns[4].width = Inches(1.5)  # Officer
+    table.columns[5].width = Inches(1.8)  # Status
+    
+    # Header row
+    headers = ["ID", "Type", "Severity", "Location", "Officer", "Status"]
+    for col_idx, header in enumerate(headers):
+        cell = table.cell(0, col_idx)
+        cell.text = header
+        for paragraph in cell.text_frame.paragraphs:
+            paragraph.font.bold = True
+            paragraph.font.size = Pt(10)
+
+    # Data rows
+    for row_idx, incident in enumerate(incidents[:rows - 1], start=1):
+        table.cell(row_idx, 0).text = _safe_ppt_text(incident.get("id", "N/A")[:10])
+        table.cell(row_idx, 1).text = _safe_ppt_text(incident.get("type", "N/A")[:15])
+        
+        severity = incident.get("severity", "N/A")
+        table.cell(row_idx, 2).text = severity
+        
+        table.cell(row_idx, 3).text = _safe_ppt_text(incident.get("location", "N/A")[:20])
+        
+        # Get officer from workload or assignment
+        officer = "Unassigned"
+        for assign in dispatch_assignments:
+            if assign.get("incident_id") == incident.get("id"):
+                officer = assign.get("unit_id", "Unassigned")
+                break
+        table.cell(row_idx, 4).text = officer[:15]
+        
+        status = incident.get("status", "pending")
+        table.cell(row_idx, 5).text = status.capitalize()
+
+    # ========== SLIDE 3: OFFICER PERFORMANCE ==========
+    slide3 = prs.slides.add_slide(blank_layout)
+    title_box = slide3.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.4))
+    title_frame = title_box.text_frame
+    title_frame.text = "Officer Performance"
+    title_frame.paragraphs[0].font.size = Pt(40)
+    title_frame.paragraphs[0].font.bold = True
+
+    # Create officer performance table
+    perf_rows = min(len(officer_workload) + 1, 10)
+    perf_cols = 5
+    perf_table_shape = slide3.shapes.add_table(perf_rows, perf_cols, Inches(0.4), Inches(1), Inches(9.2), Inches(6))
+    perf_table = perf_table_shape.table
+    
+    perf_table.columns[0].width = Inches(2)    # Officer Name
+    perf_table.columns[1].width = Inches(1.5)  # Total
+    perf_table.columns[2].width = Inches(1.5)  # Critical
+    perf_table.columns[3].width = Inches(1.8)  # High
+    perf_table.columns[4].width = Inches(1.4)  # Avg Time
+
+    # Header
+    perf_headers = ["Officer", "Total", "Critical", "High", "Needs Rotation"]
+    for col_idx, header in enumerate(perf_headers):
+        cell = perf_table.cell(0, col_idx)
+        cell.text = header
+        for paragraph in cell.text_frame.paragraphs:
+            paragraph.font.bold = True
+            paragraph.font.size = Pt(10)
+
+    # Officer data
+    for row_idx, officer in enumerate(officer_workload[:perf_rows - 1], start=1):
+        perf_table.cell(row_idx, 0).text = _safe_ppt_text(officer.get("officer_name", "N/A")[:20])
+        perf_table.cell(row_idx, 1).text = str(officer.get("total_incidents", 0))
+        perf_table.cell(row_idx, 2).text = str(officer.get("critical_incidents", 0))
+        perf_table.cell(row_idx, 3).text = str(officer.get("high_incidents", 0))
+        perf_table.cell(row_idx, 4).text = "⚠️ YES" if officer.get("needs_rotation") else "No"
+
+    # ========== SLIDE 4: UNRESOLVED/ESCALATED CASES ==========
+    slide4 = prs.slides.add_slide(blank_layout)
+    title_box = slide4.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.4))
+    title_frame = title_box.text_frame
+    title_frame.text = "Unresolved & Escalated Cases"
+    title_frame.paragraphs[0].font.size = Pt(36)
+    title_frame.paragraphs[0].font.bold = True
+
+    unresolved_incidents = [inc for inc in incidents if inc.get("status") != "resolved"]
+    
+    if unresolved_incidents:
+        text_box = slide4.shapes.add_textbox(Inches(0.5), Inches(1), Inches(9), Inches(6))
+        text_frame = text_box.text_frame
+        text_frame.word_wrap = True
+        
+        for idx, incident in enumerate(unresolved_incidents[:8]):  # Limit to 8 for readability
+            if idx > 0:
+                text_frame.add_paragraph()
+            p = text_frame.paragraphs[idx]
+            p.text = (
+                f"• ID: {incident.get('id', 'N/A')} | "
+                f"Type: {incident.get('type', 'N/A')} | "
+                f"Severity: {incident.get('severity', 'N/A')} | "
+                f"Status: {incident.get('status', 'N/A')}"
+            )
+            p.level = 0
+            for run in p.runs:
+                run.font.size = Pt(11)
+    else:
+        text_box = slide4.shapes.add_textbox(Inches(0.5), Inches(1), Inches(9), Inches(6))
+        text_frame = text_box.text_frame
+        text_frame.text = "✓ All incidents have been resolved. No escalations required."
+        for paragraph in text_frame.paragraphs:
+            paragraph.font.size = Pt(18)
+
+    # ========== SLIDE 5: ZONE HEATMAP / INCIDENT DISTRIBUTION ==========
+    slide5 = prs.slides.add_slide(blank_layout)
+    title_box = slide5.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.4))
+    title_frame = title_box.text_frame
+    title_frame.text = "Incident Distribution by Zone"
+    title_frame.paragraphs[0].font.size = Pt(36)
+    title_frame.paragraphs[0].font.bold = True
+
+    # Group incidents by location/zone
+    zone_incidents = {}
+    for incident in incidents:
+        zone = incident.get("location", "Unknown")
+        zone_incidents[zone] = zone_incidents.get(zone, 0) + 1
+    
+    if zone_incidents:
+        text_box = slide5.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(9), Inches(5.5))
+        text_frame = text_box.text_frame
+        text_frame.word_wrap = True
+        
+        for idx, (zone, count) in enumerate(sorted(zone_incidents.items(), key=lambda x: x[1], reverse=True)[:12]):
+            if idx > 0:
+                text_frame.add_paragraph()
+            p = text_frame.paragraphs[idx]
+            bar = "█" * min(count, 20)
+            p.text = f"{zone[:30]:.<30} {bar} ({count})"
+            for run in p.runs:
+                run.font.size = Pt(11)
+                run.font.name = "Courier New"
+    else:
+        text_box = slide5.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(9), Inches(5.5))
+        text_frame = text_box.text_frame
+        text_frame.text = "No incident data available."
+        for paragraph in text_frame.paragraphs:
+            paragraph.font.size = Pt(18)
+
+    output = io.BytesIO()
+    prs.save(output)
+    output.seek(0)
+    return output
+
+
+@app.post("/api/shift/report")
+async def generate_shift_report(
+    shift_id: int = Query(..., description="Shift ID to generate report for"),
+    current_user: dict = Depends(require_police_department_user()),
+    db: Session = Depends(get_session),
+):
+    """Generate a comprehensive shift report as PPTX with 5 slides.
+    
+    Pulls data from:
+    - Shift (supervisor, district, times)
+    - ShiftAttendance (officers on duty)
+    - Notification (incidents)
+    - PoliceDispatchAssignment (dispatch records)
+    - OfficerIncidentCount (officer workload)
+    """
+    try:
+        # Get shift data
+        shift = db.query(Shift).filter(Shift.id == shift_id).first()
+        if not shift:
+            raise HTTPException(status_code=404, detail="Shift not found")
+
+        # Get all incidents for this shift (notifications within shift time window)
+        incidents_query = db.query(Notification).filter(
+            Notification.timestamp >= shift.start_time,
+            Notification.timestamp <= (shift.end_time or datetime.now(UTC))
+        ).all()
+
+        incidents = [
+            {
+                "id": inc.id,
+                "type": inc.type,
+                "title": inc.title,
+                "message": inc.message,
+                "severity": inc.type.split("_")[-1] if "_" in inc.type else "medium",
+                "location": inc.message[:50] if inc.message else "Unknown",
+                "status": "resolved" if inc.is_read else "pending",
+                "timestamp": inc.created_at.isoformat() if inc.created_at else "",
+            }
+            for inc in incidents_query
+        ]
+
+        # Get dispatch assignments for this shift time window
+        dispatch_assignments = db.query(PoliceDispatchAssignment).filter(
+            PoliceDispatchAssignment.assigned_at >= shift.start_time,
+            PoliceDispatchAssignment.assigned_at <= (shift.end_time or datetime.now(UTC))
+        ).all()
+
+        dispatch_data = [
+            {
+                "incident_id": da.incident_id,
+                "unit_id": da.unit_id,
+                "assigned_by": da.assigned_by,
+                "assigned_at": da.assigned_at.isoformat() if da.assigned_at else "",
+                "status": da.status,
+                "response_time_s": 0,  # Can be calculated if timestamp data is available
+            }
+            for da in dispatch_assignments
+        ]
+
+        # Get officer workload for this shift
+        officer_workload = db.query(OfficerIncidentCount).filter(
+            OfficerIncidentCount.shift_id == shift_id
+        ).all()
+
+        workload_data = [
+            {
+                "officer_username": ow.officer_username,
+                "officer_name": ow.officer_name,
+                "total_incidents": ow.incident_count_critical + ow.incident_count_high + 
+                                   ow.incident_count_medium + ow.incident_count_low,
+                "critical_incidents": ow.incident_count_critical,
+                "high_incidents": ow.incident_count_high,
+                "medium_incidents": ow.incident_count_medium,
+                "low_incidents": ow.incident_count_low,
+                "needs_rotation": ow.needs_rotation,
+            }
+            for ow in officer_workload
+        ]
+
+        # Prepare shift data dict
+        shift_dict = {
+            "shift_id": shift.id,
+            "district_id": shift.district_id,
+            "supervisor_name": shift.supervisor_name,
+            "supervisor_id": shift.supervisor_id,
+            "start_time": shift.start_time,
+            "end_time": shift.end_time,
+            "status": shift.status,
+            "officers_on_duty": shift.officers_on_duty,
+            "incidents_count": len(incidents),
+        }
+
+        # Generate PPTX
+        output = generate_detailed_shift_report_pptx(
+            shift_id=shift_id,
+            shift_data=shift_dict,
+            incidents=incidents,
+            officer_workload=workload_data,
+            dispatch_assignments=dispatch_data,
+        )
+
+        filename = f"ShiftReport_{shift.district_id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M')}.pptx"
+
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Shift report generation failed: {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Report generation failed: {str(exc)}",
+        )
+
+
 @app.get("/police/shift/status")
 async def get_shift_status(current_user: dict = Depends(require_role("police_supervisor"))):
     """Get the current active shift status for the supervisor."""
@@ -2544,7 +2898,7 @@ async def alerts_stream(current_user: dict = Depends(require_role("police_superv
 @app.get("/api/incidents/predicted", response_model=PredictedIncidentResponse)
 async def get_predicted_incidents(
     district_id: str = Query(..., description="District ID"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_police_department_user()),
     db: Session = Depends(get_session),
 ):
     """Get predicted high-risk incident zones as GeoJSON.
@@ -2639,7 +2993,7 @@ async def get_predicted_incidents(
 async def get_officer_workload(
     district_id: str = Query(..., description="District ID"),
     shift_id: Optional[int] = Query(None, description="Optional shift ID (uses current active shift if not provided)"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_police_department_user()),
     db: Session = Depends(get_session),
 ):
     """Get officer incident counts and rotation status for current shift.
@@ -2730,7 +3084,7 @@ async def log_incident_handled(
     incident_id: str = Query(...),
     officer_username: str = Query(...),
     severity: str = Query(..., pattern="^(critical|high|medium|low)$"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_police_department_user()),
     db: Session = Depends(get_session),
 ):
     """Log that an officer has handled an incident (increments workload counter).

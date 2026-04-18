@@ -200,7 +200,7 @@
             try {
                 // Add cache-busting timestamp to ensure fresh data
                 const timestamp = new Date().getTime();
-                const url = `/api/route-analysis/${encodeURIComponent(routeId)}${routeIndex !== null ? `?route_index=${routeIndex}` : ''}&_t=${timestamp}`;
+                const url = `/api/route-analysis/${encodeURIComponent(routeId)}${routeIndex !== null ? `?route_index=${routeIndex}&_t=${timestamp}` : `?_t=${timestamp}`}`;
                 console.log('Fetching analysis data from:', url);
                 const response = await fetch(url, {
                     cache: 'no-store',
@@ -719,6 +719,13 @@
 
         async function refreshData() {
             const { routeId, routeIndex } = getRouteParams();
+            
+            // Validate routeId before proceeding
+            if (!routeId || routeId === 'null' || routeId === 'undefined') {
+                alert('⚠️ No route selected. Please go back and select a route.');
+                return;
+            }
+            
             const btn = document.getElementById('refresh-btn');
             btn.disabled = true;
             btn.textContent = '🔄 Refreshing...';
@@ -726,7 +733,7 @@
             try {
                 // First, refresh the route data in the database by calling the refresh endpoint
                 // Get latest route info from current data
-                const currentUrl = `/api/route-analysis/${encodeURIComponent(routeId)}${routeIndex !== null ? `?route_index=${routeIndex}` : ''}&_t=${new Date().getTime()}`;
+                const currentUrl = `/api/route-analysis/${encodeURIComponent(routeId)}${routeIndex !== null ? `?route_index=${routeIndex}&_t=${new Date().getTime()}` : `?_t=${new Date().getTime()}`}`;
                 const currentResponse = await fetch(currentUrl, {
                     cache: 'no-store',
                     headers: {
@@ -799,6 +806,16 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Validate route_id immediately - redirect if missing
+            const params = new URLSearchParams(window.location.search);
+            const routeId = params.get('route_id');
+            
+            if (!routeId || routeId === 'null' || routeId === 'undefined') {
+                console.error('No route_id parameter found. Redirecting to home...');
+                window.location.href = '/';
+                return;
+            }
+            
             // Wait for Chart.js to be ready before loading data
             waitForChartJS(() => {
                 console.log('Chart.js loaded, initializing report...');
