@@ -847,6 +847,14 @@
             min-height: 20px;
             font-size: 0.92rem;
             color: var(--muted);
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(6, 17, 31, 0.6);
+            border: 1px solid rgba(120, 170, 220, 0.16);
+        }
+
+        .dispatch-feedback div {
+            line-height: 1.6;
         }
 
         .incident-feed-shell {
@@ -1997,6 +2005,12 @@
         let responseTimeChart = null;
         let commandCenterSocket = null;
         const seenIncidentFeedIds = new Set();
+        
+        // Route drawing variables for dispatch
+        let dispatchRoutePolyline = null;
+        let dispatchDirectionsRenderer = null;
+        let currentDispatchOfficer = null;
+        let currentDispatchIncident = null;
 
         function escapeHtml(value) {
             return String(value ?? '')
@@ -3169,6 +3183,18 @@
             dispatchTargetLocation.textContent = options.targetLocation || incidentRef.description || 'Unknown location';
             fillUnitSelect(liveAvailableUnits);
             dispatchFeedback.textContent = liveAvailableUnits.length ? '' : 'No available units to dispatch.';
+            
+            // Initialize map if needed
+            if (!heatmapMap) {
+                initializeHeatmap();
+            }
+            
+            // Attach the officer change listener for route drawing
+            attachDispatchOfficerChangeListener();
+            
+            // Clear any previous route
+            clearDispatchRoute();
+            
             modalBackdrop.classList.add('open');
             modalBackdrop.setAttribute('aria-hidden', 'false');
         }
@@ -3179,6 +3205,7 @@
             dispatchFeedback.textContent = '';
             dispatchTargetLocation.textContent = '-';
             dispatchForm.reset();
+            clearDispatchRoute();
         }
 
         function normalizeText(value) {
@@ -3201,6 +3228,148 @@
             }
 
             return liveUnassignedIncidents[0] || null;
+        }
+
+        async function drawDispatchRoute(officer, incident) {
+            if (!officer || !incident || !heatmapMap || !googleDirectionsService) {
+                return;
+            }
+
+            const officerCoords = getOfficerCoordinates(officer);
+            const incidentCoords = {
+                lat: Number(incident.latitude),
+                lng: Number(incident.longitude)
+            };
+
+            if (!officerCoords || !incidentCoords || !Number.isFinite(officerCoords.lat) || !Number.isFinite(incidentCoords.lat)) {
+                dispatchFeedback.textContent = 'Officer or incident location data unavailable. ETA cannot be calculated.';
+                return;
+            }
+
+            try {
+                dispatchFeedback.textContent = 'Calculating route and ETA...';
+                
+                // Request route using Directions API
+                const request = {
+                    origin: officerCoords,
+                    destination: incidentCoords,
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    drivingOptions: {
+                        departureTime: new Date(),
+                        trafficModel: google.maps.TrafficModel.BEST_GUESS
+                    }
+                };
+
+                const result = await new Promise((resolve, reject) => {
+                    googleDirectionsService.route(request, (result, status) => {
+                        if (status === 'OK') {
+                            resolve(result);
+                        } else {
+                            reject(new Error(`Directions API error: ${status}`));
+                        }
+                    });
+                });
+
+                // Clear previous route
+                if (dispatchRoutePolyline) {
+                    dispatchRoutePolyline.setMap(null);
+                }
+                if (dispatchDirectionsRenderer) {
+                    dispatchDirectionsRenderer.setMap(null);
+                }
+
+                // Draw new route with blue color
+                dispatchRoutePolyline = new google.maps.Polyline({
+                    path: result.routes[0].overview_path,
+                    geodesic: true,
+                    strokeColor: '#3b82f6',
+                    strokeOpacity: 0.85,
+                    strokeWeight: 4,
+                    map: heatmapMap,
+                    zIndex: 50
+                });
+
+                // Extract ETA and distance information
+                const leg = result.routes[0].legs[0];
+                const duration = leg.duration_in_traffic || leg.duration;
+                const distance = leg.distance;
+                const minutes = Math.ceil((duration?.value || 0) / 60);
+                const distanceText = distance?.text || 'Unknown';
+                const durationText = duration?.text || 'Unknown';
+
+                // Display route info in dispatch feedback
+                dispatchFeedback.innerHTML = `
+                    <div style="font-size: 0.95rem; line-height: 1.6;">
+                        <div style="color: #4ade80; font-weight: 700; margin-bottom: 4px;">✓ Route Calculated</div>
+                        <div>Officer: <strong>${escapeHtml(officer.officer_name || officer.unit_id)}</strong></div>
+                        <div>Distance: <strong>${escapeHtml(distanceText)}</strong></div>
+                        <div style="color: #f97316; font-weight: 700;">ETA: <strong>${minutes} min (${durationText})</strong></div>
+                    </div>
+                `;
+
+                // Store current dispatch info for display
+                currentDispatchOfficer = officer;
+                currentDispatchIncident = incident;
+
+            } catch (error) {
+                console.error('Route drawing error:', error);
+                dispatchFeedback.textContent = `Could not calculate route: ${error.message}`;
+                
+                // Clear route on error
+                if (dispatchRoutePolyline) {
+                    dispatchRoutePolyline.setMap(null);
+                    dispatchRoutePolyline = null;
+                }
+            }
+        }
+
+        function clearDispatchRoute() {
+            // Clear the polyline from map
+            if (dispatchRoutePolyline) {
+                dispatchRoutePolyline.setMap(null);
+                dispatchRoutePolyline = null;
+            }
+            
+            // Clear the directions renderer if used
+            if (dispatchDirectionsRenderer) {
+                dispatchDirectionsRenderer.setMap(null);
+                dispatchDirectionsRenderer = null;
+            }
+
+            // Reset dispatch info
+            currentDispatchOfficer = null;
+            currentDispatchIncident = null;
+        }
+
+        // Add event listener to officer select dropdown for route drawing
+        function attachDispatchOfficerChangeListener() {
+            dispatchUnitSelect.addEventListener('change', async (event) => {
+                const selectedOfficerId = event.target.value;
+                const incidentId = dispatchIncidentIdInput.value;
+
+                if (!selectedOfficerId || !incidentId) {
+                    clearDispatchRoute();
+                    dispatchFeedback.textContent = '';
+                    return;
+                }
+
+                // Find the selected officer from the live units
+                const selectedOfficer = liveAvailableUnits.find(u => u.unit_id === selectedOfficerId);
+                const selectedIncident = liveUnassignedIncidents.find(i => i.id === incidentId);
+
+                if (selectedOfficer && selectedIncident) {
+                    // Make sure map is initialized
+                    if (!heatmapMap) {
+                        initializeHeatmap();
+                    }
+
+                    // Draw route and calculate ETA
+                    await drawDispatchRoute(selectedOfficer, selectedIncident);
+                } else {
+                    clearDispatchRoute();
+                    dispatchFeedback.textContent = 'Officer or incident not found.';
+                }
+            });
         }
 
         async function submitDispatch(event) {
@@ -3231,6 +3400,7 @@
                 }
 
                 dispatchFeedback.textContent = payload.message || 'Dispatch completed.';
+                clearDispatchRoute();
                 closeDispatchModal();
                 await refreshDispatchState();
                 await refreshIncidentFeed();

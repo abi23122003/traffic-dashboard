@@ -12,10 +12,6 @@ __pycache__/
 # IDE
 .vscode/
 
-# JavaScript dependencies
-node_modules/
-mobile_app/node_modules/
-
 # Generated data and logs
 logs/
 *.log
