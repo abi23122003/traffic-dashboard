@@ -1,59 +1,79 @@
-"""
-FastAPI backend for traffic route analysis.
-Provides endpoints for autocomplete, route analysis, and serving the frontend.
-"""
-
+from db import save_analysis
+from utils import tomtom_geocode, tomtom_autocomplete, tomtom_route, haversine_m, summarize_route, compute_route_cost
 import os
+import io
 import json
+import time
+import asyncio
+import secrets
+import traceback
 import logging
+from datetime import datetime, timedelta, UTC
 from typing import Optional, Union, List
 from functools import wraps
-from fastapi import FastAPI, HTTPException, Query, Depends, status, BackgroundTasks, Request
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse, Response, RedirectResponse
-import io
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, Field, EmailStr, field_validator
-from jose.exceptions import ExpiredSignatureError
-import joblib
-from datetime import datetime, UTC, timedelta
-import secrets
-import uuid
-import traceback
-import asyncio
-import time
-from sqlalchemy.exc import IntegrityError
-
-# Import logging and rate limiting
-from logging_config import setup_logging, get_logger
-from rate_limiter import RateLimitMiddleware
-
-# Setup logging
-setup_logging()
-logger = get_logger(__name__)
-
-from utils import (
-    tomtom_geocode,
-    tomtom_autocomplete,
-    tomtom_route,
-    summarize_route,
-    compute_route_cost,
-    haversine_m
-)
-from db import (
-    init_db, get_session, save_analysis, AnalysisResult,
-    User, SavedRoute, RouteRating, Notification, PoliceDispatchAssignment, Shift, ShiftAttendance
-)
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import EmailStr
+from db import User, AnalysisResult, SavedRoute, RouteRating, Shift, ShiftAttendance, PoliceDispatchAssignment
 from auth import (
     verify_password, get_password_hash, create_access_token,
     get_current_user, get_current_active_user, get_current_admin_user,
-    authenticate_user, create_user, get_user_by_username, Token, UserCreate as AuthUserCreate, UserResponse,
-    get_optional_user, RoleLoginRequest, RoleToken, UserRole, create_role_access_token, require_role,
-    require_police_department_user
+    authenticate_user, create_user, get_user_by_username,
+    Token, UserCreate as AuthUserCreate, UserResponse,
+    get_optional_user, RoleLoginRequest, RoleToken, UserRole,
+    create_role_access_token, require_role, require_police_department_user
 )
+from auth import RoleToken, RoleLoginRequest, UserRole, create_role_access_token
+from db import get_session
+from auth import UserResponse
+from auth import get_optional_user
+from auth import get_current_user
+from auth import require_role
+from fastapi.responses import HTMLResponse
+from pydantic import field_validator
+from pydantic import BaseModel, Field
+from fastapi.staticfiles import StaticFiles
+import joblib
+import logging
+logger = logging.getLogger(__name__)
+import os
+from db import init_db
+from fastapi.templating import Jinja2Templates
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException, Request, Response, BackgroundTasks, Query, Depends, status
+from fastapi.responses import JSONResponse, StreamingResponse, RedirectResponse, FileResponse
+from fastapi import FastAPI, HTTPException, Request, Response, BackgroundTasks, Query, Depends, status
+from fastapi.responses import JSONResponse, StreamingResponse, RedirectResponse, FileResponse
+from jose.exceptions import ExpiredSignatureError
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from typing import List
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        disconnected = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                disconnected.append(connection)
+        for connection in disconnected:
+            self.disconnect(connection)
+
+manager = ConnectionManager()
 from analytics import (
     get_peak_hours_analysis, get_day_of_week_analysis,
     get_seasonal_trends, calculate_route_reliability, predict_future_congestion,
@@ -150,7 +170,7 @@ app.add_middleware(
 )
 
 # Add rate limiting middleware
-app.add_middleware(RateLimitMiddleware)
+# Rate limiting handled via slowapi Limiter decorator
 
 templates = Jinja2Templates(directory="templates")
 
@@ -3342,3 +3362,91 @@ async def get_navigation_links(
         "origin": origin,
         "destination": dest
     }
+
+
+
+# ============================================================================
+# POLICE COMMAND CENTER - INCIDENT & OFFICER ENDPOINTS
+# ============================================================================
+
+# In-memory store for police incidents and officers
+_police_incidents = []
+_police_officers = [
+    {"id": 1, "name": "Officer Kumar", "badge": "TN001", "status": "available", "lat": 11.0168, "lng": 76.9558, "skills": ["armed", "traffic"]},
+    {"id": 2, "name": "Officer Priya", "badge": "TN002", "status": "available", "lat": 11.0200, "lng": 76.9600, "skills": ["traffic", "k9"]},
+    {"id": 3, "name": "Officer Rajan", "badge": "TN003", "status": "occupied", "lat": 11.0100, "lng": 76.9500, "skills": ["armed"]},
+]
+
+@app.get("/api/incidents")
+async def list_incidents():
+    return _police_incidents
+
+@app.post("/api/incidents")
+async def add_incident(request: Request):
+    data = await request.json()
+    from uuid import uuid4
+    incident = {
+        "id": str(uuid4()),
+        "title": data.get("title", "Unknown"),
+        "severity": data.get("severity", "medium"),
+        "lat": data.get("lat", 0),
+        "lng": data.get("lng", 0),
+        "status": "open",
+        "created_at": datetime.now(UTC).isoformat()
+    }
+    _police_incidents.append(incident)
+    await manager.broadcast({"type": "incident_update", "data": incident})
+    return incident
+
+@app.get("/api/officers/status")
+async def list_officers():
+    return _police_officers
+
+@app.post("/api/dispatch")
+async def dispatch_officer(request: Request):
+    data = await request.json()
+    officer_id = data.get("officer_id")
+    for officer in _police_officers:
+        if officer["id"] == officer_id:
+            officer["status"] = "en-route"
+            await manager.broadcast({"type": "officer_update", "data": officer})
+            return {"status": "dispatched", "officer": officer}
+    raise HTTPException(status_code=404, detail="Officer not found")
+
+@app.websocket("/ws/incidents")
+async def websocket_incidents(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app, host='0.0.0.0', port=8000, reload=False)
+
+
