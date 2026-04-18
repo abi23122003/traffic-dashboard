@@ -125,6 +125,74 @@
             white-space: nowrap;
         }
 
+        .socketio-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.16);
+            color: #bfdbfe;
+            font-weight: 700;
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+
+        .socketio-status.connected {
+            background: rgba(74, 222, 128, 0.08);
+            border-color: rgba(74, 222, 128, 0.16);
+            color: #d8ffe7;
+        }
+
+        .socketio-status.connecting {
+            background: rgba(251, 146, 60, 0.08);
+            border-color: rgba(251, 146, 60, 0.16);
+            color: #fed7aa;
+        }
+
+        .socketio-status.error {
+            background: rgba(239, 68, 68, 0.08);
+            border-color: rgba(239, 68, 68, 0.16);
+            color: #fecaca;
+        }
+
+        .socketio-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3b82f6;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+        }
+
+        .socketio-status.connected .socketio-dot {
+            background: #4ade80;
+            box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+        }
+
+        .socketio-status.connecting .socketio-dot {
+            background: #fb923c;
+            box-shadow: 0 0 8px rgba(251, 146, 60, 0.5);
+            animation: pulse-orange 1.5s ease-in-out infinite;
+        }
+
+        .socketio-status.error .socketio-dot {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+            animation: pulse-red 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-orange {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         .export-btn {
             display: inline-flex;
             align-items: center;
@@ -1502,6 +1570,10 @@
                     <span class="live-dot" aria-hidden="true"></span>
                     <span>Live command feed active</span>
                 </div>
+                <div id="socketio-status" class="socketio-status" title="Socket.IO real-time connection status">
+                    <span id="socketio-dot" class="socketio-dot" aria-hidden="true"></span>
+                    <span id="socketio-text">Connecting...</span>
+                </div>
             </div>
         </section>
 
@@ -2045,26 +2117,69 @@
                 return;
             }
 
-            if (commandCenterSocket) {
+            if (commandCenterSocket && commandCenterSocket.connected) {
+                console.log('Socket.IO connection already active');
                 return;
             }
 
+            console.log('Connecting to Socket.IO /police namespace...');
             commandCenterSocket = io('/police', {
                 path: '/socket.io/',
-                withCredentials: true,
+                withCredentials: true,  // Send HttpOnly cookies with connection
                 transports: ['websocket', 'polling'],
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                reconnectionAttempts: 10,
             });
 
+            // Update status indicator
+            const updateSocketIOStatus = (status, text) => {
+                const statusEl = document.getElementById('socketio-status');
+                const textEl = document.getElementById('socketio-text');
+                if (statusEl) {
+                    statusEl.className = `socketio-status ${status}`;
+                    textEl.textContent = text;
+                }
+            };
+
             commandCenterSocket.on('connect', () => {
+                console.log('✅ Socket.IO connected to /police namespace (SID:', commandCenterSocket.id, ')');
                 commandCenterSocket.emit('join_district', { district_id: supervisorDistrictId });
+                updateSocketIOStatus('connected', 'Real-time connected');
+                showToast('Real-time updates connected', 'success', 2000);
+            });
+
+            commandCenterSocket.on('connect_error', (error) => {
+                console.error('❌ Socket.IO connection error:', error);
+                updateSocketIOStatus('error', 'Connection error');
+                showToast('Real-time connection error: ' + error.message, 'error', 3000);
+            });
+
+            commandCenterSocket.on('disconnect', (reason) => {
+                console.warn('⚠️ Socket.IO disconnected:', reason);
+                updateSocketIOStatus('connecting', 'Reconnecting...');
+                if (reason === 'io server disconnect') {
+                    // Server disconnected the client, authentication likely failed
+                    console.error('Server forcibly disconnected. Check authentication.');
+                    updateSocketIOStatus('error', 'Auth failed');
+                    showToast('Real-time connection lost (auth required)', 'warning', 3000);
+                }
+            });
+
+            commandCenterSocket.on('error', (error) => {
+                console.error('Socket.IO error event:', error);
+                updateSocketIOStatus('error', 'Error');
             });
 
             const refreshFromPoliceEvent = async (eventPayload) => {
                 if (!eventPayload || eventPayload.district_id !== supervisorDistrictId) {
+                    console.warn('Received event for different district, ignoring');
                     return;
                 }
 
                 try {
+                    console.log('Refreshing dashboard after event:', eventPayload);
                     await Promise.all([
                         loadIncidentsFromApi(),
                         loadOfficersFromApi(),
@@ -2072,12 +2187,28 @@
                     ]);
                 } catch (error) {
                     console.error('Failed to refresh after socket incident update:', error);
+                    showToast('Failed to refresh data', 'error', 3000);
                 }
             };
 
-            commandCenterSocket.on('incident_new', refreshFromPoliceEvent);
-            commandCenterSocket.on('incident_updated', refreshFromPoliceEvent);
-            commandCenterSocket.on('officer_status_changed', refreshFromPoliceEvent);
+            // Event listeners for real-time updates
+            commandCenterSocket.on('incident_new', (data) => {
+                console.log('📍 New incident received:', data);
+                refreshFromPoliceEvent(data);
+            });
+
+            commandCenterSocket.on('incident_updated', (data) => {
+                console.log('🔄 Incident updated:', data);
+                refreshFromPoliceEvent(data);
+            });
+
+            commandCenterSocket.on('officer_status_changed', (data) => {
+                console.log('👮 Officer status changed:', data);
+                refreshFromPoliceEvent(data);
+            });
+
+            // Initial status
+            updateSocketIOStatus('connecting', 'Connecting...');
         }
 
         function showToast(message, type = 'info', duration = 4000) {
