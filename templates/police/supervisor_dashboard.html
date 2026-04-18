@@ -1909,7 +1909,7 @@
         const incidentsHandledSpan = document.getElementById('incidents-handled');
         const officersList = document.getElementById('officers-list');
         const shiftStatusSubtitle = document.getElementById('shift-status-subtitle');
-        const supervisorDistrictId = '{{ district_id }}';
+        const supervisorDistrictId = {{ district_id | tojson }};
 
         let livePatrolUnits = [];
         let liveAvailableUnits = [];
@@ -1943,15 +1943,8 @@
         }
 
         function getAuthToken() {
-            // First, try to get token from URL query parameters
-            const params = new URLSearchParams(window.location.search);
-            const tokenFromUrl = params.get('token');
-            if (tokenFromUrl) {
-                return tokenFromUrl;
-            }
-
             // Fall back to checking cookies
-            const tokenFromCookie = getCookie('access_token');
+            const tokenFromCookie = getCookie('token') || getCookie('access_token');
             if (tokenFromCookie) {
                 return tokenFromCookie;
             }
@@ -1962,10 +1955,10 @@
         function toIncidentFeedItems(incidents) {
             return (Array.isArray(incidents) ? incidents : []).map((incident) => ({
                 incident_id: incident.id,
-                type: incident.type || 'traffic',
-                location_name: incident.description || 'Unknown location',
+                type: incident.title || incident.type || 'traffic',
+                location_name: incident.location || incident.description || 'Unknown location',
                 severity: incident.severity || 'unknown',
-                time_reported: incident.start_time || '-',
+                time_reported: incident.time || incident.start_time || '-',
                 assigned_unit: null,
                 is_assigned: false,
             }));
@@ -1983,7 +1976,17 @@
 
             const payload = await response.json();
             const incidents = payload.incidents || [];
-            liveUnassignedIncidents = incidents;
+            liveUnassignedIncidents = incidents.map((incident) => ({
+                id: incident.id,
+                description: incident.location || incident.title || 'Unknown location',
+                severity: incident.severity || 'unknown',
+                type: incident.title || 'traffic',
+                start_time: incident.time || '-',
+                latitude: incident.lat,
+                longitude: incident.lng,
+                notes: incident.notes || '',
+                backup_required: Boolean(incident.backup_required),
+            }));
             liveIncidentFeed = toIncidentFeedItems(incidents);
 
             renderIncidentList(liveUnassignedIncidents);
@@ -2005,8 +2008,19 @@
             }
 
             const payload = await response.json();
-            livePatrolUnits = payload.officers || [];
-            liveAvailableUnits = livePatrolUnits.filter((unit) => (unit.status || '').toLowerCase() === 'idle');
+            livePatrolUnits = (payload.officers || []).map((officer) => ({
+                unit_id: officer.id,
+                officer_name: officer.name || 'Unknown Officer',
+                status: officer.status || 'available',
+                district_id: officer.district_id || supervisorDistrictId,
+                current_location: officer.district_id || 'District duty',
+                skills: officer.skills || [],
+                badge: officer.badge || officer.id,
+            }));
+            liveAvailableUnits = livePatrolUnits.filter((unit) => {
+                const status = (unit.status || '').toLowerCase();
+                return status === 'idle' || status === 'available';
+            });
 
             renderPatrolUnits(livePatrolUnits);
             renderAvailableUnits(liveAvailableUnits);
@@ -2035,27 +2049,35 @@
                 return;
             }
 
-            commandCenterSocket = io({ path: '/socket.io/' });
+            commandCenterSocket = io('/police', {
+                path: '/socket.io/',
+                withCredentials: true,
+                transports: ['websocket', 'polling'],
+            });
 
             commandCenterSocket.on('connect', () => {
                 commandCenterSocket.emit('join_district', { district_id: supervisorDistrictId });
             });
 
-            commandCenterSocket.on('incident_update', async (eventPayload) => {
+            const refreshFromPoliceEvent = async (eventPayload) => {
                 if (!eventPayload || eventPayload.district_id !== supervisorDistrictId) {
                     return;
                 }
 
                 try {
                     await Promise.all([
-                        refreshDispatchState(),
-                        refreshIncidentFeed(),
+                        loadIncidentsFromApi(),
+                        loadOfficersFromApi(),
                         refreshHeatmapData(),
                     ]);
                 } catch (error) {
                     console.error('Failed to refresh after socket incident update:', error);
                 }
-            });
+            };
+
+            commandCenterSocket.on('incident_new', refreshFromPoliceEvent);
+            commandCenterSocket.on('incident_updated', refreshFromPoliceEvent);
+            commandCenterSocket.on('officer_status_changed', refreshFromPoliceEvent);
         }
 
         function showToast(message, type = 'info', duration = 4000) {
@@ -2200,8 +2222,7 @@
 
             try {
                 const token = getAuthToken();
-                const streamUrl = token ? `/police/alerts/stream?token=${encodeURIComponent(token)}` : '/police/alerts/stream';
-                alertEventSource = new EventSource(streamUrl);
+                alertEventSource = new EventSource('/police/alerts/stream');
 
                 alertEventSource.addEventListener('message', (event) => {
                     try {
@@ -2308,8 +2329,7 @@
                 }
 
                 const response = await fetch(
-                    `/api/shift/report?shift_id=${window.currentShiftId}` +
-                    (token ? `&token=${encodeURIComponent(token)}` : ''),
+                    `/api/shift/report?shift_id=${window.currentShiftId}`,
                     {
                         method: 'POST',
                         headers: {
@@ -2343,7 +2363,6 @@
                 btn.disabled = false;
                 btn.textContent = originalText;
             }
-        }
         }
 
         function statusClass(status) {
@@ -3429,14 +3448,14 @@
 
         initializeHeatmap();
 
-        refreshDispatchState();
-        refreshIncidentFeed();
+        loadIncidentsFromApi();
+        loadOfficersFromApi();
         refreshHeatmapData();
         refreshResponseTimes();
         refreshShiftStatus();
         connectAlertStream();
         connectCommandCenterSocket();
-        setInterval(refreshDispatchState, 30000);
+        setInterval(loadOfficersFromApi, 30000);
         setInterval(refreshIncidentFeed, 20000);
         setInterval(refreshHeatmapData, 60000);
         setInterval(refreshResponseTimes, 60000);
@@ -3448,7 +3467,7 @@
 
         async function togglePredictedHotspots() {
             const btn = document.getElementById('hotspots-toggle-btn');
-            const districtId = '{{ district_info.get("district_id", "") }}';
+            const districtId = {{ district_info.get("district_id", "") | tojson }};
 
             if (!(window.google && google.maps && heatmapMap)) {
                 showToast('Predicted hotspot overlay requires Google Maps to finish loading.', 'error');
@@ -3472,8 +3491,7 @@
 
                     const token = getAuthToken();
                     const response = await fetch(
-                        `/api/incidents/predicted?district_id=${encodeURIComponent(districtId)}` + 
-                        (token ? `&token=${encodeURIComponent(token)}` : ''),
+                        `/api/incidents/predicted?district_id=${encodeURIComponent(districtId)}`,
                         {
                             method: 'GET',
                             headers: {
@@ -3544,10 +3562,11 @@
                 }
             }
         }
+        window.togglePredictedHotspots = togglePredictedHotspots;
 
         // ============ OFFICER WORKLOAD ============
         async function refreshOfficerWorkload() {
-            const districtId = '{{ district_info.get("district_id", "") }}';
+            const districtId = {{ district_info.get("district_id", "") | tojson }};
             const shiftId = window.currentShiftId; // Should be set by refreshShiftStatus()
 
             if (!shiftId) {
@@ -3559,8 +3578,7 @@
             try {
                 const token = getAuthToken();
                 const response = await fetch(
-                    `/api/police/officer-workload?district_id=${encodeURIComponent(districtId)}&shift_id=${shiftId}` +
-                    (token ? `&token=${encodeURIComponent(token)}` : ''),
+                    `/api/police/officer-workload?district_id=${encodeURIComponent(districtId)}&shift_id=${shiftId}`,
                     {
                         method: 'GET',
                         headers: {

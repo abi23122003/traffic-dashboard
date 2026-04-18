@@ -58,6 +58,7 @@ services:
       # Application
       SECRET_KEY: ${SECRET_KEY:-change-this-secret-key-in-production}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SOCKETIO_REDIS_URL: ${SOCKETIO_REDIS_URL:-redis://redis:6379/0}
       
       # Rate Limiting
       RATE_LIMIT_CAPACITY: ${RATE_LIMIT_CAPACITY:-100}
@@ -78,6 +79,8 @@ services:
       - ./rf_model.pkl:/app/rf_model.pkl:ro
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - traffic_network

@@ -239,6 +239,22 @@ def require_role(required_role: str):
     return _role_dependency
 
 
+def require_any_role(*required_roles: str):
+    """Return a FastAPI dependency that enforces one of the provided roles."""
+    allowed = {str(role).strip() for role in required_roles if str(role).strip()}
+
+    async def _roles_dependency(current_user: dict = Depends(get_current_user)) -> dict:
+        user_role = str(current_user.get("role") or "").strip()
+        if user_role not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: insufficient role",
+            )
+        return current_user
+
+    return _roles_dependency
+
+
 def require_police_department_user():
     """Return a FastAPI dependency that only allows police-department users."""
 
@@ -386,13 +402,7 @@ async def get_current_user(request: Request) -> dict:
     if authorization.startswith("Bearer "):
         token = authorization.removeprefix("Bearer ").strip()
     else:
-        token = (
-            request.query_params.get("token")
-            or request.query_params.get("access_token")
-            or request.cookies.get("access_token")
-            or request.cookies.get("token")
-            or ""
-        )
+        token = request.cookies.get("token") or request.cookies.get("access_token") or ""
 
     if not token:
         raise HTTPException(

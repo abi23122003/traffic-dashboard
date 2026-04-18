@@ -906,7 +906,6 @@
                     
                     const data = await res.json();
                     console.log('✅ Login successful!');
-                    localStorage.setItem('access_token', data.access_token);
                     localStorage.setItem('user_role', data.role || role || 'user');
                     showMessage('Login successful! Redirecting...', 'success');
 
@@ -917,7 +916,7 @@
                         if (redirect) {
                             window.location.href = redirect;
                         } else if ((data.role || role) === 'police_supervisor') {
-                            window.location.href = `/police/dashboard?token=${encodeURIComponent(data.access_token)}`;
+                            window.location.href = '/police/dashboard';
                         } else if ((data.role || role) === 'admin') {
                             window.location.href = '/admin';
                         } else if ((data.role || role) === 'logistics_manager') {

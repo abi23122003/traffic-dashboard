@@ -54,7 +54,7 @@ from auth import (
     verify_password, get_password_hash, create_access_token,
     get_current_user, get_current_active_user, get_current_admin_user,
     authenticate_user, create_user, get_user_by_username, Token, UserCreate as AuthUserCreate, UserResponse,
-    get_optional_user, RoleLoginRequest, RoleToken, UserRole, create_role_access_token, require_role,
+    get_optional_user, RoleLoginRequest, RoleToken, UserRole, create_role_access_token, require_role, require_any_role,
     require_police_department_user
 )
 from analytics import (
@@ -79,8 +79,23 @@ app = FastAPI(
 )
 
 # Socket.IO server for push updates to the command center frontend.
-sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
-app.mount("/socket.io", socketio.ASGIApp(sio, socketio_path=""))
+SOCKETIO_REDIS_URL = os.getenv("SOCKETIO_REDIS_URL", "redis://redis:6379/0")
+socket_client_manager = socketio.AsyncRedisManager(SOCKETIO_REDIS_URL)
+sio = socketio.AsyncServer(
+    async_mode="asgi",
+    cors_allowed_origins="*",
+    client_manager=socket_client_manager,
+)
+app.mount("/socket.io", socketio.ASGIApp(sio, socketio_path="/"))
+
+from socketio_events import (
+    register_police_socketio_handlers,
+    emit_incident_new,
+    emit_incident_updated,
+    emit_officer_status_changed,
+)
+
+register_police_socketio_handlers(sio, logger)
 
 # ============================================================================
 # REAL-TIME ALERTS INFRASTRUCTURE
@@ -1293,10 +1308,7 @@ def predict_congestion(features: dict) -> Optional[float]:
 async def serve_index(request: Request):
     """Serve index page. If not logged in, redirect to login."""
     # Check if user is authenticated
-    token = request.cookies.get("access_token")
-    if not token:
-        # Try to get token from URL params
-        token = request.query_params.get("token")
+    token = request.cookies.get("token") or request.cookies.get("access_token")
     
     # If no token, redirect to login
     if not token:
@@ -1335,6 +1347,15 @@ async def serve_login():
         content="<h1>Login</h1><p>Login page not found.</p>",
         status_code=404
     )
+
+
+@app.get("/logout")
+async def logout(response: Response):
+    """Clear auth cookies and redirect to login."""
+    redirect = RedirectResponse(url="/login", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    redirect.delete_cookie(key="token", path="/")
+    redirect.delete_cookie(key="access_token", path="/")
+    return redirect
 
 
 @app.get("/auth/login")
@@ -2026,11 +2047,14 @@ async def login_user(
         fleet_zone=fleet_zone,
         expires_delta=access_token_expires,
     )
+    # Set secure=False for localhost/HTTP development, True for production/HTTPS
+    is_secure = os.getenv("SECURE_COOKIES", "false").lower() == "true"
     response.set_cookie(
-        key="access_token",
+        key="token",
         value=access_token,
         httponly=True,
-        samesite="lax",
+        secure=is_secure,
+        samesite="Lax" if is_secure else "None",
         max_age=30 * 24 * 60 * 60,
         path="/",
     )
@@ -2065,7 +2089,7 @@ async def police_dashboard(request: Request, current_user: dict = Depends(requir
 
     return templates.TemplateResponse(
         request=request,
-        name="police/supervisor_dashboard.html",
+        name="police/supervisor.html",
         context=context,
     )
 
@@ -2218,8 +2242,8 @@ async def live_patrol_units(current_user: dict = Depends(require_police_departme
 
 
 @app.get("/api/incidents")
-async def api_incidents(current_user: dict = Depends(require_police_department_user())):
-    """Return district-scoped incidents for command center page load."""
+async def api_incidents(current_user: dict = Depends(require_any_role("police_supervisor", "police_officer"))):
+    """Return active incidents using command-center JSON contract."""
     district_id = current_user.get("district_id")
     if not district_id:
         raise HTTPException(
@@ -2227,7 +2251,22 @@ async def api_incidents(current_user: dict = Depends(require_police_department_u
             detail="district_id is required for incidents",
         )
 
-    incidents = _load_police_incidents(district_id)
+    raw_incidents = _load_police_incidents(district_id)
+    incidents = [
+        {
+            "id": incident.get("id"),
+            "title": incident.get("type") or "traffic",
+            "location": incident.get("description") or "Unknown location",
+            "severity": incident.get("severity") or "unknown",
+            "time": incident.get("start_time") or datetime.now(UTC).isoformat(),
+            "lat": incident.get("latitude"),
+            "lng": incident.get("longitude"),
+            "backup_required": str(incident.get("severity") or "").lower() in {"critical", "high"},
+            "notes": "",
+        }
+        for incident in raw_incidents
+    ]
+
     return {
         "incidents": incidents,
         "updated_at": datetime.now(UTC).isoformat(),
@@ -2235,9 +2274,12 @@ async def api_incidents(current_user: dict = Depends(require_police_department_u
 
 
 @app.get("/api/officers/status")
-async def api_officers_status(current_user: dict = Depends(require_police_department_user())):
-    """Return district patrol unit status for command center page load."""
+async def api_officers_status(current_user: dict = Depends(require_any_role("police_supervisor", "police_officer", "admin"))):
+    """Return officer status rows using command-center JSON contract."""
     district_id = current_user.get("district_id")
+    # For admin users, default to district_1 if not provided
+    if not district_id and current_user.get("role") == "admin":
+        district_id = "district_1"
     if not district_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -2253,8 +2295,20 @@ async def api_officers_status(current_user: dict = Depends(require_police_depart
         assignments,
     )
 
+    officers = [
+        {
+            "id": unit.get("unit_id"),
+            "name": unit.get("officer_name") or "Unknown Officer",
+            "badge": unit.get("unit_id"),
+            "status": str(unit.get("status") or "available").lower(),
+            "skills": [],
+            "district_id": unit.get("district_id") or district_id,
+        }
+        for unit in patrol_units
+    ]
+
     return {
-        "officers": patrol_units,
+        "officers": officers,
         "updated_at": datetime.now(UTC).isoformat(),
     }
 
@@ -2290,15 +2344,18 @@ async def create_incident(
     }
     _manual_incidents_store.setdefault(district_id, []).append(incident_record)
 
-    await sio.emit(
-        "incident_update",
-        {
-            "event": "incident_created",
-            "district_id": district_id,
-            "incident": incident_record,
-            "timestamp": datetime.now(UTC).isoformat(),
-        },
-        room=district_id,
+    await emit_incident_new(
+        sio,
+        district_id,
+        incident_record,
+        actor=current_user.get("username", "Unknown Supervisor"),
+    )
+    await emit_incident_updated(
+        sio,
+        district_id,
+        incident_record,
+        update_type="created",
+        actor=current_user.get("username", "Unknown Supervisor"),
     )
 
     return {
@@ -2549,21 +2606,25 @@ async def dispatch_patrol_unit(
     updated_unit = next((unit for unit in updated_context["patrol_units"] if unit["unit_id"] == officer_id), None)
     updated_incident = next((incident for incident in updated_context["incidents"] if incident.get("id") == request.incident_id), None)
 
-    await sio.emit(
-        "incident_update",
+    await emit_incident_updated(
+        sio,
+        district_id,
+        updated_incident or {"id": request.incident_id},
+        update_type="dispatched",
+        actor=current_user.get("username", "Unknown Supervisor"),
+    )
+    await emit_officer_status_changed(
+        sio,
+        district_id,
         {
-            "event": "dispatch_assigned",
+            "id": officer_id,
+            "name": (updated_unit or {}).get("officer_name") if isinstance(updated_unit, dict) else None,
+            "badge": officer_id,
+            "status": "dispatched",
             "district_id": district_id,
-            "assignment": {
-                "incident_id": request.incident_id,
-                "officer_id": officer_id,
-                "unit_id": officer_id,
-            },
-            "incident": updated_incident,
-            "unit": updated_unit,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "incident_id": request.incident_id,
         },
-        room=district_id,
+        actor=current_user.get("username", "Unknown Supervisor"),
     )
 
     return {
@@ -2582,24 +2643,6 @@ async def dispatch_patrol_unit(
         "unassigned_incidents": updated_context["unassigned_incidents"],
         "updated_at": datetime.now(UTC).isoformat(),
     }
-
-
-@sio.event
-async def connect(sid, environ, auth):
-    logger.info("Socket.IO client connected: %s", sid)
-
-
-@sio.event
-async def disconnect(sid):
-    logger.info("Socket.IO client disconnected: %s", sid)
-
-
-@sio.on("join_district")
-async def join_district_room(sid, data):
-    district_id = str((data or {}).get("district_id") or "").strip()
-    if not district_id:
-        return
-    await sio.enter_room(sid, district_id)
 
 
 @app.get("/police/export/pptx")
@@ -3587,6 +3630,12 @@ async def resolve_incident(
     """Mark incident resolved and persist supervised feedback record for ML training."""
     resolved_at = request.resolved_at.astimezone(UTC) if request.resolved_at else datetime.now(UTC)
     severity_value = _normalize_severity(request.severity)
+    district_id = current_user.get("district_id")
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for incident resolution",
+        )
 
     feedback = MLFeedback(
         incident_type=request.incident_type.strip(),
@@ -3606,11 +3655,62 @@ async def resolve_incident(
         .filter(PoliceDispatchAssignment.incident_id == request.incident_id)
         .first()
     )
+    returned_officer_id = None
     if assignment:
         assignment.status = "resolved"
+        returned_officer_id = assignment.unit_id
+
+    if returned_officer_id:
+        officer_status = (
+            db.query(OfficerDispatchStatus)
+            .filter(OfficerDispatchStatus.officer_id == returned_officer_id)
+            .first()
+        )
+        if officer_status:
+            officer_status.status = "available"
+            officer_status.assigned_incident_id = None
+            officer_status.updated_at = resolved_at
+
+        dispatch_record = (
+            db.query(DispatchLog)
+            .filter(
+                DispatchLog.incident_id == request.incident_id,
+                DispatchLog.officer_id == returned_officer_id,
+            )
+            .order_by(DispatchLog.assigned_at.desc())
+            .first()
+        )
+        if dispatch_record:
+            dispatch_record.status = "returned"
 
     db.commit()
     db.refresh(feedback)
+
+    await emit_incident_updated(
+        sio,
+        district_id,
+        {
+            "id": request.incident_id,
+            "severity": severity_value,
+            "status": "resolved",
+            "resolved_at": resolved_at.isoformat(),
+        },
+        update_type="resolved",
+        actor=current_user.get("username", "Unknown Supervisor"),
+    )
+    if returned_officer_id:
+        await emit_officer_status_changed(
+            sio,
+            district_id,
+            {
+                "id": returned_officer_id,
+                "badge": returned_officer_id,
+                "status": "available",
+                "district_id": district_id,
+                "incident_id": None,
+            },
+            actor=current_user.get("username", "Unknown Supervisor"),
+        )
 
     return {
         "status": "resolved",
@@ -3746,11 +3846,14 @@ async def role_login(
         fleet_zone=fleet_zone,
         expires_delta=timedelta(minutes=30 * 24 * 60),
     )
+    # Set secure=False for localhost/HTTP development, True for production/HTTPS
+    is_secure = os.getenv("SECURE_COOKIES", "false").lower() == "true"
     response.set_cookie(
-        key="access_token",
+        key="token",
         value=access_token,
         httponly=True,
-        samesite="lax",
+        secure=is_secure,
+        samesite="Lax" if is_secure else "None",
         max_age=30 * 24 * 60 * 60,
         path="/",
     )
