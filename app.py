@@ -2976,7 +2976,7 @@ def generate_detailed_shift_report_pptx(
 @app.post("/api/shift/report")
 async def generate_shift_report(
     shift_id: int = Query(..., description="Shift ID to generate report for"),
-    current_user: dict = Depends(require_police_department_user()),
+    current_user: dict = Depends(require_role("police_supervisor")),
     db: Session = Depends(get_session),
 ):
     """Generate a comprehensive shift report as PPTX with 5 slides.
@@ -2984,8 +2984,7 @@ async def generate_shift_report(
     Pulls data from:
     - Shift (supervisor, district, times)
     - ShiftAttendance (officers on duty)
-    - Notification (incidents)
-    - PoliceDispatchAssignment (dispatch records)
+    - DispatchLog (immutable dispatch audit trail)
     - OfficerIncidentCount (officer workload)
     """
     try:
@@ -2993,6 +2992,10 @@ async def generate_shift_report(
         shift = db.query(Shift).filter(Shift.id == shift_id).first()
         if not shift:
             raise HTTPException(status_code=404, detail="Shift not found")
+
+        # Verify the supervisor owns this shift
+        if shift.supervisor_id != current_user.get("username"):
+            raise HTTPException(status_code=403, detail="You do not have permission to access this shift's report")
 
         # Get all incidents for this shift (notifications within shift time window)
         incidents_query = db.query(Notification).filter(
@@ -3014,22 +3017,23 @@ async def generate_shift_report(
             for inc in incidents_query
         ]
 
-        # Get dispatch assignments for this shift time window
-        dispatch_assignments = db.query(PoliceDispatchAssignment).filter(
-            PoliceDispatchAssignment.assigned_at >= shift.start_time,
-            PoliceDispatchAssignment.assigned_at <= (shift.end_time or datetime.now(UTC))
+        # Get dispatch records from immutable dispatch log for this shift time window
+        dispatch_log_entries = db.query(DispatchLog).filter(
+            DispatchLog.assigned_at >= shift.start_time,
+            DispatchLog.assigned_at <= (shift.end_time or datetime.now(UTC)),
+            DispatchLog.district_id == shift.district_id
         ).all()
 
         dispatch_data = [
             {
-                "incident_id": da.incident_id,
-                "unit_id": da.unit_id,
-                "assigned_by": da.assigned_by,
-                "assigned_at": da.assigned_at.isoformat() if da.assigned_at else "",
-                "status": da.status,
+                "incident_id": dl.incident_id,
+                "unit_id": dl.officer_id,
+                "assigned_by": dl.assigned_by,
+                "assigned_at": dl.assigned_at.isoformat() if dl.assigned_at else "",
+                "status": dl.status,
                 "response_time_s": 0,  # Can be calculated if timestamp data is available
             }
-            for da in dispatch_assignments
+            for dl in dispatch_log_entries
         ]
 
         # Get officer workload for this shift
