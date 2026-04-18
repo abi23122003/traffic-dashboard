@@ -1336,6 +1336,147 @@
         .toast.fade-out {
             animation: slideOut 0.3s ease forwards;
         }
+
+        /* Hotspot legend swatches */
+        .swatch-hotspot-high {
+            background: rgba(239, 68, 68, 0.7);
+        }
+
+        .swatch-hotspot-medium {
+            background: rgba(251, 191, 36, 0.7);
+        }
+
+        .swatch-hotspot-low {
+            background: rgba(59, 130, 246, 0.7);
+        }
+
+        /* Officer Workload Section */
+        .officer-workload-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .officer-workload-card {
+            background: linear-gradient(135deg, rgba(13, 33, 55, 0.98), rgba(10, 24, 41, 0.98));
+            border: 1px solid rgba(120, 170, 220, 0.16);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .officer-workload-card.needs-rotation {
+            border-color: rgba(239, 68, 68, 0.3);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.06), rgba(13, 33, 55, 0.98));
+            box-shadow: 0 0 16px rgba(239, 68, 68, 0.1);
+        }
+
+        .workload-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .workload-name {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #f4f8fd;
+        }
+
+        .workload-rotation-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            font-size: 0.75rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .workload-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 0.85rem;
+        }
+
+        .workload-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: rgba(79, 209, 197, 0.04);
+            border-radius: 8px;
+            border: 1px solid rgba(79, 209, 197, 0.08);
+        }
+
+        .workload-stat-label {
+            color: var(--muted);
+            font-size: 0.75rem;
+        }
+
+        .workload-stat-value {
+            font-weight: 700;
+            color: #f4f8fd;
+            font-size: 1rem;
+        }
+
+        .workload-stat-value.critical {
+            color: #fca5a5;
+        }
+
+        .workload-stat-value.high {
+            color: #fcd34d;
+        }
+
+        .rotation-alerts {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .alert-banner {
+            padding: 12px 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.9rem;
+            border: 1px solid;
+        }
+
+        .alert-rotation {
+            background: rgba(239, 68, 68, 0.08);
+            border-color: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
+        .alert-icon {
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .officer-workload-list {
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .officer-workload-list {
+                grid-template-columns: 1fr;
+            }
+
+            .workload-stats {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1410,8 +1551,11 @@
                     <h2 class="section-title">Incident Severity Heatmap</h2>
                     <p class="section-subtitle">Live district heat intensity refreshed every 60 seconds.</p>
                 </div>
-                <div class="refresh-chip">
-                    <span id="heatmap-refresh-label">Heatmap synced just now</span>
+                <div class="section-actions">
+                    <button id="hotspots-toggle-btn" class="secondary-btn" onclick="togglePredictedHotspots()" title="Show/hide predicted incident hotspots">🔍 Predicted Hotspots</button>
+                    <div class="refresh-chip">
+                        <span id="heatmap-refresh-label">Heatmap synced just now</span>
+                    </div>
                 </div>
             </div>
 
@@ -1422,6 +1566,11 @@
                     <div class="legend-item"><span class="legend-swatch swatch-low"></span><span>Low</span></div>
                     <div class="legend-item"><span class="legend-swatch swatch-medium"></span><span>Medium</span></div>
                     <div class="legend-item"><span class="legend-swatch swatch-high"></span><span>High</span></div>
+                    <hr style="margin: 12px 0; border: none; border-top: 1px solid rgba(120, 170, 220, 0.16);">
+                    <h3 class="legend-title">Predicted Hotspots</h3>
+                    <div class="legend-item"><span class="legend-swatch swatch-hotspot-high"></span><span>High Risk (75+)</span></div>
+                    <div class="legend-item"><span class="legend-swatch swatch-hotspot-medium"></span><span>Medium Risk (40-75)</span></div>
+                    <div class="legend-item"><span class="legend-swatch swatch-hotspot-low"></span><span>Low Risk (&lt;40)</span></div>
                 </aside>
             </div>
         </section>
@@ -1603,6 +1752,31 @@
 
             <div id="shift-empty-state" class="empty-state">
                 <p>No active shift. Create a new shift to begin operations.</p>
+            </div>
+        </section>
+
+        <section class="section-shell officer-workload-shell" aria-label="Officer workload and rotation status">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Officer Workload & Rotation Status</h2>
+                    <p class="section-subtitle">Track incidents per officer and identify officers needing rotation.</p>
+                </div>
+                <div class="refresh-chip">
+                    <span id="workload-refresh-label">Workload data updated</span>
+                </div>
+            </div>
+
+            <div class="workload-alerts" id="rotation-alerts-container" style="display:none;">
+                <div class="alert-banner alert-rotation">
+                    <span class="alert-icon">⚠️</span>
+                    <span id="rotation-alert-message">Officers needing rotation detected</span>
+                </div>
+            </div>
+
+            <div id="officer-workload-list" class="officer-workload-list"></div>
+
+            <div id="workload-empty-state" class="empty-state">
+                <p>Load a shift to see officer workload data.</p>
             </div>
         </section>
     </main>
@@ -2734,6 +2908,9 @@
                     markAttendanceBtn.style.display = 'inline-block';
                     endShiftBtn.style.display = 'inline-block';
 
+                    // Store shift ID for workload tracking
+                    window.currentShiftId = data.shift.id;
+
                     const startTime = new Date(data.shift.start_time);
                     shiftStartTime.textContent = startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -2757,6 +2934,9 @@
                             </div>`;
                         })
                         .join('');
+                    
+                    // Refresh officer workload when shift is active
+                    refreshOfficerWorkload();
                 }
             } catch (error) {
                 console.error('Failed to refresh shift status:', error);
@@ -2904,6 +3084,208 @@
         setInterval(refreshHeatmapData, 60000);
         setInterval(refreshResponseTimes, 60000);
         setInterval(refreshShiftStatus, 30000);
+
+        // ============ PREDICTED HOTSPOTS ============
+        let hotspotsLayer = null;
+        let hotspotsVisible = false;
+
+        async function togglePredictedHotspots() {
+            const btn = document.getElementById('hotspots-toggle-btn');
+            const districtId = '{{ district_info.get("district_id", "") }}';
+
+            if (hotspotsVisible) {
+                // Hide hotspots
+                if (hotspotsLayer && incidentHeatmap) {
+                    incidentHeatmap.removeLayer(hotspotsLayer);
+                }
+                hotspotsVisible = false;
+                btn.style.background = '';
+                btn.textContent = '🔍 Predicted Hotspots';
+                showToast('Predicted hotspots hidden', 'info');
+            } else {
+                // Show hotspots
+                try {
+                    btn.disabled = true;
+                    btn.textContent = '⏳ Loading hotspots...';
+
+                    const token = getAuthToken();
+                    const response = await fetch(
+                        `/api/incidents/predicted?district_id=${encodeURIComponent(districtId)}` + 
+                        (token ? `&token=${encodeURIComponent(token)}` : ''),
+                        {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': token ? `Bearer ${token}` : undefined,
+                            }
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const geoJsonData = await response.json();
+
+                    // Create GeoJSON layer with styling
+                    if (hotspotsLayer && incidentHeatmap) {
+                        incidentHeatmap.removeLayer(hotspotsLayer);
+                    }
+
+                    hotspotsLayer = L.geoJSON(geoJsonData, {
+                        style: (feature) => {
+                            let color = '#3b82f6'; // Default blue for low risk
+                            let opacity = 0.5;
+
+                            const riskLevel = feature.properties.risk_level;
+                            if (riskLevel === 'high') {
+                                color = '#ef4444'; // Red for high risk
+                                opacity = 0.7;
+                            } else if (riskLevel === 'medium') {
+                                color = '#fbbf24'; // Yellow for medium risk
+                                opacity = 0.6;
+                            }
+
+                            return {
+                                color: color,
+                                weight: 2,
+                                opacity: opacity,
+                                fillOpacity: opacity * 0.6,
+                                dashArray: '5, 5'
+                            };
+                        },
+                        onEachFeature: (feature, layer) => {
+                            const props = feature.properties;
+                            const popupContent = `
+                                <div style="font-size: 0.9rem; color: #f4f8fd;">
+                                    <strong>${props.zone_name}</strong><br>
+                                    Risk Level: <span style="color: ${props.risk_level === 'high' ? '#fca5a5' : props.risk_level === 'medium' ? '#fcd34d' : '#93c5fd'};">${props.risk_level.toUpperCase()}</span><br>
+                                    Score: ${props.prediction_score}%<br>
+                                    Expected Incidents: ${props.incident_count}
+                                </div>
+                            `;
+                            layer.bindPopup(popupContent);
+                        }
+                    });
+
+                    hotspotsLayer.addTo(incidentHeatmap);
+                    hotspotsVisible = true;
+                    btn.style.background = 'linear-gradient(180deg, #4fd1c5, #35b0ff)';
+                    btn.textContent = '✓ Predicted Hotspots (Active)';
+                    showToast(`Loaded ${geoJsonData.features.length} predicted hotspots`, 'success');
+                } catch (error) {
+                    console.error('Error loading hotspots:', error);
+                    showToast('Failed to load predicted hotspots', 'error');
+                } finally {
+                    btn.disabled = false;
+                }
+            }
+        }
+
+        // ============ OFFICER WORKLOAD ============
+        async function refreshOfficerWorkload() {
+            const districtId = '{{ district_info.get("district_id", "") }}';
+            const shiftId = window.currentShiftId; // Should be set by refreshShiftStatus()
+
+            if (!shiftId) {
+                document.getElementById('officer-workload-list').innerHTML = '';
+                document.getElementById('workload-empty-state').style.display = 'block';
+                return;
+            }
+
+            try {
+                const token = getAuthToken();
+                const response = await fetch(
+                    `/api/police/officer-workload?district_id=${encodeURIComponent(districtId)}&shift_id=${shiftId}` +
+                    (token ? `&token=${encodeURIComponent(token)}` : ''),
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': token ? `Bearer ${token}` : undefined,
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayOfficerWorkload(data);
+            } catch (error) {
+                console.error('Error loading officer workload:', error);
+                document.getElementById('workload-empty-state').style.display = 'block';
+            }
+        }
+
+        function displayOfficerWorkload(workloadData) {
+            const listContainer = document.getElementById('officer-workload-list');
+            const emptyState = document.getElementById('workload-empty-state');
+            const rotationAlertsContainer = document.getElementById('rotation-alerts-container');
+
+            listContainer.innerHTML = '';
+
+            if (!workloadData.officers || workloadData.officers.length === 0) {
+                emptyState.style.display = 'block';
+                rotationAlertsContainer.style.display = 'none';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+
+            // Show rotation alerts if any
+            if (workloadData.officers_needing_rotation.length > 0) {
+                rotationAlertsContainer.style.display = 'block';
+                const message = `${workloadData.officers_needing_rotation.length} officer(s) handling 3+ critical incidents - recommend rotation`;
+                document.getElementById('rotation-alert-message').textContent = message;
+            } else {
+                rotationAlertsContainer.style.display = 'none';
+            }
+
+            // Create officer workload cards
+            workloadData.officers.forEach(officer => {
+                const card = document.createElement('div');
+                card.className = 'officer-workload-card' + (officer.needs_rotation ? ' needs-rotation' : '');
+                card.innerHTML = `
+                    <div class="workload-header">
+                        <span class="workload-name">${officer.officer_name}</span>
+                        ${officer.needs_rotation ? '<span class="workload-rotation-badge">⚠️ Needs Rotation</span>' : ''}
+                    </div>
+                    <div class="workload-stats">
+                        <div class="workload-stat">
+                            <span class="workload-stat-label">Total</span>
+                            <span class="workload-stat-value">${officer.total_incidents}</span>
+                        </div>
+                        <div class="workload-stat">
+                            <span class="workload-stat-label">Critical</span>
+                            <span class="workload-stat-value ${officer.critical_incidents > 2 ? 'critical' : ''}">${officer.critical_incidents}</span>
+                        </div>
+                        <div class="workload-stat">
+                            <span class="workload-stat-label">High</span>
+                            <span class="workload-stat-value ${officer.high_incidents > 0 ? 'high' : ''}">${officer.high_incidents}</span>
+                        </div>
+                        <div class="workload-stat">
+                            <span class="workload-stat-label">Medium</span>
+                            <span class="workload-stat-value">${officer.medium_incidents}</span>
+                        </div>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        // Refresh officer workload when shift is loaded
+        function updateRefreshTimestamps() {
+            document.getElementById('workload-refresh-label').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+        }
+
+        // Add to the initialization
+        refreshOfficerWorkload();
+        setInterval(() => {
+            if (window.currentShiftId) {
+                refreshOfficerWorkload();
+                updateRefreshTimestamps();
+            }
+        }, 30000);
     </script>
 </body>
 </html>

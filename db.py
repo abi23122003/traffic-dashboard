@@ -141,6 +141,22 @@ class ShiftAttendance(Base):
     status = Column(String, nullable=False, default="present")
 
 
+class OfficerIncidentCount(Base):
+    """Tracks incidents handled by each officer during their shift."""
+    __tablename__ = "officer_incident_counts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shift_id = Column(Integer, ForeignKey("police_shifts.id"), nullable=False, index=True)
+    officer_username = Column(String, nullable=False, index=True)
+    officer_name = Column(String, nullable=False)
+    incident_count_critical = Column(Integer, default=0)  # Critical incidents
+    incident_count_high = Column(Integer, default=0)      # High severity
+    incident_count_medium = Column(Integer, default=0)    # Medium severity
+    incident_count_low = Column(Integer, default=0)       # Low severity
+    needs_rotation = Column(Boolean, default=False)       # True if 3+ critical incidents
+    last_updated = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+
+
 class AnalysisResult(Base):
     """SQLAlchemy model for analysis results table."""
     __tablename__ = "analysis_results"
