@@ -24,6 +24,7 @@ import uuid
 import traceback
 import asyncio
 import time
+from sqlalchemy.exc import IntegrityError
 
 # Import logging and rate limiting
 from logging_config import setup_logging, get_logger
@@ -1100,21 +1101,47 @@ def predict_congestion(features: dict) -> Optional[float]:
     try:
         import pandas as pd
         now = datetime.now(UTC)
-        feature_dict = {
-            "hour": now.hour,
-            "weekday": now.weekday(),
-            "is_weekend": 1 if now.weekday() >= 5 else 0,
-            "distance_km": features.get("distance_km", 0),
-            "route_index": features.get("route_index", 0),
-            "travel_time_s": features.get("travel_time_s", 0),
-            "no_traffic_s": features.get("no_traffic_s", 0),
-            "delay_s": features.get("delay_s", 0),
-            "rolling_mean_congestion": features.get("rolling_mean_congestion", 1.0),
-            "rolling_std_congestion": features.get("rolling_std_congestion", 0.0)
+
+        travel_time_s = features.get("travel_time_s", 0)
+        no_traffic_s = features.get("no_traffic_s", 0)
+        if travel_time_s is None:
+            travel_time_s = 0
+        if no_traffic_s is None:
+            no_traffic_s = 0
+
+        congestion_ratio = (
+            float(travel_time_s) / float(no_traffic_s)
+            if no_traffic_s and float(no_traffic_s) > 0
+            else 1.0
+        )
+
+        hour = int(features.get("hour", now.hour))
+        weekday = int(features.get("weekday", now.weekday()))
+
+        base_feature_dict = {
+            "hour": hour,
+            "weekday": weekday,
+            "is_weekend": int(features.get("is_weekend", 1 if weekday >= 5 else 0)),
+            "distance_km": float(features.get("distance_km", 0) or 0),
+            "route_index": int(features.get("route_index", 0) or 0),
+            "travel_time_s": float(travel_time_s),
+            "no_traffic_s": float(no_traffic_s),
+            "delay_s": float(features.get("delay_s", 0) or 0),
+            "rolling_mean_congestion": float(features.get("rolling_mean_congestion", 1.0) or 1.0),
+            "rolling_std_congestion": float(features.get("rolling_std_congestion", 0.0) or 0.0),
+            "congestion_ratio": float(congestion_ratio),
         }
-        df = pd.DataFrame([feature_dict])
-        numeric_cols = [col for col in df.columns if df[col].dtype in ['int64', 'float64']]
-        X = df[numeric_cols].fillna(0)
+
+        model_feature_names = getattr(ML_MODEL, "feature_names_in_", None)
+        if model_feature_names is not None:
+            expected_columns = [str(col) for col in model_feature_names]
+        else:
+            expected_columns = list(base_feature_dict.keys())
+
+        aligned_feature_dict = {
+            col: base_feature_dict.get(col, 0.0) for col in expected_columns
+        }
+        X = pd.DataFrame([aligned_feature_dict], columns=expected_columns).apply(pd.to_numeric, errors="coerce").fillna(0.0)
         prediction = ML_MODEL.predict(X)[0]
         return round(float(prediction), 2)
     except Exception as e:
@@ -2020,52 +2047,71 @@ async def dispatch_patrol_unit(
 
     session = get_session()
     try:
+        now = datetime.now(UTC)
+        
+        # Clear session cache to avoid stale data
+        session.expunge_all()
+        
+        # Query fresh data from database
         existing_incident_assignment = (
             session.query(PoliceDispatchAssignment)
-            .filter(
-                PoliceDispatchAssignment.district_id == district_id,
-                PoliceDispatchAssignment.incident_id == request.incident_id,
-            )
+            .filter(PoliceDispatchAssignment.incident_id == request.incident_id)
+            .with_for_update()  # Lock the row
             .first()
         )
+        
+        # Delete incident assignment if exists
+        if existing_incident_assignment:
+            session.delete(existing_incident_assignment)
+            session.flush()
+        
+        # Query and delete unit assignment if exists
         existing_unit_assignment = (
             session.query(PoliceDispatchAssignment)
-            .filter(
-                PoliceDispatchAssignment.district_id == district_id,
-                PoliceDispatchAssignment.unit_id == request.unit_id,
-            )
+            .filter(PoliceDispatchAssignment.unit_id == request.unit_id)
+            .with_for_update()  # Lock the row
             .first()
         )
-
-        if existing_unit_assignment and existing_unit_assignment.incident_id != request.incident_id:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Selected unit is already assigned to another incident",
-            )
-
-        now = datetime.now(UTC)
-        if existing_incident_assignment:
-            existing_incident_assignment.unit_id = request.unit_id
-            existing_incident_assignment.assigned_by = current_user.get("username", "Unknown Supervisor")
-            existing_incident_assignment.assigned_at = now
-            existing_incident_assignment.status = "active"
-            assignment = existing_incident_assignment
-        else:
-            assignment = PoliceDispatchAssignment(
-                district_id=district_id,
-                incident_id=request.incident_id,
-                unit_id=request.unit_id,
-                assigned_by=current_user.get("username", "Unknown Supervisor"),
-                assigned_at=now,
-                status="active",
-            )
-            session.add(assignment)
-
+        
+        if existing_unit_assignment:
+            session.delete(existing_unit_assignment)
+            session.flush()
+        
+        # Create new assignment
+        assignment = PoliceDispatchAssignment(
+            district_id=district_id,
+            incident_id=request.incident_id,
+            unit_id=request.unit_id,
+            assigned_by=current_user.get("username", "Unknown Supervisor"),
+            assigned_at=now,
+            status="active",
+        )
+        session.add(assignment)
         session.commit()
         session.refresh(assignment)
     except HTTPException:
         session.rollback()
         raise
+    except IntegrityError as exc:
+        session.rollback()
+        existing_assignment = (
+            session.query(PoliceDispatchAssignment)
+            .filter(PoliceDispatchAssignment.incident_id == request.incident_id)
+            .first()
+        )
+        if existing_assignment and existing_assignment.unit_id == request.unit_id:
+            logger.warning(
+                "Dispatch assignment already exists for incident %s and unit %s",
+                request.incident_id,
+                request.unit_id,
+            )
+            assignment = existing_assignment
+        else:
+            logger.error("Dispatch assignment integrity error: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Incident or patrol unit is already assigned",
+            )
     except Exception as exc:
         session.rollback()
         logger.error("Dispatch assignment failed: %s", exc)
