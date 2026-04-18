@@ -70,6 +70,7 @@ from notifications import (
 )
 from cache_utils import cached, clear_cache, get_cache_stats
 from realtime_utils import get_traffic_incidents, auto_refresh_route, monitor_route_changes
+from dispatch_notifications import send_officer_dispatch_notification
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -93,6 +94,7 @@ from socketio_events import (
     emit_incident_new,
     emit_incident_updated,
     emit_officer_status_changed,
+    emit_officer_dispatched,
 )
 
 register_police_socketio_handlers(sio, logger)
@@ -2466,7 +2468,31 @@ async def dispatch_patrol_unit(
     request: DispatchRequest,
     current_user: dict = Depends(require_police_department_user()),
 ):
-    """Assign a patrol unit to an incident and persist the dispatch."""
+    """Assign a patrol unit to an incident and persist the dispatch.
+    
+    Validates officer availability, updates dispatch status, records in audit log,
+    sends FCM push notification, and broadcasts via SocketIO.
+    
+    Request:
+        incident_id (str): ID of the incident to dispatch
+        officer_id (str): ID of the officer/unit to dispatch
+    
+    Response:
+        {
+            "success": true,
+            "dispatch_id": 42,
+            "eta": 5,
+            "incident_id": "incident_123",
+            "officer_id": "unit_001"
+        }
+    
+    Raises:
+        400: Missing district_id, incident_id, or officer_id
+        403: User is not a police supervisor
+        404: Incident not found
+        409: Officer not available or already assigned
+        500: Dispatch failed
+    """
     district_id = current_user.get("district_id")
     if not district_id:
         raise HTTPException(
@@ -2491,11 +2517,38 @@ async def dispatch_patrol_unit(
         )
 
     session = get_session()
+    dispatch_log_record = None
+    officer_mobile_token = None
+    
     try:
         now = datetime.now(UTC)
         
         # Clear session cache to avoid stale data
         session.expunge_all()
+        
+        # Check officer status before dispatch
+        officer_status = (
+            session.query(OfficerDispatchStatus)
+            .filter(OfficerDispatchStatus.officer_id == officer_id)
+            .with_for_update()
+            .first()
+        )
+        
+        if officer_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Officer {officer_id} not found in dispatch system",
+            )
+        
+        # Validate officer status is 'available' before dispatch
+        if officer_status.status != "available":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Officer is not available (current status: {officer_status.status})",
+            )
+        
+        # Store mobile token for FCM notification
+        officer_mobile_token = officer_status.mobile_token
         
         # Query fresh data from database
         existing_incident_assignment = (
@@ -2533,28 +2586,13 @@ async def dispatch_patrol_unit(
         )
         session.add(assignment)
 
-        officer_status = (
-            session.query(OfficerDispatchStatus)
-            .filter(OfficerDispatchStatus.officer_id == officer_id)
-            .with_for_update()
-            .first()
-        )
-        if officer_status is None:
-            officer_status = OfficerDispatchStatus(
-                district_id=district_id,
-                officer_id=officer_id,
-                status="dispatched",
-                assigned_incident_id=request.incident_id,
-                updated_at=now,
-            )
-            session.add(officer_status)
-        else:
-            officer_status.district_id = district_id
-            officer_status.status = "dispatched"
-            officer_status.assigned_incident_id = request.incident_id
-            officer_status.updated_at = now
+        # Update officer status to 'enroute'
+        officer_status.status = "enroute"
+        officer_status.assigned_incident_id = request.incident_id
+        officer_status.updated_at = now
 
-        dispatch_log = DispatchLog(
+        # Create dispatch log record
+        dispatch_log_record = DispatchLog(
             district_id=district_id,
             incident_id=request.incident_id,
             officer_id=officer_id,
@@ -2562,13 +2600,15 @@ async def dispatch_patrol_unit(
             assigned_at=now,
             status="dispatched",
         )
-        session.add(dispatch_log)
+        session.add(dispatch_log_record)
 
         shared_alert = _create_shared_alert_for_dispatch(session, district_id, target_incident)
         session.commit()
         session.refresh(assignment)
+        session.refresh(dispatch_log_record)
         if shared_alert is not None:
             session.refresh(shared_alert)
+            
     except HTTPException:
         session.rollback()
         raise
@@ -2602,6 +2642,39 @@ async def dispatch_patrol_unit(
     finally:
         session.close()
 
+    # Calculate ETA in minutes (simplified: use distance if available)
+    eta_minutes = 5  # Default ETA in minutes
+    supervisor_id = current_user.get("username", "Unknown Supervisor")
+    
+    # Send FCM push notification to officer's mobile device
+    fcm_result = send_officer_dispatch_notification(
+        officer_mobile_token,
+        officer_id,
+        target_incident,
+    )
+    logger.info(
+        f"Dispatch notification for officer {officer_id}: "
+        f"sent={fcm_result.get('sent')}, reason={fcm_result.get('reason')}"
+    )
+    
+    # Build dispatch data for SocketIO event
+    dispatch_data = {
+        "dispatch_id": dispatch_log_record.id if dispatch_log_record else None,
+        "officer_id": officer_id,
+        "incident_id": request.incident_id,
+        "eta": eta_minutes,
+        "supervisor_id": supervisor_id,
+    }
+    
+    # Emit SocketIO event to police namespace
+    await emit_officer_dispatched(
+        sio,
+        district_id,
+        dispatch_data,
+        actor=supervisor_id,
+    )
+    
+    # Also emit the existing events for backward compatibility
     updated_context = _build_police_dashboard_context(current_user, district_id)
     updated_unit = next((unit for unit in updated_context["patrol_units"] if unit["unit_id"] == officer_id), None)
     updated_incident = next((incident for incident in updated_context["incidents"] if incident.get("id") == request.incident_id), None)
@@ -2611,7 +2684,7 @@ async def dispatch_patrol_unit(
         district_id,
         updated_incident or {"id": request.incident_id},
         update_type="dispatched",
-        actor=current_user.get("username", "Unknown Supervisor"),
+        actor=supervisor_id,
     )
     await emit_officer_status_changed(
         sio,
@@ -2620,28 +2693,21 @@ async def dispatch_patrol_unit(
             "id": officer_id,
             "name": (updated_unit or {}).get("officer_name") if isinstance(updated_unit, dict) else None,
             "badge": officer_id,
-            "status": "dispatched",
+            "status": "enroute",
             "district_id": district_id,
             "incident_id": request.incident_id,
         },
-        actor=current_user.get("username", "Unknown Supervisor"),
+        actor=supervisor_id,
     )
 
+    # Return simplified response format
     return {
-        "message": "Unit dispatched successfully",
-        "assignment": {
-            "incident_id": request.incident_id,
-            "officer_id": officer_id,
-            "unit_id": officer_id,
-            "assigned_by": assignment.assigned_by,
-            "assigned_at": assignment.assigned_at.isoformat() if assignment.assigned_at else None,
-        },
-        "shared_alert_created": _normalize_severity(target_incident.get("severity")) in {"critical", "high"},
-        "unit": updated_unit,
-        "incident": updated_incident,
-        "available_patrol_units": updated_context["available_patrol_units"],
-        "unassigned_incidents": updated_context["unassigned_incidents"],
-        "updated_at": datetime.now(UTC).isoformat(),
+        "success": True,
+        "dispatch_id": dispatch_log_record.id if dispatch_log_record else None,
+        "eta": eta_minutes,
+        "incident_id": request.incident_id,
+        "officer_id": officer_id,
+        "fcm_sent": fcm_result.get("sent", False),
     }
 
 

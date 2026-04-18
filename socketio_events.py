@@ -333,3 +333,53 @@ async def emit_officer_status_changed(
         room=district_id,
         namespace=POLICE_NAMESPACE,
     )
+
+
+async def emit_officer_dispatched(
+    sio: Any,
+    district_id: str,
+    dispatch_data: dict[str, Any],
+    *,
+    actor: Optional[str] = None,
+) -> None:
+    """Broadcast officer dispatch event to all supervisors in a district.
+    
+    Called when an officer is dispatched to a specific incident.
+    Contains dispatch details for real-time dashboard updates.
+    
+    Args:
+        sio: AsyncServer instance
+        district_id: Target district for broadcast
+        dispatch_data: Dispatch details dict with:
+            - dispatch_id: Dispatch log record ID
+            - officer_id: Officer/unit ID
+            - incident_id: Incident ID
+            - eta: Estimated time of arrival (optional)
+            - supervisor_id: Supervisor who made dispatch
+        actor: Username of supervisor who made the dispatch
+        
+    Example:
+        await emit_officer_dispatched(
+            sio,
+            "district_1",
+            {
+                "dispatch_id": 42,
+                "officer_id": "unit_001",
+                "incident_id": "incident_123",
+                "eta": 5,
+                "supervisor_id": "sup_001"
+            },
+            actor="supervisor_name"
+        )
+    """
+    await sio.emit(
+        "officer_dispatched",
+        {
+            "district_id": district_id,
+            "dispatch": dispatch_data,
+            "actor": actor,
+            "timestamp": datetime.now(UTC).isoformat(),
+        },
+        room=district_id,
+        namespace=POLICE_NAMESPACE,
+    )

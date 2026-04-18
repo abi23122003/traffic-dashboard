@@ -121,6 +121,7 @@ class OfficerDispatchStatus(Base):
     officer_id = Column(String, nullable=False, unique=True, index=True)
     status = Column(String(30), nullable=False, default="available", index=True)
     assigned_incident_id = Column(String, nullable=True, index=True)
+    mobile_token = Column(String, nullable=True, index=True)  # Firebase device token for push notifications
     updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC), index=True)
 
 
