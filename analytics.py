@@ -232,6 +232,44 @@ def predict_future_congestion(db: Session, route_id: str, hours_ahead: int = 24)
     }
 
 
+def get_dispatch_kpis(dispatch_history: List[dict], incidents: List[dict], officers: List[dict]) -> Dict:
+    """Compute Phase 3 command-center KPIs from in-memory dispatch state."""
+    completed = [
+        item for item in dispatch_history
+        if str(item.get("status", "")).lower() in {"completed", "closed"}
+    ]
+
+    active_incidents = len(
+        [
+            incident for incident in incidents
+            if str(incident.get("status", "open")).lower() in {"open", "assigned", "in-progress"}
+        ]
+    )
+
+    performance = {}
+    for item in completed:
+        officer_id = int(item.get("officer_id"))
+        performance[officer_id] = performance.get(officer_id, 0) + 1
+
+    ranking = []
+    for officer in officers:
+        ranking.append(
+            {
+                "officer_id": officer.get("id"),
+                "name": officer.get("name"),
+                "completed": performance.get(int(officer.get("id")), 0),
+            }
+        )
+    ranking.sort(key=lambda row: row["completed"], reverse=True)
+
+    return {
+        "active_incidents": active_incidents,
+        "completed_incidents": len(completed),
+        "top_officer": ranking[0]["name"] if ranking else None,
+        "officer_ranking": ranking,
+    }
+
+
 def get_traffic_hotspots(db: Session, days: int = 7) -> List[Dict]:
     """Identify traffic hotspots (routes with highest congestion)."""
     cutoff_date = datetime.now(UTC) - timedelta(days=days)

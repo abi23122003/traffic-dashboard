@@ -51,7 +51,7 @@
 
         .sidebar {
             display: grid;
-            grid-template-rows: auto auto auto 1fr 1fr;
+            grid-template-rows: auto auto auto minmax(130px, 1fr) minmax(130px, 1fr) auto auto;
             gap: 12px;
             padding: 14px;
             overflow: hidden;
@@ -200,6 +200,77 @@
             box-shadow: inset 0 0 0 1px rgba(45, 192, 109, 0.4);
         }
 
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .metric {
+            background: rgba(19, 32, 46, 0.9);
+            border: 1px solid #2b455d;
+            border-radius: 8px;
+            padding: 8px;
+        }
+
+        .metric .k {
+            font-size: 0.72rem;
+            color: var(--muted);
+        }
+
+        .metric .v {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-top: 3px;
+        }
+
+        .log-list {
+            max-height: 130px;
+            overflow: auto;
+            border-top: 1px solid #274056;
+            padding-top: 6px;
+        }
+
+        .log-item {
+            font-size: 0.78rem;
+            color: #bdd0df;
+            margin-bottom: 6px;
+            line-height: 1.35;
+        }
+
+        .chat-box {
+            display: grid;
+            gap: 8px;
+        }
+
+        #chatMessages {
+            max-height: 120px;
+            overflow: auto;
+            border-top: 1px solid #274056;
+            padding-top: 6px;
+        }
+
+        .chat-row {
+            font-size: 0.8rem;
+            color: #d7e8f8;
+            margin-bottom: 6px;
+        }
+
+        .chat-input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        #chatInput {
+            flex: 1;
+            border: 1px solid #355474;
+            background: #17314a;
+            color: var(--text);
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 0.82rem;
+        }
+
         .toast {
             position: fixed;
             right: 18px;
@@ -301,6 +372,26 @@
 
             <section class="list" id="incidentsList"></section>
             <section class="list" id="etaCards"></section>
+
+            <section>
+                <div class="section-title">Analytics</div>
+                <div class="analytics-grid" id="analyticsPanel"></div>
+            </section>
+
+            <section>
+                <div class="section-title">Notification Logs</div>
+                <div class="log-list" id="notificationLog"></div>
+            </section>
+
+            <section class="chat-box">
+                <div class="section-title">Supervisor ↔ Officer Chat</div>
+                <div class="meta">Chat attaches to currently selected incident.</div>
+                <div id="chatMessages"></div>
+                <div class="chat-input-row">
+                    <input id="chatInput" placeholder="Type message to officer..." />
+                    <button id="sendChatBtn">Send</button>
+                </div>
+            </section>
         </aside>
 
         <main class="panel map-wrap">
@@ -326,6 +417,7 @@
             selectedIncidentId: null,
             selectedOfficerId: null,
             ws: null,
+            chatWs: null,
         };
 
         const severityColors = {
@@ -362,6 +454,14 @@
             toast.innerHTML = `<strong>${String(severity || 'low').toUpperCase()}</strong><br>${title}`;
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3800);
+        }
+
+        function appendNotification(text) {
+            const row = document.createElement('div');
+            row.className = 'log-item';
+            row.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+            const log = document.getElementById('notificationLog');
+            log.prepend(row);
         }
 
         function toLatLng(item) {
@@ -493,6 +593,7 @@
                     state.selectedIncidentId = String(incident.id);
                     renderIncidentList();
                     recommendOfficer();
+                    connectChatSocket(state.selectedIncidentId);
                 });
                 list.appendChild(card);
             });
@@ -551,6 +652,54 @@
                 });
             }
             state.heatmapLayer.setData(points);
+        }
+
+        async function loadAnalytics() {
+            const payload = await fetchJSON('/api/analytics');
+            const panel = document.getElementById('analyticsPanel');
+            panel.innerHTML = `
+                <div class="metric"><div class="k">Avg Response</div><div class="v">${payload.avg_response_time} min</div></div>
+                <div class="metric"><div class="k">Active Incidents</div><div class="v">${payload.active_incidents}</div></div>
+                <div class="metric"><div class="k">Completed</div><div class="v">${payload.completed_incidents}</div></div>
+                <div class="metric"><div class="k">Top Officer</div><div class="v">${payload.top_officer || 'N/A'}</div></div>
+            `;
+        }
+
+        function connectChatSocket(incidentId) {
+            if (!incidentId) return;
+            if (state.chatWs) {
+                state.chatWs.close();
+            }
+
+            state.chatWs = new WebSocket(`ws://localhost:5000/ws/chat/${incidentId}`);
+            state.chatWs.onmessage = (event) => {
+                try {
+                    const payload = JSON.parse(event.data);
+                    if (payload.event === 'receive_message') {
+                        const row = document.createElement('div');
+                        row.className = 'chat-row';
+                        row.textContent = `${payload.data.sender}: ${payload.data.text}`;
+                        document.getElementById('chatMessages').prepend(row);
+                    }
+                } catch (err) {
+                    console.error('Chat parse error', err);
+                }
+            };
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const value = (input.value || '').trim();
+            if (!value || !state.chatWs || !state.selectedIncidentId) return;
+            state.chatWs.send(
+                JSON.stringify({
+                    event: 'send_message',
+                    incident_id: state.selectedIncidentId,
+                    sender: 'Supervisor',
+                    text: value,
+                })
+            );
+            input.value = '';
         }
 
         async function recommendOfficer() {
@@ -672,10 +821,13 @@
                     if (data.type === 'incident_update') {
                         addOrUpdateIncident(data.data);
                         showToast(data.data.title, data.data.severity);
+                        appendNotification(`Incident update: ${data.data.title}`);
                     } else if (data.type === 'officer_update' || data.type === 'officer_location_update') {
                         updateOfficerCard(data.data);
+                        appendNotification(`Officer update: ${data.data.name} (${data.data.status})`);
                     } else if (data.type === 'dispatch_status_update') {
                         showToast(`Dispatch updated: Officer ${data.data.officer_id} -> Incident ${data.data.incident_id}`, 'high');
+                        appendNotification(`Dispatch status: ${data.data.status} for incident ${data.data.incident_id}`);
                     }
                 } catch (err) {
                     console.error('Invalid realtime payload', err);
@@ -686,14 +838,16 @@
         async function bootstrap() {
             try {
                 await loadMapsApi();
-                await Promise.all([loadIncidents(), loadOfficers(), loadHotspots()]);
+                await Promise.all([loadIncidents(), loadOfficers(), loadHotspots(), loadAnalytics()]);
                 wireRealtime();
 
                 document.getElementById('recommendBtn').addEventListener('click', recommendOfficer);
                 document.getElementById('refreshHotspotsBtn').addEventListener('click', loadHotspots);
+                document.getElementById('sendChatBtn').addEventListener('click', sendChatMessage);
 
                 // Fallback safety-net polling retained from Phase 1.
                 setInterval(loadOfficers, 30000);
+                setInterval(loadAnalytics, 15000);
             } catch (error) {
                 console.error('Dashboard bootstrap failed', error);
                 showToast('Failed to initialize dashboard', 'critical');

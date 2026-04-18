@@ -52,6 +52,8 @@ from jose.exceptions import ExpiredSignatureError
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from typing import List
 import requests as http_requests
+from fcm_service import send_dispatch_notification
+from mobile_routes import mobile_router, configure_mobile_context
 
 class ConnectionManager:
     def __init__(self):
@@ -79,7 +81,7 @@ manager = ConnectionManager()
 from analytics import (
     get_peak_hours_analysis, get_day_of_week_analysis,
     get_seasonal_trends, calculate_route_reliability, predict_future_congestion,
-    get_traffic_hotspots
+    get_traffic_hotspots, get_dispatch_kpis
 )
 from export_utils import export_to_csv, export_to_excel, export_to_pdf
 from notifications import (
@@ -3388,6 +3390,12 @@ _DISTANCE_WEIGHT = 0.45
 _TRAFFIC_WEIGHT = 0.45
 _SKILL_MATCH_WEIGHT = 0.10
 
+# Dispatch runtime state for mobile sync + auto-dispatch + analytics.
+_dispatch_assignments = {}
+_dispatch_history = []
+_incident_timers = {}
+_chat_rooms = {}
+
 
 class RouteRequest(BaseModel):
     officer_id: int
@@ -3576,6 +3584,112 @@ def _sort_incidents_newest_first():
         reverse=True,
     )
 
+
+def _mark_dispatch_assignment(incident_id: str, officer_id: int, status_value: str):
+    now_iso = datetime.now(UTC).isoformat()
+    _dispatch_assignments[str(incident_id)] = {
+        "incident_id": str(incident_id),
+        "officer_id": int(officer_id),
+        "status": status_value,
+        "updated_at": now_iso,
+    }
+    _dispatch_history.append(
+        {
+            "incident_id": str(incident_id),
+            "officer_id": int(officer_id),
+            "status": status_value,
+            "timestamp": now_iso,
+        }
+    )
+
+
+def _rank_officers_for_incident(incident: dict):
+    candidates = [
+        officer
+        for officer in _police_officers
+        if str(officer.get("status", "")).lower() in {"available", "en-route"}
+    ]
+
+    ranked = []
+    for officer in candidates:
+        _normalize_officer_skills(officer)
+        route_snapshot = _compute_route_snapshot(officer, incident)
+        skill_penalty = _infer_skill_penalty(officer, incident)
+
+        score = (
+            _DISTANCE_WEIGHT * route_snapshot["distance_km"]
+            + _TRAFFIC_WEIGHT * route_snapshot["eta_minutes"]
+            + _SKILL_MATCH_WEIGHT * (skill_penalty * 10.0)
+        )
+
+        ranked.append(
+            {
+                "officer_id": officer["id"],
+                "name": officer["name"],
+                "status": officer.get("status"),
+                "distance_km": route_snapshot["distance_km"],
+                "eta_minutes": route_snapshot["eta_minutes"],
+                "skill_penalty": skill_penalty,
+                "score": round(score, 3),
+                "skills": officer.get("skills", []),
+            }
+        )
+
+    ranked.sort(key=lambda item: item["score"])
+    return ranked
+
+
+async def _trigger_auto_dispatch_if_needed(incident_id: str):
+    # Auto-dispatch only for critical incidents if still unassigned after timeout.
+    await asyncio.sleep(10)
+    incident = _find_incident(incident_id)
+    if not incident:
+        return
+    if str(incident.get("severity", "")).lower() != "critical":
+        return
+    if str(incident_id) in _dispatch_assignments:
+        return
+
+    ranked = _rank_officers_for_incident(incident)
+    if not ranked:
+        return
+
+    best = ranked[0]
+    officer = _find_officer(best["officer_id"])
+    if not officer:
+        return
+
+    officer["status"] = "en-route"
+    officer["last_ping"] = datetime.now(UTC).isoformat()
+    _mark_dispatch_assignment(incident_id, officer["id"], "en-route")
+
+    await manager.broadcast({"type": "officer_update", "data": officer})
+    await manager.broadcast(
+        {
+            "type": "dispatch_status_update",
+            "data": {
+                "incident_id": str(incident_id),
+                "officer_id": officer["id"],
+                "status": "en-route",
+                "auto_dispatched": True,
+                "updated_at": officer["last_ping"],
+            },
+        }
+    )
+
+    send_dispatch_notification(
+        officer.get("device_token"),
+        title="New Dispatch (Auto)",
+        body=f"{incident.get('severity', 'High').title()} incident assigned",
+        data={
+            "incident_id": incident.get("id"),
+            "lat": incident.get("lat"),
+            "lng": incident.get("lng"),
+            "severity": incident.get("severity"),
+            "auto_dispatched": True,
+        },
+    )
+
 @app.get("/api/incidents")
 async def list_incidents():
     return _sort_incidents_newest_first()
@@ -3594,6 +3708,10 @@ async def add_incident(request: Request):
         "created_at": datetime.now(UTC).isoformat()
     }
     _police_incidents.append(incident)
+    if str(incident.get("severity", "")).lower() == "critical":
+        _incident_timers[str(incident["id"])] = asyncio.create_task(
+            _trigger_auto_dispatch_if_needed(str(incident["id"]))
+        )
     await manager.broadcast({"type": "incident_update", "data": incident})
     return incident
 
@@ -3614,6 +3732,8 @@ async def dispatch_officer(request: Request):
         if officer["id"] == officer_id:
             officer["status"] = "en-route"
             officer["last_ping"] = datetime.now(UTC).isoformat()
+            if incident_id:
+                _mark_dispatch_assignment(str(incident_id), officer["id"], "en-route")
             await manager.broadcast({"type": "officer_update", "data": officer})
             await manager.broadcast(
                 {
@@ -3626,12 +3746,66 @@ async def dispatch_officer(request: Request):
                     },
                 }
             )
+
+            if target_incident:
+                send_dispatch_notification(
+                    officer.get("device_token"),
+                    title="New Dispatch",
+                    body=f"{str(target_incident.get('severity', 'high')).title()} severity incident assigned",
+                    data={
+                        "incident_id": target_incident.get("id"),
+                        "lat": target_incident.get("lat"),
+                        "lng": target_incident.get("lng"),
+                        "severity": target_incident.get("severity"),
+                    },
+                )
             return {
                 "status": "dispatched",
                 "officer": officer,
                 "incident": target_incident,
             }
     raise HTTPException(status_code=404, detail="Officer not found")
+
+
+@app.post("/api/officer/status")
+async def update_officer_status(request: Request):
+    data = await request.json()
+    officer_id = data.get("officer_id")
+    status_value = str(data.get("status") or "").strip().lower()
+
+    if not officer_id or not status_value:
+        raise HTTPException(status_code=400, detail="officer_id and status are required")
+
+    officer = _find_officer(int(officer_id))
+    if not officer:
+        raise HTTPException(status_code=404, detail="Officer not found")
+
+    incident_id = data.get("incident_id")
+    officer["status"] = status_value.replace("_", "-")
+    officer["last_ping"] = datetime.now(UTC).isoformat()
+
+    if data.get("lat") is not None:
+        officer["lat"] = float(data["lat"])
+    if data.get("lng") is not None:
+        officer["lng"] = float(data["lng"])
+
+    if incident_id:
+        _mark_dispatch_assignment(str(incident_id), officer["id"], officer["status"])
+
+    await manager.broadcast({"type": "officer_update", "data": officer})
+    await manager.broadcast(
+        {
+            "type": "dispatch_status_update",
+            "data": {
+                "officer_id": officer["id"],
+                "incident_id": incident_id,
+                "status": officer["status"],
+                "updated_at": officer["last_ping"],
+            },
+        }
+    )
+
+    return {"message": "Officer status updated", "officer": officer}
 
 
 @app.post("/api/officers/location")
@@ -3687,10 +3861,8 @@ async def recommend_best_officer(payload: RecommendOfficerRequest):
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found")
 
-    candidates = [
-        officer for officer in _police_officers if str(officer.get("status", "")).lower() in {"available", "en-route"}
-    ]
-    if not candidates:
+    ranked = _rank_officers_for_incident(incident)
+    if not ranked:
         return {
             "incident_id": payload.incident_id,
             "recommended_officer": None,
@@ -3698,32 +3870,6 @@ async def recommend_best_officer(payload: RecommendOfficerRequest):
             "reason": "No available officers",
         }
 
-    ranked = []
-    for officer in candidates:
-        _normalize_officer_skills(officer)
-        route_snapshot = _compute_route_snapshot(officer, incident)
-        skill_penalty = _infer_skill_penalty(officer, incident)
-
-        score = (
-            _DISTANCE_WEIGHT * route_snapshot["distance_km"]
-            + _TRAFFIC_WEIGHT * route_snapshot["eta_minutes"]
-            + _SKILL_MATCH_WEIGHT * (skill_penalty * 10.0)
-        )
-
-        ranked.append(
-            {
-                "officer_id": officer["id"],
-                "name": officer["name"],
-                "status": officer.get("status"),
-                "distance_km": route_snapshot["distance_km"],
-                "eta_minutes": route_snapshot["eta_minutes"],
-                "skill_penalty": skill_penalty,
-                "score": round(score, 3),
-                "skills": officer.get("skills", []),
-            }
-        )
-
-    ranked.sort(key=lambda item: item["score"])
     best = ranked[0]
     reason = (
         f"Closest + Lowest ETA + Skill match ({best['name']} at {best['eta_minutes']} min, "
@@ -3805,6 +3951,104 @@ async def maps_config():
         "google_maps_api_key": os.getenv("GOOGLE_MAPS_API_KEY", ""),
         "traffic_enabled": True,
     }
+
+
+@app.get("/api/analytics")
+async def get_dispatch_analytics():
+    kpis = get_dispatch_kpis(_dispatch_history, _police_incidents, _police_officers)
+
+    completed = [
+        item for item in _dispatch_history if str(item.get("status", "")).lower() in {"completed", "closed"}
+    ]
+
+    active_incidents = len(
+        [
+            incident
+            for incident in _police_incidents
+            if str(incident.get("status", "open")).lower() in {"open", "assigned", "in-progress"}
+        ]
+    )
+
+    response_times = []
+    for item in completed:
+        incident_id = str(item.get("incident_id"))
+        assigned = next(
+            (
+                entry
+                for entry in _dispatch_history
+                if str(entry.get("incident_id")) == incident_id and str(entry.get("status")) in {"en-route", "accepted"}
+            ),
+            None,
+        )
+        if not assigned:
+            continue
+        try:
+            start_dt = datetime.fromisoformat(str(assigned.get("timestamp")))
+            end_dt = datetime.fromisoformat(str(item.get("timestamp")))
+            response_times.append((end_dt - start_dt).total_seconds() / 60.0)
+        except Exception:
+            continue
+
+    avg_response_time = round(sum(response_times) / len(response_times), 2) if response_times else 0.0
+
+    performance = {}
+    for item in completed:
+        officer_id = int(item.get("officer_id"))
+        performance[officer_id] = performance.get(officer_id, 0) + 1
+
+    top_officer = None
+    officer_ranking = []
+    for officer in _police_officers:
+        count = performance.get(int(officer.get("id")), 0)
+        officer_ranking.append({"officer_id": officer.get("id"), "name": officer.get("name"), "completed": count})
+    officer_ranking.sort(key=lambda item: item["completed"], reverse=True)
+    if officer_ranking:
+        top_officer = officer_ranking[0]["name"]
+
+    return {
+        "avg_response_time": avg_response_time,
+        "active_incidents": kpis.get("active_incidents", active_incidents),
+        "completed_incidents": kpis.get("completed_incidents", len(completed)),
+        "top_officer": kpis.get("top_officer", top_officer),
+        "officer_ranking": kpis.get("officer_ranking", officer_ranking),
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
+
+
+@app.websocket("/ws/chat/{incident_id}")
+async def websocket_incident_chat(websocket: WebSocket, incident_id: str):
+    await websocket.accept()
+    room = _chat_rooms.setdefault(str(incident_id), [])
+    room.append(websocket)
+    try:
+        while True:
+            payload = await websocket.receive_json()
+            if payload.get("event") != "send_message":
+                continue
+            chat_data = {
+                "incident_id": str(incident_id),
+                "sender": payload.get("sender", "unknown"),
+                "text": payload.get("text", ""),
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+            for conn in list(room):
+                try:
+                    await conn.send_json({"event": "receive_message", "data": chat_data})
+                except Exception:
+                    if conn in room:
+                        room.remove(conn)
+    except WebSocketDisconnect:
+        if websocket in room:
+            room.remove(websocket)
+
+
+configure_mobile_context(
+    officers_ref=_police_officers,
+    incidents_ref=_police_incidents,
+    dispatches_ref=_dispatch_assignments,
+    manager=manager,
+)
+app.include_router(mobile_router)
 
 @app.websocket("/ws/incidents")
 async def websocket_incidents(websocket: WebSocket):

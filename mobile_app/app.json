@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Police Dispatch Mobile",
+    "slug": "police-dispatch-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+    "android": {
+      "package": "com.smartdispatch.mobile"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ffffff"
+        }
+      ]
+    ],
+    "extra": {
+      "API_BASE_URL": "http://YOUR_SERVER_IP:5000"
+    }
+  }
+}
