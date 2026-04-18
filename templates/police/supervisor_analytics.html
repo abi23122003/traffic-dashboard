@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supervisor Analytics</title>
+    <script src="/static/chart.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #1e293b;
+        }
+
+        .layout {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 30px;
+        }
+
+        .muted {
+            color: #475569;
+            font-size: 14px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #0f172a;
+            color: #f8fafc;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .card {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+        }
+
+        .card h2 {
+            margin: 0 0 12px 0;
+            font-size: 18px;
+        }
+
+        .chart-wrap {
+            position: relative;
+            min-height: 260px;
+        }
+
+        .ranked-list {
+            list-style: decimal;
+            padding-left: 22px;
+            margin: 0;
+        }
+
+        .ranked-list li {
+            margin: 10px 0;
+            font-size: 15px;
+        }
+
+        @media (max-width: 950px) {
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="layout">
+        <header class="header">
+            <div>
+                <h1>Supervisor Analytics</h1>
+                <div class="muted">
+                    District: {{ district_id }} | Last retrained: <span id="last-retrained">Never</span>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn" onclick="window.location.href='/police/dashboard'">Back to Command Center</button>
+            </div>
+        </header>
+
+        <section class="card-grid">
+            <article class="card">
+                <h2>Incident Volume (Last 7 Days)</h2>
+                <div class="chart-wrap"><canvas id="incident-volume-chart"></canvas></div>
+            </article>
+            <article class="card">
+                <h2>Top 5 Incident Zones</h2>
+                <ol id="top-zones" class="ranked-list"></ol>
+            </article>
+        </section>
+
+        <section class="card-grid">
+            <article class="card">
+                <h2>Average Response Time (Last 4 Weeks)</h2>
+                <div class="chart-wrap"><canvas id="response-time-trend-chart"></canvas></div>
+            </article>
+            <article class="card">
+                <h2>Officer Utilization (This Month)</h2>
+                <div class="chart-wrap"><canvas id="officer-utilization-chart"></canvas></div>
+            </article>
+        </section>
+    </main>
+
+    <script>
+        let incidentVolumeChart;
+        let responseTrendChart;
+        let officerUtilizationChart;
+
+        function palette(index) {
+            const colors = [
+                '#0ea5e9', '#16a34a', '#f59e0b', '#dc2626', '#8b5cf6',
+                '#14b8a6', '#f97316', '#84cc16', '#6366f1', '#ec4899'
+            ];
+            return colors[index % colors.length];
+        }
+
+        function getToken() {
+            return localStorage.getItem('access_token');
+        }
+
+        function drawIncidentVolume(payload) {
+            const canvas = document.getElementById('incident-volume-chart');
+            if (!canvas) return;
+
+            const datasets = (payload.datasets || []).map((series, index) => ({
+                label: series.label,
+                data: series.data,
+                backgroundColor: palette(index),
+                borderColor: palette(index),
+                borderWidth: 1,
+                stack: 'volume'
+            }));
+
+            if (incidentVolumeChart) incidentVolumeChart.destroy();
+            incidentVolumeChart = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: payload.labels || [],
+                    datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function drawResponseTrend(payload) {
+            const canvas = document.getElementById('response-time-trend-chart');
+            if (!canvas) return;
+
+            if (responseTrendChart) responseTrendChart.destroy();
+            responseTrendChart = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: payload.labels || [],
+                    datasets: [{
+                        label: 'Avg response (minutes)',
+                        data: payload.data || [],
+                        fill: false,
+                        borderColor: '#dc2626',
+                        backgroundColor: '#dc2626',
+                        tension: 0.25
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function drawOfficerUtilization(payload) {
+            const canvas = document.getElementById('officer-utilization-chart');
+            if (!canvas) return;
+
+            if (officerUtilizationChart) officerUtilizationChart.destroy();
+            officerUtilizationChart = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: payload.labels || [],
+                    datasets: [{
+                        label: 'Incidents handled',
+                        data: payload.data || [],
+                        backgroundColor: '#0f766e'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function renderTopZones(topZones) {
+            const target = document.getElementById('top-zones');
+            if (!target) return;
+
+            const rows = Array.isArray(topZones) ? topZones : [];
+            if (!rows.length) {
+                target.innerHTML = '<li>No zone data available yet.</li>';
+                return;
+            }
+
+            target.innerHTML = rows.map((row) => (
+                `<li><strong>${row.zone}</strong>: ${row.count} incidents</li>`
+            )).join('');
+        }
+
+        async function loadAnalytics() {
+            const token = getToken();
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+
+            const res = await fetch('/api/supervisor/analytics', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 403) {
+                    window.location.href = '/login';
+                    return;
+                }
+                throw new Error('Failed to load supervisor analytics');
+            }
+
+            const data = await res.json();
+            drawIncidentVolume(data.incident_volume || {});
+            drawResponseTrend(data.response_time_trend || {});
+            drawOfficerUtilization(data.officer_utilization || {});
+            renderTopZones(data.top_zones || []);
+
+            const retrainedEl = document.getElementById('last-retrained');
+            if (retrainedEl) {
+                retrainedEl.textContent = data.last_retrained
+                    ? new Date(data.last_retrained).toLocaleString()
+                    : 'Never';
+            }
+        }
+
+        loadAnalytics().catch((err) => {
+            console.error(err);
+            alert('Unable to load analytics data.');
+        });
+    </script>
+</body>
+</html>

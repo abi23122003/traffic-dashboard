@@ -112,6 +112,70 @@ class PoliceDispatchAssignment(Base):
     status = Column(String, nullable=False, default="active")
 
 
+class OfficerDispatchStatus(Base):
+    """Tracks latest dispatch status for each officer/unit."""
+    __tablename__ = "officer_dispatch_status"
+
+    id = Column(Integer, primary_key=True, index=True)
+    district_id = Column(String, nullable=False, index=True)
+    officer_id = Column(String, nullable=False, unique=True, index=True)
+    status = Column(String(30), nullable=False, default="available", index=True)
+    assigned_incident_id = Column(String, nullable=True, index=True)
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC), index=True)
+
+
+class DispatchLog(Base):
+    """Immutable dispatch audit trail."""
+    __tablename__ = "dispatch_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    district_id = Column(String, nullable=False, index=True)
+    incident_id = Column(String, nullable=False, index=True)
+    officer_id = Column(String, nullable=False, index=True)
+    assigned_by = Column(String, nullable=False)
+    assigned_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC), index=True)
+    status = Column(String(30), nullable=False, default="dispatched", index=True)
+
+
+class SharedAlert(Base):
+    """Sanitized cross-department road-impact alerts for logistics."""
+    __tablename__ = "shared_alerts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    alert_id = Column(String(64), nullable=False, unique=True, index=True)
+    zone = Column(String(120), nullable=False, index=True)
+    severity = Column(String(20), nullable=False, index=True)
+    timestamp = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC), index=True)
+    affected_roads = Column(JSON, nullable=False, default=list)
+    expires_at = Column(DateTime, nullable=False, index=True)
+
+
+class MLFeedback(Base):
+    """Resolved-incident training feedback records."""
+    __tablename__ = "ml_feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    incident_type = Column(String(100), nullable=False, index=True)
+    zone = Column(String(120), nullable=False, index=True)
+    time_of_day = Column(Integer, nullable=False, index=True)
+    day_of_week = Column(Integer, nullable=False, index=True)
+    response_time_minutes = Column(Float, nullable=False)
+    severity = Column(String(20), nullable=False, index=True)
+    outcome = Column(String(50), nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC), index=True)
+
+
+class MLRetrainAudit(Base):
+    """Tracks model retrain runs for supervisor/admin observability."""
+    __tablename__ = "ml_retrain_audit"
+
+    id = Column(Integer, primary_key=True, index=True)
+    retrained_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC), index=True)
+    retrained_by = Column(String(120), nullable=False)
+    feedback_rows = Column(Integer, nullable=False, default=0)
+    export_path = Column(String(255), nullable=True)
+
+
 class Shift(Base):
     """Tracks police supervisor shifts and operations."""
     __tablename__ = "police_shifts"

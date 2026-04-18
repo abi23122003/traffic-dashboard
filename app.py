@@ -6,6 +6,9 @@ Provides endpoints for autocomplete, route analysis, and serving the frontend.
 import os
 import json
 import logging
+import re
+import csv
+import socketio
 from typing import Optional, Union, List
 from functools import wraps
 from fastapi import FastAPI, HTTPException, Query, Depends, status, BackgroundTasks, Request
@@ -44,7 +47,7 @@ from utils import (
 )
 from db import (
     init_db, get_session, save_analysis, AnalysisResult,
-    User, SavedRoute, RouteRating, Notification, PoliceDispatchAssignment, Shift, ShiftAttendance, OfficerIncidentCount
+    User, SavedRoute, RouteRating, Notification, PoliceDispatchAssignment, OfficerDispatchStatus, DispatchLog, SharedAlert, Shift, ShiftAttendance, OfficerIncidentCount, MLFeedback, MLRetrainAudit
 )
 from sqlalchemy.orm import Session
 from auth import (
@@ -75,12 +78,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Socket.IO server for push updates to the command center frontend.
+sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
+app.mount("/socket.io", socketio.ASGIApp(sio, socketio_path=""))
+
 # ============================================================================
 # REAL-TIME ALERTS INFRASTRUCTURE
 # ============================================================================
 # In-memory alert store: {district_id: [AlertData, ...]}
 _alerts_store = {}
 _alert_subscribers = {}  # {district_id: [callback_func, ...]}
+_manual_incidents_store: dict[str, list[dict]] = {}
 
 
 def add_alert(district_id: str, severity: str, message: str, incident_id: Optional[str] = None):
@@ -247,6 +255,21 @@ def _load_police_incidents(district_id: str) -> list[dict]:
             "response_time": incident.get("response_time") or incident.get("responseTime"),
         })
 
+    for manual_incident in _manual_incidents_store.get(district_id, []):
+        normalized.append({
+            "id": manual_incident.get("id") or f"manual-{uuid.uuid4().hex[:8]}",
+            "type": manual_incident.get("type") or "traffic",
+            "severity": _normalize_severity(manual_incident.get("severity")),
+            "severity_color": _severity_color(manual_incident.get("severity")),
+            "description": manual_incident.get("description") or "Manual incident",
+            "latitude": manual_incident.get("latitude"),
+            "longitude": manual_incident.get("longitude"),
+            "start_time": manual_incident.get("start_time") or datetime.now(UTC).isoformat(),
+            "end_time": manual_incident.get("end_time"),
+            "district_id": district_id,
+            "response_time": manual_incident.get("response_time"),
+        })
+
     return normalized
 
 
@@ -410,6 +433,64 @@ def _infer_zone_name(district_id: str, incident: dict) -> str:
     if "west" in description:
         return "West Zone"
     return "Central Zone"
+
+
+def _extract_affected_roads(incident: dict, zone_name: str) -> list[str]:
+    """Extract and sanitize road-impact data without exposing incident details."""
+    raw_roads = incident.get("affected_roads")
+    if isinstance(raw_roads, list):
+        cleaned = []
+        for road in raw_roads:
+            text_value = str(road or "").strip()
+            if text_value:
+                cleaned.append(text_value)
+        if cleaned:
+            return list(dict.fromkeys(cleaned))[:6]
+
+    description = str(incident.get("description") or "")
+    road_pattern = re.compile(
+        r"([A-Za-z0-9 .'-]{2,80}\\b(?:Road|Rd|Street|St|Avenue|Ave|Highway|Hwy|Expressway|Expwy|Boulevard|Blvd|Lane|Ln|Marg|Flyover))",
+        re.IGNORECASE,
+    )
+    extracted = [" ".join(match.split()) for match in road_pattern.findall(description)]
+    deduped = []
+    for road_name in extracted:
+        if road_name and road_name not in deduped:
+            deduped.append(road_name)
+
+    if deduped:
+        return deduped[:6]
+
+    return [f"{zone_name} arterial corridors"]
+
+
+def _shared_alert_expiry(timestamp: datetime, severity: str) -> datetime:
+    durations = {
+        "critical": 120,
+        "high": 90,
+    }
+    minutes = durations.get(str(severity or "").lower(), 60)
+    return timestamp + timedelta(minutes=minutes)
+
+
+def _create_shared_alert_for_dispatch(session: Session, district_id: str, incident: dict) -> Optional[SharedAlert]:
+    """Persist sanitized logistics alert for high-impact dispatches only."""
+    severity = _normalize_severity(incident.get("severity"))
+    if severity not in {"critical", "high"}:
+        return None
+
+    now = datetime.now(UTC)
+    zone_name = _infer_zone_name(district_id, incident)
+    alert = SharedAlert(
+        alert_id=str(uuid.uuid4()),
+        zone=zone_name,
+        severity=severity,
+        timestamp=now,
+        affected_roads=_extract_affected_roads(incident, zone_name),
+        expires_at=_shared_alert_expiry(now, severity),
+    )
+    session.add(alert)
+    return alert
 
 
 def _build_response_time_by_zone(
@@ -926,7 +1007,8 @@ class UserUpdate(BaseModel):
 class DispatchRequest(BaseModel):
     """Dispatch assignment request."""
     incident_id: str = Field(..., min_length=1)
-    unit_id: str = Field(..., min_length=1)
+    officer_id: Optional[str] = Field(None, min_length=1)
+    unit_id: Optional[str] = Field(None, min_length=1)
 
 
 class ShiftAttendanceRequest(BaseModel):
@@ -938,6 +1020,27 @@ class ShiftEndRequest(BaseModel):
     """End shift and optionally export report."""
     notes: Optional[str] = None
     export_pptx: bool = True
+
+
+class IncidentResolveRequest(BaseModel):
+    """Incident resolution payload used for feedback logging and analytics."""
+    incident_id: str = Field(..., min_length=1)
+    incident_type: str = Field(..., min_length=1)
+    zone: str = Field(..., min_length=1)
+    response_time_minutes: float = Field(..., gt=0)
+    severity: str = Field(..., pattern="^(critical|high|medium|low|moderate|unknown)$")
+    outcome: str = Field(..., min_length=1)
+    resolved_at: Optional[datetime] = None
+
+
+class NewIncidentRequest(BaseModel):
+    """Create a new command-center incident for live dispatch workflows."""
+    incident_type: str = Field(..., min_length=1)
+    severity: str = Field(..., pattern="^(critical|high|medium|low|moderate|unknown)$")
+    description: str = Field(..., min_length=1)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    zone: Optional[str] = None
 
 
 class AlertData(BaseModel):
@@ -1955,6 +2058,7 @@ async def police_dashboard(request: Request, current_user: dict = Depends(requir
         "request": request,
         "current_user": current_user,
         "district_id": district_id,
+        "google_maps_api_key": os.getenv("GOOGLE_MAPS_API_KEY", ""),
         "ml_predictions": _predict_police_hotspots(district_id, context["incidents"]),
         "data_error": False,
     })
@@ -1964,6 +2068,127 @@ async def police_dashboard(request: Request, current_user: dict = Depends(requir
         name="police/supervisor_dashboard.html",
         context=context,
     )
+
+
+@app.get("/supervisor/analytics", response_class=HTMLResponse)
+async def supervisor_analytics_page(request: Request, current_user: dict = Depends(require_police_department_user())):
+    """Render the supervisor analytics dashboard page."""
+    district_id = current_user.get("district_id")
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for supervisor analytics",
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="police/supervisor_analytics.html",
+        context={
+            "request": request,
+            "current_user": current_user,
+            "district_id": district_id,
+        },
+    )
+
+
+@app.get("/api/supervisor/analytics")
+async def supervisor_analytics_data(
+    current_user: dict = Depends(require_police_department_user()),
+    db: Session = Depends(get_session),
+):
+    """Return analytics series for supervisor command center dashboards."""
+    now = datetime.now(UTC)
+    district_id = current_user.get("district_id") or ""
+
+    seven_days_ago = now - timedelta(days=6)
+    recent_feedback = (
+        db.query(MLFeedback)
+        .filter(MLFeedback.created_at >= seven_days_ago)
+        .order_by(MLFeedback.created_at.asc())
+        .all()
+    )
+
+    day_labels = [(seven_days_ago + timedelta(days=i)).date().isoformat() for i in range(7)]
+    incident_volume_map: dict[str, dict[str, int]] = {day: {} for day in day_labels}
+    for row in recent_feedback:
+        day_key = (row.created_at or now).date().isoformat()
+        if day_key not in incident_volume_map:
+            continue
+        series_key = f"{(row.severity or 'unknown').lower()} | {row.zone or 'Unknown Zone'}"
+        incident_volume_map[day_key][series_key] = incident_volume_map[day_key].get(series_key, 0) + 1
+
+    all_volume_keys = sorted({
+        key
+        for day_data in incident_volume_map.values()
+        for key in day_data.keys()
+    })
+    incident_volume_datasets = [
+        {
+            "label": key,
+            "data": [incident_volume_map[day].get(key, 0) for day in day_labels],
+        }
+        for key in all_volume_keys
+    ]
+
+    weekly_labels: list[str] = []
+    weekly_values: list[float] = []
+    for week_index in range(3, -1, -1):
+        start = (now - timedelta(days=now.weekday())) - timedelta(weeks=week_index)
+        end = start + timedelta(days=7)
+        rows = (
+            db.query(MLFeedback)
+            .filter(MLFeedback.created_at >= start, MLFeedback.created_at < end)
+            .all()
+        )
+        avg_response = round(sum(float(item.response_time_minutes) for item in rows) / len(rows), 2) if rows else 0.0
+        weekly_labels.append(start.date().isoformat())
+        weekly_values.append(avg_response)
+
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    monthly_workloads = (
+        db.query(OfficerIncidentCount)
+        .filter(OfficerIncidentCount.last_updated >= month_start)
+        .all()
+    )
+    utilization_map: dict[str, int] = {}
+    for item in monthly_workloads:
+        total = int(item.incident_count_critical + item.incident_count_high + item.incident_count_medium + item.incident_count_low)
+        utilization_map[item.officer_name or item.officer_username] = utilization_map.get(item.officer_name or item.officer_username, 0) + total
+    sorted_utilization = sorted(utilization_map.items(), key=lambda pair: pair[1], reverse=True)
+
+    zone_counts: dict[str, int] = {}
+    for item in recent_feedback:
+        zone_name = item.zone or "Unknown Zone"
+        zone_counts[zone_name] = zone_counts.get(zone_name, 0) + 1
+    top_zones = sorted(zone_counts.items(), key=lambda pair: pair[1], reverse=True)[:5]
+
+    latest_retrain = (
+        db.query(MLRetrainAudit)
+        .order_by(MLRetrainAudit.retrained_at.desc())
+        .first()
+    )
+
+    return {
+        "district_id": district_id,
+        "incident_volume": {
+            "labels": day_labels,
+            "datasets": incident_volume_datasets,
+        },
+        "response_time_trend": {
+            "labels": weekly_labels,
+            "data": weekly_values,
+        },
+        "officer_utilization": {
+            "labels": [name for name, _ in sorted_utilization],
+            "data": [count for _, count in sorted_utilization],
+        },
+        "top_zones": [
+            {"zone": zone_name, "count": count}
+            for zone_name, count in top_zones
+        ],
+        "last_retrained": latest_retrain.retrained_at.isoformat() if latest_retrain else None,
+        "updated_at": now.isoformat(),
+    }
 
 
 @app.get("/police/units/live")
@@ -1989,6 +2214,96 @@ async def live_patrol_units(current_user: dict = Depends(require_police_departme
         "available_patrol_units": available_patrol_units,
         "unassigned_incidents": unassigned_incidents,
         "updated_at": datetime.now(UTC).isoformat(),
+    }
+
+
+@app.get("/api/incidents")
+async def api_incidents(current_user: dict = Depends(require_police_department_user())):
+    """Return district-scoped incidents for command center page load."""
+    district_id = current_user.get("district_id")
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for incidents",
+        )
+
+    incidents = _load_police_incidents(district_id)
+    return {
+        "incidents": incidents,
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
+
+
+@app.get("/api/officers/status")
+async def api_officers_status(current_user: dict = Depends(require_police_department_user())):
+    """Return district patrol unit status for command center page load."""
+    district_id = current_user.get("district_id")
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for officer status",
+        )
+
+    incidents = _load_police_incidents(district_id)
+    assignments = _get_dispatch_assignments(district_id)
+    patrol_units = _build_patrol_units(
+        district_id,
+        incidents,
+        current_user.get("username", "Unknown Supervisor"),
+        assignments,
+    )
+
+    return {
+        "officers": patrol_units,
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
+
+
+@app.post("/api/incident/new")
+async def create_incident(
+    request: NewIncidentRequest,
+    current_user: dict = Depends(require_police_department_user()),
+):
+    """Create a new district incident and push a real-time update over Socket.IO."""
+    district_id = current_user.get("district_id")
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for incident creation",
+        )
+
+    incident_id = f"manual-{uuid.uuid4().hex[:10]}"
+    zone_name = request.zone or _infer_zone_name(
+        district_id,
+        {"latitude": request.latitude, "longitude": request.longitude, "description": request.description},
+    )
+    incident_record = {
+        "id": incident_id,
+        "type": request.incident_type,
+        "severity": _normalize_severity(request.severity),
+        "description": request.description,
+        "latitude": request.latitude,
+        "longitude": request.longitude,
+        "zone": zone_name,
+        "start_time": datetime.now(UTC).isoformat(),
+        "district_id": district_id,
+    }
+    _manual_incidents_store.setdefault(district_id, []).append(incident_record)
+
+    await sio.emit(
+        "incident_update",
+        {
+            "event": "incident_created",
+            "district_id": district_id,
+            "incident": incident_record,
+            "timestamp": datetime.now(UTC).isoformat(),
+        },
+        room=district_id,
+    )
+
+    return {
+        "status": "created",
+        "incident": incident_record,
     }
 
 
@@ -2056,10 +2371,43 @@ async def police_response_times(current_user: dict = Depends(require_police_depa
     }
 
 
+@app.get("/api/logistics/alerts")
+async def logistics_shared_alerts(current_user: dict = Depends(require_role("logistics_manager"))):
+    """Return active sanitized police zone alerts for logistics users only."""
+    session = get_session()
+    try:
+        now = datetime.now(UTC)
+        rows = (
+            session.query(SharedAlert)
+            .filter(SharedAlert.expires_at >= now)
+            .order_by(SharedAlert.timestamp.desc())
+            .limit(25)
+            .all()
+        )
+    finally:
+        session.close()
+
+    return {
+        "alerts": [
+            {
+                "alert_id": row.alert_id,
+                "zone": row.zone,
+                "severity": row.severity,
+                "timestamp": row.timestamp.isoformat() if row.timestamp else None,
+                "affected_roads": row.affected_roads or [],
+                "expires_at": row.expires_at.isoformat() if row.expires_at else None,
+            }
+            for row in rows
+        ],
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
+
+
+@app.post("/api/dispatch")
 @app.post("/police/dispatch")
 async def dispatch_patrol_unit(
     request: DispatchRequest,
-    current_user: dict = Depends(require_role("police_supervisor")),
+    current_user: dict = Depends(require_police_department_user()),
 ):
     """Assign a patrol unit to an incident and persist the dispatch."""
     district_id = current_user.get("district_id")
@@ -2076,6 +2424,13 @@ async def dispatch_patrol_unit(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Incident not found",
+        )
+
+    officer_id = (request.officer_id or request.unit_id or "").strip()
+    if not officer_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="officer_id is required for dispatch",
         )
 
     session = get_session()
@@ -2101,7 +2456,7 @@ async def dispatch_patrol_unit(
         # Query and delete unit assignment if exists
         existing_unit_assignment = (
             session.query(PoliceDispatchAssignment)
-            .filter(PoliceDispatchAssignment.unit_id == request.unit_id)
+            .filter(PoliceDispatchAssignment.unit_id == officer_id)
             .with_for_update()  # Lock the row
             .first()
         )
@@ -2114,14 +2469,49 @@ async def dispatch_patrol_unit(
         assignment = PoliceDispatchAssignment(
             district_id=district_id,
             incident_id=request.incident_id,
-            unit_id=request.unit_id,
+            unit_id=officer_id,
             assigned_by=current_user.get("username", "Unknown Supervisor"),
             assigned_at=now,
             status="active",
         )
         session.add(assignment)
+
+        officer_status = (
+            session.query(OfficerDispatchStatus)
+            .filter(OfficerDispatchStatus.officer_id == officer_id)
+            .with_for_update()
+            .first()
+        )
+        if officer_status is None:
+            officer_status = OfficerDispatchStatus(
+                district_id=district_id,
+                officer_id=officer_id,
+                status="dispatched",
+                assigned_incident_id=request.incident_id,
+                updated_at=now,
+            )
+            session.add(officer_status)
+        else:
+            officer_status.district_id = district_id
+            officer_status.status = "dispatched"
+            officer_status.assigned_incident_id = request.incident_id
+            officer_status.updated_at = now
+
+        dispatch_log = DispatchLog(
+            district_id=district_id,
+            incident_id=request.incident_id,
+            officer_id=officer_id,
+            assigned_by=current_user.get("username", "Unknown Supervisor"),
+            assigned_at=now,
+            status="dispatched",
+        )
+        session.add(dispatch_log)
+
+        shared_alert = _create_shared_alert_for_dispatch(session, district_id, target_incident)
         session.commit()
         session.refresh(assignment)
+        if shared_alert is not None:
+            session.refresh(shared_alert)
     except HTTPException:
         session.rollback()
         raise
@@ -2132,11 +2522,11 @@ async def dispatch_patrol_unit(
             .filter(PoliceDispatchAssignment.incident_id == request.incident_id)
             .first()
         )
-        if existing_assignment and existing_assignment.unit_id == request.unit_id:
+        if existing_assignment and existing_assignment.unit_id == officer_id:
             logger.warning(
                 "Dispatch assignment already exists for incident %s and unit %s",
                 request.incident_id,
-                request.unit_id,
+                officer_id,
             )
             assignment = existing_assignment
         else:
@@ -2156,23 +2546,60 @@ async def dispatch_patrol_unit(
         session.close()
 
     updated_context = _build_police_dashboard_context(current_user, district_id)
-    updated_unit = next((unit for unit in updated_context["patrol_units"] if unit["unit_id"] == request.unit_id), None)
+    updated_unit = next((unit for unit in updated_context["patrol_units"] if unit["unit_id"] == officer_id), None)
     updated_incident = next((incident for incident in updated_context["incidents"] if incident.get("id") == request.incident_id), None)
+
+    await sio.emit(
+        "incident_update",
+        {
+            "event": "dispatch_assigned",
+            "district_id": district_id,
+            "assignment": {
+                "incident_id": request.incident_id,
+                "officer_id": officer_id,
+                "unit_id": officer_id,
+            },
+            "incident": updated_incident,
+            "unit": updated_unit,
+            "timestamp": datetime.now(UTC).isoformat(),
+        },
+        room=district_id,
+    )
 
     return {
         "message": "Unit dispatched successfully",
         "assignment": {
             "incident_id": request.incident_id,
-            "unit_id": request.unit_id,
+            "officer_id": officer_id,
+            "unit_id": officer_id,
             "assigned_by": assignment.assigned_by,
             "assigned_at": assignment.assigned_at.isoformat() if assignment.assigned_at else None,
         },
+        "shared_alert_created": _normalize_severity(target_incident.get("severity")) in {"critical", "high"},
         "unit": updated_unit,
         "incident": updated_incident,
         "available_patrol_units": updated_context["available_patrol_units"],
         "unassigned_incidents": updated_context["unassigned_incidents"],
         "updated_at": datetime.now(UTC).isoformat(),
     }
+
+
+@sio.event
+async def connect(sid, environ, auth):
+    logger.info("Socket.IO client connected: %s", sid)
+
+
+@sio.event
+async def disconnect(sid):
+    logger.info("Socket.IO client disconnected: %s", sid)
+
+
+@sio.on("join_district")
+async def join_district_room(sid, data):
+    district_id = str((data or {}).get("district_id") or "").strip()
+    if not district_id:
+        return
+    await sio.enter_room(sid, district_id)
 
 
 @app.get("/police/export/pptx")
@@ -3148,6 +3575,124 @@ async def log_incident_handled(
         "severity": severity,
         "total_critical_incidents": workload.incident_count_critical,
         "needs_rotation": workload.needs_rotation
+    }
+
+
+@app.post("/api/incident/resolve")
+async def resolve_incident(
+    request: IncidentResolveRequest,
+    current_user: dict = Depends(require_police_department_user()),
+    db: Session = Depends(get_session),
+):
+    """Mark incident resolved and persist supervised feedback record for ML training."""
+    resolved_at = request.resolved_at.astimezone(UTC) if request.resolved_at else datetime.now(UTC)
+    severity_value = _normalize_severity(request.severity)
+
+    feedback = MLFeedback(
+        incident_type=request.incident_type.strip(),
+        zone=request.zone.strip(),
+        time_of_day=resolved_at.hour,
+        day_of_week=resolved_at.weekday(),
+        response_time_minutes=float(request.response_time_minutes),
+        severity=severity_value,
+        outcome=request.outcome.strip(),
+        created_at=resolved_at,
+    )
+    db.add(feedback)
+
+    # Close any active assignment linked to the resolved incident.
+    assignment = (
+        db.query(PoliceDispatchAssignment)
+        .filter(PoliceDispatchAssignment.incident_id == request.incident_id)
+        .first()
+    )
+    if assignment:
+        assignment.status = "resolved"
+
+    db.commit()
+    db.refresh(feedback)
+
+    return {
+        "status": "resolved",
+        "incident_id": request.incident_id,
+        "feedback_id": feedback.id,
+        "saved_training_record": True,
+        "resolved_at": resolved_at.isoformat(),
+    }
+
+
+@app.post("/api/ml/retrain")
+async def retrain_ml_model(
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_session),
+):
+    """Export feedback rows to CSV and trigger existing SVR retraining pipeline."""
+    feedback_rows = db.query(MLFeedback).order_by(MLFeedback.created_at.asc()).all()
+    if not feedback_rows:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No ML feedback available for retraining",
+        )
+
+    export_dir = os.path.join("data", "exports")
+    os.makedirs(export_dir, exist_ok=True)
+    export_name = f"ml_feedback_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.csv"
+    export_path = os.path.join(export_dir, export_name)
+
+    with open(export_path, "w", newline="", encoding="utf-8") as csv_file:
+        writer = csv.DictWriter(
+            csv_file,
+            fieldnames=[
+                "incident_type",
+                "zone",
+                "time_of_day",
+                "day_of_week",
+                "response_time_minutes",
+                "severity",
+                "outcome",
+                "created_at",
+            ],
+        )
+        writer.writeheader()
+        for row in feedback_rows:
+            writer.writerow(
+                {
+                    "incident_type": row.incident_type,
+                    "zone": row.zone,
+                    "time_of_day": row.time_of_day,
+                    "day_of_week": row.day_of_week,
+                    "response_time_minutes": row.response_time_minutes,
+                    "severity": row.severity,
+                    "outcome": row.outcome,
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                }
+            )
+
+    try:
+        from svr_model import train_svr
+
+        train_svr()
+    except Exception as exc:
+        logger.error("ML retraining failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="ML retraining failed",
+        )
+
+    retrain_audit = MLRetrainAudit(
+        retrained_at=datetime.now(UTC),
+        retrained_by=getattr(current_user, "username", "admin"),
+        feedback_rows=len(feedback_rows),
+        export_path=export_path,
+    )
+    db.add(retrain_audit)
+    db.commit()
+
+    return {
+        "status": "retrained",
+        "feedback_rows": len(feedback_rows),
+        "export_csv": export_path,
+        "last_retrained": retrain_audit.retrained_at.isoformat(),
     }
 
 

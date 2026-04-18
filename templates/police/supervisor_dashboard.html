@@ -1549,8 +1549,8 @@
         <section class="section-shell heatmap-shell" aria-label="Incident severity heatmap">
             <div class="section-header">
                 <div>
-                    <h2 class="section-title">Incident Severity Heatmap</h2>
-                    <p class="section-subtitle">Live district heat intensity refreshed every 60 seconds.</p>
+                    <h2 class="section-title">Google Traffic + Incident Map</h2>
+                    <p class="section-subtitle">Live traffic layer with active incident markers and ETA on marker click.</p>
                 </div>
                 <div class="section-actions">
                     <button id="hotspots-toggle-btn" class="secondary-btn" onclick="togglePredictedHotspots()" title="Show/hide predicted incident hotspots">🔍 Predicted Hotspots</button>
@@ -1827,7 +1827,7 @@
                     <div id="dispatch-target-location" class="unit-value">-</div>
                 </div>
                 <div class="form-row">
-                    <label class="form-label" for="dispatch-unit-select">Select Unit</label>
+                    <label class="form-label" for="dispatch-unit-select">Select Officer</label>
                     <select id="dispatch-unit-select" class="unit-select" required></select>
                 </div>
 
@@ -1850,6 +1850,10 @@
     <script src="/static/leaflet.js"></script>
     <script src="/static/leaflet-heat.js"></script>
     <script src="/static/chart.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    {% if google_maps_api_key %}
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=geometry"></script>
+    {% endif %}
     <script>
         // Configure Leaflet to use custom marker icons from static/images
         // This prevents 404 errors when loading marker-icon.png and marker-shadow.png
@@ -1905,6 +1909,7 @@
         const incidentsHandledSpan = document.getElementById('incidents-handled');
         const officersList = document.getElementById('officers-list');
         const shiftStatusSubtitle = document.getElementById('shift-status-subtitle');
+        const supervisorDistrictId = '{{ district_id }}';
 
         let livePatrolUnits = [];
         let liveAvailableUnits = [];
@@ -1912,8 +1917,13 @@
         let liveIncidentFeed = [];
         let districtInfo = {};
         let heatmapMap = null;
-        let heatLayer = null;
+        let googleTrafficLayer = null;
+        let googleDirectionsService = null;
+        let googleInfoWindow = null;
+        let googleIncidentMarkers = [];
+        let googleMapInitAttempts = 0;
         let responseTimeChart = null;
+        let commandCenterSocket = null;
         const seenIncidentFeedIds = new Set();
 
         function escapeHtml(value) {
@@ -1947,6 +1957,105 @@
             }
 
             return null;
+        }
+
+        function toIncidentFeedItems(incidents) {
+            return (Array.isArray(incidents) ? incidents : []).map((incident) => ({
+                incident_id: incident.id,
+                type: incident.type || 'traffic',
+                location_name: incident.description || 'Unknown location',
+                severity: incident.severity || 'unknown',
+                time_reported: incident.start_time || '-',
+                assigned_unit: null,
+                is_assigned: false,
+            }));
+        }
+
+        async function loadIncidentsFromApi() {
+            const response = await fetch('/api/incidents', {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to load incidents (HTTP ${response.status})`);
+            }
+
+            const payload = await response.json();
+            const incidents = payload.incidents || [];
+            liveUnassignedIncidents = incidents;
+            liveIncidentFeed = toIncidentFeedItems(incidents);
+
+            renderIncidentList(liveUnassignedIncidents);
+            renderIncidentFeed(liveIncidentFeed);
+            if (feedRefreshLabel) {
+                const stamp = payload.updated_at ? new Date(payload.updated_at) : new Date();
+                feedRefreshLabel.textContent = `Feed synced ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            }
+        }
+
+        async function loadOfficersFromApi() {
+            const response = await fetch('/api/officers/status', {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to load officers (HTTP ${response.status})`);
+            }
+
+            const payload = await response.json();
+            livePatrolUnits = payload.officers || [];
+            liveAvailableUnits = livePatrolUnits.filter((unit) => (unit.status || '').toLowerCase() === 'idle');
+
+            renderPatrolUnits(livePatrolUnits);
+            renderAvailableUnits(liveAvailableUnits);
+            fillUnitSelect(liveAvailableUnits);
+
+            if (unitsRefreshLabel) {
+                const stamp = payload.updated_at ? new Date(payload.updated_at) : new Date();
+                unitsRefreshLabel.textContent = `Updated ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            }
+        }
+
+        async function hydrateCommandCenterFromApi() {
+            await Promise.all([
+                loadIncidentsFromApi(),
+                loadOfficersFromApi(),
+            ]);
+        }
+
+        function connectCommandCenterSocket() {
+            if (typeof io === 'undefined') {
+                console.warn('Socket.IO client library is not available.');
+                return;
+            }
+
+            if (commandCenterSocket) {
+                return;
+            }
+
+            commandCenterSocket = io({ path: '/socket.io/' });
+
+            commandCenterSocket.on('connect', () => {
+                commandCenterSocket.emit('join_district', { district_id: supervisorDistrictId });
+            });
+
+            commandCenterSocket.on('incident_update', async (eventPayload) => {
+                if (!eventPayload || eventPayload.district_id !== supervisorDistrictId) {
+                    return;
+                }
+
+                try {
+                    await Promise.all([
+                        refreshDispatchState(),
+                        refreshIncidentFeed(),
+                        refreshHeatmapData(),
+                    ]);
+                } catch (error) {
+                    console.error('Failed to refresh after socket incident update:', error);
+                }
+            });
         }
 
         function showToast(message, type = 'info', duration = 4000) {
@@ -2296,46 +2405,228 @@
             });
         }
 
+        function parseCoordinatesFromLocation(locationText) {
+            const text = String(locationText || '');
+            const match = text.match(/\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\)/);
+            if (!match) {
+                return null;
+            }
+
+            const lat = Number(match[1]);
+            const lng = Number(match[2]);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                return null;
+            }
+            return { lat, lng };
+        }
+
+        function getOfficerCoordinates(officer) {
+            if (!officer) {
+                return null;
+            }
+
+            const lat = Number(officer.latitude);
+            const lng = Number(officer.longitude);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                return { lat, lng };
+            }
+
+            return parseCoordinatesFromLocation(officer.current_location);
+        }
+
+        function findNearestOfficerToIncident(incidentPosition) {
+            if (!incidentPosition || !window.google || !google.maps) {
+                return null;
+            }
+
+            const officersWithCoords = livePatrolUnits
+                .map((officer) => ({ officer, coords: getOfficerCoordinates(officer) }))
+                .filter((item) => item.coords);
+
+            if (!officersWithCoords.length) {
+                return null;
+            }
+
+            let best = null;
+            officersWithCoords.forEach((item) => {
+                const officerLatLng = new google.maps.LatLng(item.coords.lat, item.coords.lng);
+                const incidentLatLng = new google.maps.LatLng(incidentPosition.lat, incidentPosition.lng);
+                const distance = google.maps.geometry && google.maps.geometry.spherical
+                    ? google.maps.geometry.spherical.computeDistanceBetween(officerLatLng, incidentLatLng)
+                    : Math.hypot(item.coords.lat - incidentPosition.lat, item.coords.lng - incidentPosition.lng);
+
+                if (!best || distance < best.distance) {
+                    best = { ...item, distance };
+                }
+            });
+
+            return best;
+        }
+
+        function requestEtaMinutes(originCoords, destinationCoords) {
+            return new Promise((resolve, reject) => {
+                if (!googleDirectionsService || !window.google || !google.maps) {
+                    reject(new Error('Directions service unavailable'));
+                    return;
+                }
+
+                googleDirectionsService.route(
+                    {
+                        origin: originCoords,
+                        destination: destinationCoords,
+                        travelMode: google.maps.TravelMode.DRIVING,
+                        drivingOptions: {
+                            departureTime: new Date(),
+                            trafficModel: google.maps.TrafficModel.BEST_GUESS,
+                        },
+                    },
+                    (result, status) => {
+                        if (status !== 'OK' || !result?.routes?.length || !result.routes[0].legs?.length) {
+                            reject(new Error(`Directions request failed: ${status}`));
+                            return;
+                        }
+
+                        const leg = result.routes[0].legs[0];
+                        const duration = leg.duration_in_traffic || leg.duration;
+                        const minutes = duration && Number.isFinite(duration.value)
+                            ? Math.ceil(duration.value / 60)
+                            : null;
+                        resolve({ minutes, distanceText: leg.distance?.text || '-', durationText: duration?.text || '-' });
+                    }
+                );
+            });
+        }
+
+        async function showIncidentInfo(marker, incident) {
+            if (!googleInfoWindow || !window.google || !google.maps) {
+                return;
+            }
+
+            const severity = String(incident.severity || 'unknown').toUpperCase();
+            const incidentTitle = escapeHtml(incident.description || incident.type || 'Incident');
+
+            googleInfoWindow.setContent(`
+                <div style="min-width: 220px; color: #0f172a; font-size: 13px;">
+                    <strong>${incidentTitle}</strong><br>
+                    Severity: ${severity}<br>
+                    ETA: Calculating...
+                </div>
+            `);
+            googleInfoWindow.open({ anchor: marker, map: heatmapMap });
+
+            const nearest = findNearestOfficerToIncident({ lat: Number(incident.latitude), lng: Number(incident.longitude) });
+            if (!nearest) {
+                googleInfoWindow.setContent(`
+                    <div style="min-width: 220px; color: #0f172a; font-size: 13px;">
+                        <strong>${incidentTitle}</strong><br>
+                        Severity: ${severity}<br>
+                        ETA: Officer GPS unavailable
+                    </div>
+                `);
+                return;
+            }
+
+            try {
+                const eta = await requestEtaMinutes(nearest.coords, { lat: Number(incident.latitude), lng: Number(incident.longitude) });
+                googleInfoWindow.setContent(`
+                    <div style="min-width: 220px; color: #0f172a; font-size: 13px;">
+                        <strong>${incidentTitle}</strong><br>
+                        Severity: ${severity}<br>
+                        Officer: ${escapeHtml(nearest.officer.officer_name || nearest.officer.unit_id || 'Unit')}<br>
+                        ETA: ${eta.durationText || (eta.minutes ? `${eta.minutes} min` : '-') }<br>
+                        Distance: ${escapeHtml(eta.distanceText || '-')}
+                    </div>
+                `);
+            } catch (error) {
+                googleInfoWindow.setContent(`
+                    <div style="min-width: 220px; color: #0f172a; font-size: 13px;">
+                        <strong>${incidentTitle}</strong><br>
+                        Severity: ${severity}<br>
+                        ETA: Unavailable (${escapeHtml(error.message || 'Directions error')})
+                    </div>
+                `);
+            }
+        }
+
+        function severityColor(severity) {
+            const normalized = String(severity || '').toLowerCase();
+            if (normalized === 'critical' || normalized === 'high') return '#ef4444';
+            if (normalized === 'medium' || normalized === 'moderate') return '#f59e0b';
+            if (normalized === 'low') return '#22c55e';
+            return '#64748b';
+        }
+
+        function updateHeatLayer(incidents) {
+            if (!heatmapMap || !window.google || !google.maps) {
+                return;
+            }
+
+            googleIncidentMarkers.forEach((marker) => marker.setMap(null));
+            googleIncidentMarkers = [];
+
+            const rows = (Array.isArray(incidents) ? incidents : [])
+                .filter((incident) => Number.isFinite(Number(incident.latitude)) && Number.isFinite(Number(incident.longitude)));
+
+            const bounds = new google.maps.LatLngBounds();
+            rows.forEach((incident) => {
+                const position = {
+                    lat: Number(incident.latitude),
+                    lng: Number(incident.longitude),
+                };
+                const marker = new google.maps.Marker({
+                    map: heatmapMap,
+                    position,
+                    title: incident.description || incident.type || 'Incident',
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 7,
+                        fillColor: severityColor(incident.severity),
+                        fillOpacity: 0.95,
+                        strokeColor: '#0f172a',
+                        strokeWeight: 1.2,
+                    },
+                });
+                marker.addListener('click', () => {
+                    showIncidentInfo(marker, incident);
+                });
+                googleIncidentMarkers.push(marker);
+                bounds.extend(position);
+            });
+
+            if (rows.length > 0) {
+                heatmapMap.fitBounds(bounds, 40);
+            }
+        }
+
         function initializeHeatmap() {
-            if (heatmapMap || !incidentHeatmap || typeof L === 'undefined') {
+            if (heatmapMap || !incidentHeatmap) {
+                return;
+            }
+
+            if (!(window.google && google.maps)) {
+                if (googleMapInitAttempts < 20) {
+                    googleMapInitAttempts += 1;
+                    setTimeout(initializeHeatmap, 500);
+                } else if (heatmapRefreshLabel) {
+                    heatmapRefreshLabel.textContent = 'Google Maps API unavailable (set GOOGLE_MAPS_API_KEY)';
+                }
                 return;
             }
 
             const centerLat = Number(districtInfo.lat ?? 13.0827);
             const centerLng = Number(districtInfo.lon ?? 80.2707);
+            heatmapMap = new google.maps.Map(incidentHeatmap, {
+                center: { lat: centerLat, lng: centerLng },
+                zoom: 12,
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: true,
+            });
 
-            heatmapMap = L.map('incident-heatmap', {
-                zoomControl: true,
-                attributionControl: true
-            }).setView([centerLat, centerLng], 12);
-
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-            }).addTo(heatmapMap);
-
-            heatLayer = L.heatLayer([], {
-                radius: 26,
-                blur: 22,
-                maxZoom: 17,
-                gradient: {
-                    0.25: '#3b82f6',
-                    0.6: '#f59e0b',
-                    1.0: '#ef4444'
-                }
-            }).addTo(heatmapMap);
-        }
-
-        function updateHeatLayer(points) {
-            if (!heatLayer) {
-                return;
-            }
-
-            const heatPoints = (Array.isArray(points) ? points : [])
-                .map((point) => [Number(point.lat), Number(point.lng), Number(point.intensity ?? 0.5)])
-                .filter((point) => Number.isFinite(point[0]) && Number.isFinite(point[1]));
-
-            heatLayer.setLatLngs(heatPoints);
+            googleTrafficLayer = new google.maps.TrafficLayer();
+            googleTrafficLayer.setMap(heatmapMap);
+            googleDirectionsService = new google.maps.DirectionsService();
+            googleInfoWindow = new google.maps.InfoWindow();
         }
 
         function formatMinutes(value) {
@@ -2588,26 +2879,20 @@
 
         async function refreshHeatmapData() {
             try {
-                const response = await fetch('/police/heatmap/data', {
-                    headers: { 'Accept': 'application/json' },
-                    credentials: 'same-origin'
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                if (!heatmapMap) {
+                    initializeHeatmap();
                 }
 
-                const points = await response.json();
-                updateHeatLayer(points);
+                updateHeatLayer(liveUnassignedIncidents);
 
                 if (heatmapRefreshLabel) {
                     const stamp = new Date();
-                    heatmapRefreshLabel.textContent = `Heatmap synced ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                    heatmapRefreshLabel.textContent = `Traffic + incidents synced ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
                 }
             } catch (error) {
-                console.error('Failed to refresh heatmap data:', error);
+                console.error('Failed to refresh Google map incident markers:', error);
                 if (heatmapRefreshLabel) {
-                    heatmapRefreshLabel.textContent = 'Heatmap sync unavailable';
+                    heatmapRefreshLabel.textContent = 'Map sync unavailable';
                 }
             }
         }
@@ -2771,23 +3056,23 @@
         async function submitDispatch(event) {
             event.preventDefault();
             const incidentId = dispatchIncidentIdInput.value;
-            const unitId = dispatchUnitSelect.value;
+            const officerId = dispatchUnitSelect.value;
 
-            if (!incidentId || !unitId) {
-                dispatchFeedback.textContent = 'Select a unit before dispatching.';
+            if (!incidentId || !officerId) {
+                dispatchFeedback.textContent = 'Select an officer before dispatching.';
                 return;
             }
 
             dispatchFeedback.textContent = 'Dispatching...';
             try {
-                const response = await fetch('/police/dispatch', {
+                const response = await fetch('/api/dispatch', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ incident_id: incidentId, unit_id: unitId })
+                    body: JSON.stringify({ incident_id: incidentId, officer_id: officerId })
                 });
 
                 const payload = await response.json().catch(() => ({}));
@@ -2892,11 +3177,15 @@
             console.error('Failed to parse initial dashboard data', error);
         }
 
-        renderPatrolUnits(initialUnits);
-        renderIncidentList(initialIncidents);
-        renderAvailableUnits(initialAvailableUnits);
-        renderIncidentFeed(initialIncidentFeed);
-        fillUnitSelect(initialAvailableUnits);
+        // Load incidents and officer status from backend APIs on initial page load.
+        hydrateCommandCenterFromApi().catch((error) => {
+            console.warn('API hydration failed, falling back to template payload:', error);
+            renderPatrolUnits(initialUnits);
+            renderIncidentList(initialIncidents);
+            renderAvailableUnits(initialAvailableUnits);
+            renderIncidentFeed(initialIncidentFeed);
+            fillUnitSelect(initialAvailableUnits);
+        });
 
         dispatchForm.addEventListener('submit', submitDispatch);
         modalBackdrop.addEventListener('click', (event) => {
@@ -3146,6 +3435,7 @@
         refreshResponseTimes();
         refreshShiftStatus();
         connectAlertStream();
+        connectCommandCenterSocket();
         setInterval(refreshDispatchState, 30000);
         setInterval(refreshIncidentFeed, 20000);
         setInterval(refreshHeatmapData, 60000);
@@ -3160,10 +3450,15 @@
             const btn = document.getElementById('hotspots-toggle-btn');
             const districtId = '{{ district_info.get("district_id", "") }}';
 
+            if (!(window.google && google.maps && heatmapMap)) {
+                showToast('Predicted hotspot overlay requires Google Maps to finish loading.', 'error');
+                return;
+            }
+
             if (hotspotsVisible) {
                 // Hide hotspots
-                if (hotspotsLayer && incidentHeatmap) {
-                    incidentHeatmap.removeLayer(hotspotsLayer);
+                if (hotspotsLayer) {
+                    hotspotsLayer.setMap(null);
                 }
                 hotspotsVisible = false;
                 btn.style.background = '';
@@ -3193,48 +3488,50 @@
 
                     const geoJsonData = await response.json();
 
-                    // Create GeoJSON layer with styling
-                    if (hotspotsLayer && incidentHeatmap) {
-                        incidentHeatmap.removeLayer(hotspotsLayer);
+                    // Create Google Data Layer styling for hotspot polygons.
+                    if (hotspotsLayer) {
+                        hotspotsLayer.setMap(null);
                     }
 
-                    hotspotsLayer = L.geoJSON(geoJsonData, {
-                        style: (feature) => {
-                            let color = '#3b82f6'; // Default blue for low risk
-                            let opacity = 0.5;
-
-                            const riskLevel = feature.properties.risk_level;
-                            if (riskLevel === 'high') {
-                                color = '#ef4444'; // Red for high risk
-                                opacity = 0.7;
-                            } else if (riskLevel === 'medium') {
-                                color = '#fbbf24'; // Yellow for medium risk
-                                opacity = 0.6;
-                            }
-
-                            return {
-                                color: color,
-                                weight: 2,
-                                opacity: opacity,
-                                fillOpacity: opacity * 0.6,
-                                dashArray: '5, 5'
-                            };
-                        },
-                        onEachFeature: (feature, layer) => {
-                            const props = feature.properties;
-                            const popupContent = `
-                                <div style="font-size: 0.9rem; color: #f4f8fd;">
-                                    <strong>${props.zone_name}</strong><br>
-                                    Risk Level: <span style="color: ${props.risk_level === 'high' ? '#fca5a5' : props.risk_level === 'medium' ? '#fcd34d' : '#93c5fd'};">${props.risk_level.toUpperCase()}</span><br>
-                                    Score: ${props.prediction_score}%<br>
-                                    Expected Incidents: ${props.incident_count}
-                                </div>
-                            `;
-                            layer.bindPopup(popupContent);
+                    hotspotsLayer = new google.maps.Data({ map: heatmapMap });
+                    hotspotsLayer.addGeoJson(geoJsonData);
+                    hotspotsLayer.setStyle((feature) => {
+                        const riskLevel = String(feature.getProperty('risk_level') || 'low').toLowerCase();
+                        let color = '#3b82f6';
+                        let fillOpacity = 0.3;
+                        if (riskLevel === 'high') {
+                            color = '#ef4444';
+                            fillOpacity = 0.45;
+                        } else if (riskLevel === 'medium') {
+                            color = '#fbbf24';
+                            fillOpacity = 0.38;
                         }
+                        return {
+                            strokeColor: color,
+                            strokeWeight: 2,
+                            fillColor: color,
+                            fillOpacity,
+                        };
                     });
 
-                    hotspotsLayer.addTo(incidentHeatmap);
+                    hotspotsLayer.addListener('click', (event) => {
+                        const props = event.feature;
+                        const content = `
+                            <div style="min-width: 200px; color: #0f172a; font-size: 13px;">
+                                <strong>${escapeHtml(props.getProperty('zone_name') || 'Hotspot')}</strong><br>
+                                Risk Level: ${escapeHtml(String(props.getProperty('risk_level') || '').toUpperCase())}<br>
+                                Score: ${escapeHtml(props.getProperty('prediction_score'))}%<br>
+                                Expected Incidents: ${escapeHtml(props.getProperty('incident_count'))}
+                            </div>
+                        `;
+                        if (!googleInfoWindow) {
+                            googleInfoWindow = new google.maps.InfoWindow();
+                        }
+                        googleInfoWindow.setContent(content);
+                        googleInfoWindow.setPosition(event.latLng);
+                        googleInfoWindow.open(heatmapMap);
+                    });
+
                     hotspotsVisible = true;
                     btn.style.background = 'linear-gradient(180deg, #4fd1c5, #35b0ff)';
                     btn.textContent = '✓ Predicted Hotspots (Active)';
