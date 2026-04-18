@@ -9,8 +9,10 @@ import secrets
 import traceback
 import logging
 import math
+import random
+import re
 from datetime import datetime, timedelta, UTC
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Dict
 from functools import wraps
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -52,6 +54,7 @@ from jose.exceptions import ExpiredSignatureError
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from typing import List
 import requests as http_requests
+import pandas as pd
 from fcm_service import send_dispatch_notification
 from mobile_routes import mobile_router, configure_mobile_context
 
@@ -3373,6 +3376,14 @@ async def get_navigation_links(
 # POLICE COMMAND CENTER - INCIDENT & OFFICER ENDPOINTS
 # ============================================================================
 
+@app.get("/dashboard/phase4", response_class=HTMLResponse)
+async def phase4_dashboard(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context={"request": request},
+    )
+
 # In-memory store for police incidents and officers
 _police_incidents = []
 _police_officers = [
@@ -3395,6 +3406,17 @@ _dispatch_assignments = {}
 _dispatch_history = []
 _incident_timers = {}
 _chat_rooms = {}
+_demo_task = None
+_demo_running = False
+
+
+_NLP_INCIDENT_KEYWORDS = {
+    "accident": ["accident", "crash", "collision"],
+    "traffic": ["traffic", "jam", "congestion", "signal"],
+    "theft": ["theft", "stolen", "robbery"],
+    "fire": ["fire", "smoke", "burn"],
+    "medical": ["medical", "injury", "ambulance"],
+}
 
 
 class RouteRequest(BaseModel):
@@ -3411,6 +3433,14 @@ class OfficerLocationUpdateRequest(BaseModel):
     lat: float
     lng: float
     status: Optional[str] = None
+
+
+class NLPCommandRequest(BaseModel):
+    command: str = Field(min_length=5, max_length=300)
+
+
+class DemoStartRequest(BaseModel):
+    interval_seconds: float = Field(default=4.0, ge=1.5, le=30.0)
 
 
 def _cache_get(cache: dict, key: str):
@@ -3601,6 +3631,238 @@ def _mark_dispatch_assignment(incident_id: str, officer_id: int, status_value: s
             "timestamp": now_iso,
         }
     )
+
+
+def _parse_iso_ts(value: Optional[str]) -> datetime:
+    if not value:
+        return datetime.now(UTC)
+    text = str(value).strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=UTC)
+        return parsed.astimezone(UTC)
+    except Exception:
+        return datetime.now(UTC)
+
+
+def _time_window_for_hour(hour: int) -> str:
+    if 6 <= hour < 12:
+        return "morning"
+    if 12 <= hour < 18:
+        return "afternoon"
+    return "night"
+
+
+def _area_label(lat: float, lng: float) -> str:
+    return f"Sector {int(round(lat * 100)) % 10}-{int(round(lng * 100)) % 10}"
+
+
+def _compute_predictions(time_period: str = "all", limit: int = 20) -> List[Dict]:
+    rows = []
+    now = datetime.now(UTC)
+    for incident in _police_incidents:
+        lat = incident.get("lat")
+        lng = incident.get("lng")
+        if lat is None or lng is None:
+            continue
+
+        created_dt = _parse_iso_ts(incident.get("created_at"))
+        age_hours = max((now - created_dt).total_seconds() / 3600.0, 0.0)
+        rows.append(
+            {
+                "cluster_lat": round(float(lat), 3),
+                "cluster_lng": round(float(lng), 3),
+                "hour": created_dt.hour,
+                "day_of_week": created_dt.weekday(),
+                "period": _time_window_for_hour(created_dt.hour),
+                "recency_weight": math.exp(-age_hours / 24.0),
+                "severity_weight": _severity_intensity(str(incident.get("severity", "medium"))),
+            }
+        )
+
+    if not rows:
+        return []
+
+    frame = pd.DataFrame(rows)
+    if time_period in {"morning", "afternoon", "night"}:
+        frame = frame[frame["period"] == time_period]
+    if frame.empty:
+        return []
+
+    grouped = (
+        frame.groupby(["cluster_lat", "cluster_lng", "hour", "day_of_week"], as_index=False)
+        .agg(
+            frequency=("period", "count"),
+            recency=("recency_weight", "mean"),
+            severity=("severity_weight", "mean"),
+        )
+        .sort_values(["frequency", "recency"], ascending=[False, False])
+    )
+
+    max_frequency = max(float(grouped["frequency"].max()), 1.0)
+    grouped["frequency_score"] = grouped["frequency"] / max_frequency
+    grouped["risk_score"] = (
+        0.55 * grouped["frequency_score"]
+        + 0.30 * grouped["recency"]
+        + 0.15 * grouped["severity"]
+    ).clip(lower=0.0, upper=1.0)
+
+    top = grouped.sort_values("risk_score", ascending=False).head(max(1, int(limit)))
+    predictions = []
+    for _, row in top.iterrows():
+        predictions.append(
+            {
+                "lat": round(float(row["cluster_lat"]), 6),
+                "lng": round(float(row["cluster_lng"]), 6),
+                "risk_score": round(float(row["risk_score"]), 3),
+                "time_window": "next_30_min",
+                "period": _time_window_for_hour(int(row["hour"])),
+                "hour": int(row["hour"]),
+                "day_of_week": int(row["day_of_week"]),
+            }
+        )
+    return predictions
+
+
+def _extract_incident_type_from_command(text: str) -> str:
+    lowered = text.lower()
+    for incident_type, keywords in _NLP_INCIDENT_KEYWORDS.items():
+        if any(keyword in lowered for keyword in keywords):
+            return incident_type
+    return "incident"
+
+
+def _extract_location_from_command(text: str) -> Optional[str]:
+    match = re.search(r"\b(?:near|at|around)\s+([a-zA-Z0-9\s\-]+)", text, flags=re.IGNORECASE)
+    if not match:
+        return None
+    raw = re.sub(r"\s+", " ", match.group(1)).strip(" .,!?")
+    return raw[:80] if raw else None
+
+
+def _find_candidate_incident(incident_type: str, location_hint: Optional[str]) -> Optional[dict]:
+    candidates = [
+        incident
+        for incident in _police_incidents
+        if str(incident.get("status", "open")).lower() in {"open", "assigned", "in-progress"}
+    ]
+    if not candidates:
+        return None
+
+    def _score(incident: dict) -> int:
+        score = 0
+        title = str(incident.get("title", "")).lower()
+        if incident_type != "incident" and incident_type in title:
+            score += 4
+        if location_hint and location_hint.lower() in title:
+            score += 3
+        if str(incident.get("severity", "")).lower() == "critical":
+            score += 2
+        return score
+
+    ranked = sorted(candidates, key=_score, reverse=True)
+    return ranked[0] if ranked else None
+
+
+def _build_incident_from_command(incident_type: str, location_hint: Optional[str]) -> dict:
+    from uuid import uuid4
+
+    anchor_officer = next(
+        (officer for officer in _police_officers if str(officer.get("status", "")).lower() == "available"),
+        _police_officers[0],
+    )
+
+    place = location_hint or "city signal"
+    return {
+        "id": str(uuid4()),
+        "title": f"{incident_type.title()} near {place}",
+        "severity": "high",
+        "lat": round(float(anchor_officer.get("lat", 11.0168)) + random.uniform(-0.006, 0.006), 6),
+        "lng": round(float(anchor_officer.get("lng", 76.9558)) + random.uniform(-0.006, 0.006), 6),
+        "status": "open",
+        "created_at": datetime.now(UTC).isoformat(),
+        "source": "nlp_command",
+    }
+
+
+async def _run_demo_loop(interval_seconds: float):
+    global _demo_running
+    demo_titles = [
+        ("Accident at Main Junction", "critical"),
+        ("Traffic Congestion near East Signal", "medium"),
+        ("Vehicle Breakdown near Flyover", "high"),
+    ]
+
+    while _demo_running:
+        title, severity = random.choice(demo_titles)
+        incident = _build_incident_from_command("incident", title)
+        incident["title"] = title
+        incident["severity"] = severity
+        incident["source"] = "demo"
+        _police_incidents.append(incident)
+        await manager.broadcast({"type": "incident_update", "data": incident})
+
+        ranked = _rank_officers_for_incident(incident)
+        if ranked:
+            officer = _find_officer(ranked[0]["officer_id"])
+            if officer:
+                _mark_dispatch_assignment(str(incident["id"]), int(officer["id"]), "en-route")
+                officer["status"] = "en-route"
+                officer["last_ping"] = datetime.now(UTC).isoformat()
+
+                await manager.broadcast({"type": "officer_update", "data": officer})
+                await manager.broadcast(
+                    {
+                        "type": "dispatch_status_update",
+                        "data": {
+                            "officer_id": officer["id"],
+                            "incident_id": incident["id"],
+                            "status": "en-route",
+                            "updated_at": officer["last_ping"],
+                            "auto_dispatched": True,
+                            "source": "demo",
+                        },
+                    }
+                )
+
+                origin_lat = float(officer.get("lat", 0))
+                origin_lng = float(officer.get("lng", 0))
+                target_lat = float(incident.get("lat", 0))
+                target_lng = float(incident.get("lng", 0))
+
+                for step in range(1, 6):
+                    if not _demo_running:
+                        break
+                    ratio = step / 5.0
+                    officer["lat"] = round(origin_lat + ((target_lat - origin_lat) * ratio), 6)
+                    officer["lng"] = round(origin_lng + ((target_lng - origin_lng) * ratio), 6)
+                    officer["last_ping"] = datetime.now(UTC).isoformat()
+                    await manager.broadcast({"type": "officer_location_update", "data": officer})
+                    await asyncio.sleep(max(0.8, interval_seconds / 2.0))
+
+                if _demo_running:
+                    incident["status"] = "closed"
+                    officer["status"] = "available"
+                    _mark_dispatch_assignment(str(incident["id"]), int(officer["id"]), "completed")
+                    await manager.broadcast({"type": "incident_update", "data": incident})
+                    await manager.broadcast({"type": "officer_update", "data": officer})
+                    await manager.broadcast(
+                        {
+                            "type": "dispatch_status_update",
+                            "data": {
+                                "officer_id": officer["id"],
+                                "incident_id": incident["id"],
+                                "status": "completed",
+                                "updated_at": datetime.now(UTC).isoformat(),
+                                "source": "demo",
+                            },
+                        }
+                    )
+
+        await asyncio.sleep(interval_seconds)
 
 
 def _rank_officers_for_incident(incident: dict):
@@ -3944,6 +4206,113 @@ async def get_command_hotspots(days: int = Query(7, ge=1, le=30)):
     return payload
 
 
+@app.get("/api/predictions")
+async def get_predictions(
+    time_period: str = Query("all", pattern="^(all|morning|afternoon|night)$"),
+    limit: int = Query(20, ge=1, le=50),
+):
+    predictions = _compute_predictions(time_period=time_period, limit=limit)
+    return {
+        "generated_at": datetime.now(UTC).isoformat(),
+        "time_period": time_period,
+        "predictions": predictions,
+    }
+
+
+@app.post("/api/commands/nlp-dispatch")
+async def nlp_dispatch_command(payload: NLPCommandRequest):
+    command_text = payload.command.strip()
+    incident_type = _extract_incident_type_from_command(command_text)
+    location_hint = _extract_location_from_command(command_text)
+
+    incident = _find_candidate_incident(incident_type, location_hint)
+    created_incident = False
+    if not incident:
+        incident = _build_incident_from_command(incident_type, location_hint)
+        _police_incidents.append(incident)
+        created_incident = True
+        await manager.broadcast({"type": "incident_update", "data": incident})
+
+    ranked = _rank_officers_for_incident(incident)
+    if not ranked:
+        raise HTTPException(status_code=409, detail="No available officers for command dispatch")
+
+    best = ranked[0]
+    officer = _find_officer(best["officer_id"])
+    if not officer:
+        raise HTTPException(status_code=404, detail="Recommended officer no longer available")
+
+    officer["status"] = "en-route"
+    officer["last_ping"] = datetime.now(UTC).isoformat()
+    _mark_dispatch_assignment(str(incident["id"]), int(officer["id"]), "en-route")
+
+    await manager.broadcast({"type": "officer_update", "data": officer})
+    await manager.broadcast(
+        {
+            "type": "dispatch_status_update",
+            "data": {
+                "officer_id": officer["id"],
+                "incident_id": incident["id"],
+                "status": "en-route",
+                "updated_at": officer["last_ping"],
+                "source": "nlp",
+            },
+        }
+    )
+
+    send_dispatch_notification(
+        officer.get("device_token"),
+        title="Dispatch From Supervisor Command",
+        body=f"{incident.get('title', 'Incident')} assigned",
+        data={
+            "incident_id": incident.get("id"),
+            "lat": incident.get("lat"),
+            "lng": incident.get("lng"),
+            "source": "nlp",
+        },
+    )
+
+    return {
+        "command": command_text,
+        "parsed": {
+            "incident_type": incident_type,
+            "location_hint": location_hint,
+        },
+        "incident": incident,
+        "created_incident": created_incident,
+        "recommended_officer": best,
+    }
+
+
+@app.post("/api/demo/start")
+async def start_demo_mode(payload: DemoStartRequest):
+    global _demo_task, _demo_running
+
+    if _demo_running and _demo_task and not _demo_task.done():
+        return {
+            "status": "already_running",
+            "interval_seconds": payload.interval_seconds,
+        }
+
+    _demo_running = True
+    _demo_task = asyncio.create_task(_run_demo_loop(payload.interval_seconds))
+    return {
+        "status": "started",
+        "interval_seconds": payload.interval_seconds,
+    }
+
+
+@app.post("/api/demo/stop")
+async def stop_demo_mode():
+    global _demo_task, _demo_running
+
+    _demo_running = False
+    if _demo_task and not _demo_task.done():
+        _demo_task.cancel()
+    _demo_task = None
+    return {"status": "stopped"}
+
+
 @app.get("/api/maps-config")
 async def maps_config():
     # Browser Maps API keys are public by design; restrict by referrer in GCP.
@@ -4005,12 +4374,84 @@ async def get_dispatch_analytics():
     if officer_ranking:
         top_officer = officer_ranking[0]["name"]
 
+    incident_rows = []
+    for incident in _police_incidents:
+        try:
+            lat = float(incident.get("lat"))
+            lng = float(incident.get("lng"))
+        except (TypeError, ValueError):
+            continue
+
+        created_dt = _parse_iso_ts(incident.get("created_at"))
+        incident_rows.append(
+            {
+                "date": created_dt.date().isoformat(),
+                "area": _area_label(lat, lng),
+            }
+        )
+
+    if incident_rows:
+        incident_frame = pd.DataFrame(incident_rows)
+        daily_incident_chart = [
+            {"date": str(row["date"]), "count": int(row["count"])}
+            for _, row in incident_frame.groupby("date").size().reset_index(name="count").sort_values("date").iterrows()
+        ]
+        area_comparison = [
+            {"area": str(row["area"]), "count": int(row["count"])}
+            for _, row in incident_frame.groupby("area").size().reset_index(name="count").sort_values("count", ascending=False).head(8).iterrows()
+        ]
+    else:
+        daily_incident_chart = []
+        area_comparison = []
+
+    response_rows = []
+    for item in completed:
+        incident_id = str(item.get("incident_id"))
+        assigned = next(
+            (
+                entry
+                for entry in _dispatch_history
+                if str(entry.get("incident_id")) == incident_id
+                and str(entry.get("status", "")).lower() in {"en-route", "accepted"}
+            ),
+            None,
+        )
+        if not assigned:
+            continue
+
+        try:
+            start_dt = _parse_iso_ts(assigned.get("timestamp"))
+            end_dt = _parse_iso_ts(item.get("timestamp"))
+            response_minutes = max((end_dt - start_dt).total_seconds() / 60.0, 0.0)
+            response_rows.append({"hour": start_dt.hour, "response_minutes": response_minutes})
+        except Exception:
+            continue
+
+    if response_rows:
+        response_frame = pd.DataFrame(response_rows)
+        response_trend = [
+            {
+                "hour": int(row["hour"]),
+                "avg_response_minutes": round(float(row["avg_response_minutes"]), 2),
+                "samples": int(row["samples"]),
+            }
+            for _, row in response_frame.groupby("hour", as_index=False).agg(
+                avg_response_minutes=("response_minutes", "mean"),
+                samples=("response_minutes", "count"),
+            ).sort_values("hour").iterrows()
+        ]
+    else:
+        response_trend = []
+
     return {
         "avg_response_time": avg_response_time,
         "active_incidents": kpis.get("active_incidents", active_incidents),
         "completed_incidents": kpis.get("completed_incidents", len(completed)),
         "top_officer": kpis.get("top_officer", top_officer),
         "officer_ranking": kpis.get("officer_ranking", officer_ranking),
+        "daily_incident_chart": daily_incident_chart,
+        "area_comparison": area_comparison,
+        "response_trend": response_trend,
         "updated_at": datetime.now(UTC).isoformat(),
     }
 

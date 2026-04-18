@@ -51,7 +51,7 @@
 
         .sidebar {
             display: grid;
-            grid-template-rows: auto auto auto minmax(130px, 1fr) minmax(130px, 1fr) auto auto;
+            grid-template-rows: auto auto auto auto minmax(130px, 1fr) minmax(130px, 1fr) auto auto auto;
             gap: 12px;
             padding: 14px;
             overflow: hidden;
@@ -129,6 +129,33 @@
             flex-wrap: wrap;
         }
 
+        .timeline-controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .timeline-controls button.active {
+            background: #39a5d9;
+            color: #06111f;
+            font-weight: 700;
+        }
+
+        .command-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        #nlpCommandInput {
+            flex: 1;
+            border: 1px solid #355474;
+            background: #17314a;
+            color: var(--text);
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 0.82rem;
+        }
+
         button {
             border: 0;
             border-radius: 10px;
@@ -204,6 +231,32 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 8px;
+        }
+
+        .analytics-charts {
+            display: grid;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .chart-card {
+            background: rgba(19, 32, 46, 0.9);
+            border: 1px solid #2b455d;
+            border-radius: 8px;
+            padding: 8px;
+        }
+
+        .chart-card h5 {
+            margin-bottom: 6px;
+            font-size: 0.78rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .chart-card canvas {
+            width: 100%;
+            height: 120px;
         }
 
         .metric {
@@ -315,6 +368,33 @@
             line-height: 1.4;
         }
 
+        .incident-panel {
+            position: absolute;
+            left: 14px;
+            bottom: 14px;
+            z-index: 2;
+            width: min(360px, calc(100% - 28px));
+            background: rgba(9, 20, 30, 0.92);
+            border: 1px solid #2f465c;
+            border-radius: 10px;
+            padding: 10px;
+            backdrop-filter: blur(6px);
+        }
+
+        .incident-panel h4 {
+            font-size: 0.9rem;
+            color: var(--accent);
+            margin-bottom: 6px;
+        }
+
+        .incident-panel video {
+            width: 100%;
+            border-radius: 8px;
+            margin: 8px 0;
+            border: 1px solid #2f465c;
+            background: #000;
+        }
+
         @keyframes slideIn {
             from {
                 transform: translateY(8px);
@@ -332,6 +412,9 @@
             }
             #map {
                 height: 60vh;
+            }
+            .timeline-controls {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
     </style>
@@ -364,10 +447,29 @@
                 <div class="controls">
                     <button class="recommend" id="recommendBtn">Recommend Best Officer</button>
                     <button id="refreshHotspotsBtn">Refresh Hotspots</button>
+                    <button id="demoBtn">Start Demo</button>
                 </div>
                 <p class="meta" style="margin-top:8px;">
                     Select an incident, then rank officers by live distance, traffic ETA, and skill match.
                 </p>
+            </section>
+
+            <section>
+                <div class="section-title">Prediction Timeline</div>
+                <div class="timeline-controls" id="timelineControls">
+                    <button data-period="all" class="active">All Day</button>
+                    <button data-period="morning">Morning</button>
+                    <button data-period="afternoon">Afternoon</button>
+                    <button data-period="night">Night</button>
+                </div>
+            </section>
+
+            <section>
+                <div class="section-title">Natural Language Command</div>
+                <div class="command-row">
+                    <input id="nlpCommandInput" placeholder="Send nearest officer to accident near signal" />
+                    <button id="runNlpBtn">Run</button>
+                </div>
             </section>
 
             <section class="list" id="incidentsList"></section>
@@ -376,6 +478,20 @@
             <section>
                 <div class="section-title">Analytics</div>
                 <div class="analytics-grid" id="analyticsPanel"></div>
+                <div class="analytics-charts">
+                    <div class="chart-card">
+                        <h5>Daily Incident Volume</h5>
+                        <canvas id="dailyIncidentChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h5>Area Comparison</h5>
+                        <canvas id="areaComparisonChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h5>Response Trend by Hour</h5>
+                        <canvas id="responseTrendChart"></canvas>
+                    </div>
+                </div>
             </section>
 
             <section>
@@ -400,12 +516,22 @@
                 <h3>Live Route</h3>
                 <div class="small" id="routeInfo">No route selected.</div>
             </div>
+            <div class="incident-panel" id="incidentPanel">
+                <h4 id="incidentPanelTitle">Incident CCTV View</h4>
+                <div class="meta" id="incidentPanelMeta">Select an incident to view live details.</div>
+                <video id="incidentVideo" controls muted preload="metadata" poster="https://dummyimage.com/640x360/111827/9ca3af&text=CCTV+Feed">
+                    <source src="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4" type="video/mp4" />
+                </video>
+                <div class="meta" id="incidentPanelDetail">Awaiting selection.</div>
+            </div>
         </main>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <script>
         const state = {
             map: null,
+            mapReady: false,
             trafficLayer: null,
             heatmapLayer: null,
             directionsService: null,
@@ -414,10 +540,16 @@
             officers: [],
             incidentMarkers: new Map(),
             officerMarkers: new Map(),
+            officerTrails: new Map(),
             selectedIncidentId: null,
             selectedOfficerId: null,
+            predictionPeriod: 'all',
+            hotspotPoints: [],
+            predictionPoints: [],
+            demoRunning: false,
             ws: null,
             chatWs: null,
+            charts: {},
         };
 
         const severityColors = {
@@ -432,6 +564,11 @@
             'en-route': 'http://maps.google.com/mapfiles/ms/icons/orange-dot.png',
             occupied: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
         };
+
+        function wsUrl(path) {
+            const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            return `${protocol}://${window.location.host}${path}`;
+        }
 
         function setConnectionStatus(isLive) {
             const connDot = document.getElementById('connDot');
@@ -460,8 +597,7 @@
             const row = document.createElement('div');
             row.className = 'log-item';
             row.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
-            const log = document.getElementById('notificationLog');
-            log.prepend(row);
+            document.getElementById('notificationLog').prepend(row);
         }
 
         function toLatLng(item) {
@@ -471,107 +607,167 @@
             return null;
         }
 
-        function clearMarkers(markerMap) {
-            for (const marker of markerMap.values()) {
-                marker.setMap(null);
-            }
-            markerMap.clear();
+        function ensureMapCenter() {
+            if (!state.mapReady || !state.map || !state.incidents.length) return;
+            const pts = state.incidents.map(toLatLng).filter(Boolean);
+            if (!pts.length) return;
+            const bounds = new google.maps.LatLngBounds();
+            pts.forEach((pt) => bounds.extend(pt));
+            state.map.fitBounds(bounds, 80);
         }
 
-        function ensureMapCenter() {
-            if (!state.map) return;
-            if (state.incidents.length > 0) {
-                const pts = state.incidents
-                    .map(toLatLng)
-                    .filter(Boolean);
-                if (!pts.length) return;
-                const bounds = new google.maps.LatLngBounds();
-                pts.forEach((pt) => bounds.extend(pt));
-                state.map.fitBounds(bounds, 80);
+        function animateMarker(marker, target) {
+            const start = marker.getPosition();
+            if (!start) {
+                marker.setPosition(target);
                 return;
             }
-            state.map.setCenter({ lat: 11.0168, lng: 76.9558 });
-            state.map.setZoom(13);
+            const startLat = start.lat();
+            const startLng = start.lng();
+            const deltaLat = target.lat - startLat;
+            const deltaLng = target.lng - startLng;
+            const steps = 16;
+            let step = 0;
+            const timer = setInterval(() => {
+                step += 1;
+                marker.setPosition({
+                    lat: startLat + ((deltaLat * step) / steps),
+                    lng: startLng + ((deltaLng * step) / steps),
+                });
+                if (step >= steps) {
+                    clearInterval(timer);
+                    marker.setPosition(target);
+                }
+            }, 120);
+        }
+
+        function updateOfficerTrail(officerId, point) {
+            const key = String(officerId);
+            let trail = state.officerTrails.get(key);
+            if (!trail) {
+                trail = new google.maps.Polyline({
+                    map: state.map,
+                    path: [point],
+                    geodesic: true,
+                    strokeColor: '#67d2ff',
+                    strokeOpacity: 0.55,
+                    strokeWeight: 3,
+                });
+                state.officerTrails.set(key, trail);
+                return;
+            }
+            const path = trail.getPath();
+            path.push(new google.maps.LatLng(point.lat, point.lng));
+            while (path.getLength() > 30) {
+                path.removeAt(0);
+            }
         }
 
         function drawIncidentMarkers() {
-            clearMarkers(state.incidentMarkers);
+            if (!state.mapReady || !state.map) return;
+            const liveIds = new Set();
             state.incidents.forEach((incident) => {
+                const id = String(incident.id);
+                liveIds.add(id);
                 const pos = toLatLng(incident);
                 if (!pos) return;
+
                 const color = severityColors[String(incident.severity || 'low').toLowerCase()] || '#57d77a';
-                const marker = new google.maps.Marker({
-                    position: pos,
-                    map: state.map,
-                    title: incident.title || 'Incident',
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 9,
-                        fillColor: color,
-                        fillOpacity: 1,
-                        strokeColor: '#0b1118',
-                        strokeWeight: 2,
-                    },
-                    zIndex: 5,
-                });
-                marker.addListener('click', () => {
-                    state.selectedIncidentId = String(incident.id);
-                    renderIncidentList();
-                    recommendOfficer();
-                });
-                state.incidentMarkers.set(String(incident.id), marker);
+                let marker = state.incidentMarkers.get(id);
+                if (!marker) {
+                    marker = new google.maps.Marker({
+                        position: pos,
+                        map: state.map,
+                        title: incident.title || 'Incident',
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 9,
+                            fillColor: color,
+                            fillOpacity: 1,
+                            strokeColor: '#0b1118',
+                            strokeWeight: 2,
+                        },
+                        zIndex: 5,
+                    });
+                    marker.addListener('click', () => {
+                        state.selectedIncidentId = id;
+                        renderIncidentList();
+                        showIncidentPanel(incident);
+                        recommendOfficer();
+                        connectChatSocket(id);
+                    });
+                    state.incidentMarkers.set(id, marker);
+                } else {
+                    marker.setPosition(pos);
+                    marker.setTitle(incident.title || 'Incident');
+                }
             });
+
+            for (const [id, marker] of state.incidentMarkers.entries()) {
+                if (!liveIds.has(id)) {
+                    marker.setMap(null);
+                    state.incidentMarkers.delete(id);
+                }
+            }
         }
 
         function drawOfficerMarkers() {
-            clearMarkers(state.officerMarkers);
+            if (!state.mapReady || !state.map) return;
+            const liveIds = new Set();
             state.officers.forEach((officer) => {
+                const id = String(officer.id);
+                liveIds.add(id);
                 const pos = toLatLng(officer);
                 if (!pos) return;
+
                 const status = String(officer.status || 'available').toLowerCase();
-                const marker = new google.maps.Marker({
-                    position: pos,
-                    map: state.map,
-                    title: `${officer.name} (${status})`,
-                    icon: officerIconByStatus[status] || officerIconByStatus.available,
-                    zIndex: 3,
-                });
-                marker.addListener('click', () => {
-                    state.selectedOfficerId = Number(officer.id);
-                    maybeDrawRoute(state.selectedOfficerId, state.selectedIncidentId);
-                });
-                state.officerMarkers.set(String(officer.id), marker);
+                let marker = state.officerMarkers.get(id);
+                if (!marker) {
+                    marker = new google.maps.Marker({
+                        position: pos,
+                        map: state.map,
+                        title: `${officer.name} (${status})`,
+                        icon: officerIconByStatus[status] || officerIconByStatus.available,
+                        zIndex: 3,
+                    });
+                    marker.addListener('click', () => {
+                        state.selectedOfficerId = Number(officer.id);
+                        maybeDrawRoute(state.selectedOfficerId, state.selectedIncidentId);
+                    });
+                    state.officerMarkers.set(id, marker);
+                } else {
+                    marker.setIcon(officerIconByStatus[status] || officerIconByStatus.available);
+                    marker.setTitle(`${officer.name} (${status})`);
+                    animateMarker(marker, pos);
+                }
+
+                updateOfficerTrail(id, pos);
             });
+
+            for (const [id, marker] of state.officerMarkers.entries()) {
+                if (!liveIds.has(id)) {
+                    marker.setMap(null);
+                    state.officerMarkers.delete(id);
+                }
+            }
         }
 
         function upsertIncident(incident) {
-            const index = state.incidents.findIndex((item) => String(item.id) === String(incident.id));
-            if (index >= 0) {
-                state.incidents[index] = incident;
-            } else {
-                state.incidents.unshift(incident);
-            }
+            const idx = state.incidents.findIndex((i) => String(i.id) === String(incident.id));
+            if (idx >= 0) state.incidents[idx] = incident;
+            else state.incidents.unshift(incident);
             drawIncidentMarkers();
             renderIncidentList();
-            ensureMapCenter();
+            if (String(incident.id) === String(state.selectedIncidentId)) {
+                showIncidentPanel(incident);
+            }
         }
 
         function upsertOfficer(officer) {
-            const index = state.officers.findIndex((item) => Number(item.id) === Number(officer.id));
-            if (index >= 0) {
-                state.officers[index] = officer;
-            } else {
-                state.officers.push(officer);
-            }
+            const idx = state.officers.findIndex((o) => Number(o.id) === Number(officer.id));
+            if (idx >= 0) state.officers[idx] = officer;
+            else state.officers.push(officer);
             drawOfficerMarkers();
-        }
-
-        function addOrUpdateIncident(incident) {
-            upsertIncident(incident);
-        }
-
-        function updateOfficerCard(officer) {
-            upsertOfficer(officer);
         }
 
         function renderIncidentList() {
@@ -580,9 +776,7 @@
             state.incidents.forEach((incident) => {
                 const card = document.createElement('article');
                 card.className = 'card';
-                if (String(incident.id) === String(state.selectedIncidentId)) {
-                    card.classList.add('selected');
-                }
+                if (String(incident.id) === String(state.selectedIncidentId)) card.classList.add('selected');
                 card.innerHTML = `
                     <h4>${incident.title || 'Untitled Incident'}</h4>
                     <div class="meta">Severity: ${String(incident.severity || 'low').toUpperCase()}</div>
@@ -592,11 +786,20 @@
                 card.addEventListener('click', () => {
                     state.selectedIncidentId = String(incident.id);
                     renderIncidentList();
+                    showIncidentPanel(incident);
                     recommendOfficer();
                     connectChatSocket(state.selectedIncidentId);
                 });
                 list.appendChild(card);
             });
+        }
+
+        function showIncidentPanel(incident) {
+            if (!incident) return;
+            document.getElementById('incidentPanelTitle').textContent = incident.title || 'Incident CCTV View';
+            document.getElementById('incidentPanelMeta').textContent = `Severity: ${String(incident.severity || 'low').toUpperCase()} | Status: ${incident.status || 'open'}`;
+            document.getElementById('incidentPanelDetail').textContent =
+                `Coordinates: ${Number(incident.lat || 0).toFixed(4)}, ${Number(incident.lng || 0).toFixed(4)} | Created: ${new Date(incident.created_at || Date.now()).toLocaleString()}`;
         }
 
         function renderEtaCards(ranked, recommendedOfficerId) {
@@ -605,9 +808,7 @@
             ranked.forEach((item) => {
                 const card = document.createElement('article');
                 card.className = 'eta-card';
-                if (Number(item.officer_id) === Number(recommendedOfficerId)) {
-                    card.classList.add('best');
-                }
+                if (Number(item.officer_id) === Number(recommendedOfficerId)) card.classList.add('best');
                 card.innerHTML = `
                     <h4>${item.name} ${Number(item.officer_id) === Number(recommendedOfficerId) ? ' - Recommended' : ''}</h4>
                     <div class="meta">ETA: ${item.eta_minutes} min</div>
@@ -635,43 +836,102 @@
             drawOfficerMarkers();
         }
 
-        async function loadHotspots() {
-            const payload = await fetchJSON('/api/hotspots');
-            const points = (payload.hotspots || [])
-                .filter((h) => Number.isFinite(Number(h.lat)) && Number.isFinite(Number(h.lng)))
-                .map((h) => ({
-                    location: new google.maps.LatLng(Number(h.lat), Number(h.lng)),
-                    weight: Number(h.intensity || 0.6),
-                }));
-
+        function refreshHeatmap() {
+            if (!state.mapReady || !state.map || !window.google || !google.maps || !google.maps.visualization) return;
+            const points = [...state.hotspotPoints, ...state.predictionPoints];
             if (!state.heatmapLayer) {
                 state.heatmapLayer = new google.maps.visualization.HeatmapLayer({
                     map: state.map,
-                    radius: 36,
-                    opacity: 0.65,
+                    radius: 34,
+                    opacity: 0.72,
                 });
             }
             state.heatmapLayer.setData(points);
         }
 
+        async function loadHotspots() {
+            const payload = await fetchJSON('/api/hotspots');
+            state.hotspotPoints = (payload.hotspots || [])
+                .filter((h) => Number.isFinite(Number(h.lat)) && Number.isFinite(Number(h.lng)))
+                .map((h) => ({
+                    location: new google.maps.LatLng(Number(h.lat), Number(h.lng)),
+                    weight: Number(h.intensity || 0.4),
+                }));
+            refreshHeatmap();
+        }
+
+        async function loadPredictions() {
+            const payload = await fetchJSON(`/api/predictions?time_period=${encodeURIComponent(state.predictionPeriod)}&limit=30`);
+            state.predictionPoints = (payload.predictions || [])
+                .filter((p) => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng)))
+                .map((p) => ({
+                    location: new google.maps.LatLng(Number(p.lat), Number(p.lng)),
+                    weight: Math.max(0.2, Number(p.risk_score || 0.5)),
+                }));
+            refreshHeatmap();
+            appendNotification(`Predictions refreshed (${state.predictionPeriod})`);
+        }
+
+        function createOrUpdateChart(key, canvasId, config) {
+            if (!window.Chart) return;
+            if (state.charts[key]) {
+                state.charts[key].data = config.data;
+                state.charts[key].options = config.options;
+                state.charts[key].update();
+                return;
+            }
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            state.charts[key] = new Chart(ctx, config);
+        }
+
+        function renderAnalyticsCharts(payload) {
+            const daily = payload.daily_incident_chart || [];
+            createOrUpdateChart('daily', 'dailyIncidentChart', {
+                type: 'line',
+                data: {
+                    labels: daily.map((d) => d.date),
+                    datasets: [{ label: 'Incidents', data: daily.map((d) => d.count), borderColor: '#45c4ff', backgroundColor: 'rgba(69,196,255,0.2)', tension: 0.35 }],
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+            });
+
+            const area = payload.area_comparison || [];
+            createOrUpdateChart('area', 'areaComparisonChart', {
+                type: 'bar',
+                data: {
+                    labels: area.map((a) => a.area),
+                    datasets: [{ label: 'Count', data: area.map((a) => a.count), backgroundColor: 'rgba(255,154,61,0.7)' }],
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+            });
+
+            const trend = payload.response_trend || [];
+            createOrUpdateChart('trend', 'responseTrendChart', {
+                type: 'line',
+                data: {
+                    labels: trend.map((r) => `${String(r.hour).padStart(2, '0')}:00`),
+                    datasets: [{ label: 'Avg Response (min)', data: trend.map((r) => r.avg_response_minutes), borderColor: '#57d77a', backgroundColor: 'rgba(87,215,122,0.2)', tension: 0.35 }],
+                },
+                options: { responsive: true, maintainAspectRatio: false },
+            });
+        }
+
         async function loadAnalytics() {
             const payload = await fetchJSON('/api/analytics');
-            const panel = document.getElementById('analyticsPanel');
-            panel.innerHTML = `
+            document.getElementById('analyticsPanel').innerHTML = `
                 <div class="metric"><div class="k">Avg Response</div><div class="v">${payload.avg_response_time} min</div></div>
                 <div class="metric"><div class="k">Active Incidents</div><div class="v">${payload.active_incidents}</div></div>
                 <div class="metric"><div class="k">Completed</div><div class="v">${payload.completed_incidents}</div></div>
                 <div class="metric"><div class="k">Top Officer</div><div class="v">${payload.top_officer || 'N/A'}</div></div>
             `;
+            renderAnalyticsCharts(payload);
         }
 
         function connectChatSocket(incidentId) {
             if (!incidentId) return;
-            if (state.chatWs) {
-                state.chatWs.close();
-            }
+            if (state.chatWs) state.chatWs.close();
 
-            state.chatWs = new WebSocket(`ws://localhost:5000/ws/chat/${incidentId}`);
+            state.chatWs = new WebSocket(wsUrl(`/ws/chat/${incidentId}`));
             state.chatWs.onmessage = (event) => {
                 try {
                     const payload = JSON.parse(event.data);
@@ -691,14 +951,7 @@
             const input = document.getElementById('chatInput');
             const value = (input.value || '').trim();
             if (!value || !state.chatWs || !state.selectedIncidentId) return;
-            state.chatWs.send(
-                JSON.stringify({
-                    event: 'send_message',
-                    incident_id: state.selectedIncidentId,
-                    sender: 'Supervisor',
-                    text: value,
-                })
-            );
+            state.chatWs.send(JSON.stringify({ event: 'send_message', incident_id: state.selectedIncidentId, sender: 'Supervisor', text: value }));
             input.value = '';
         }
 
@@ -721,14 +974,53 @@
             if (recommended) {
                 state.selectedOfficerId = Number(recommended.officer_id);
                 document.getElementById('routeInfo').innerHTML =
-                    `<strong>Recommended Officer:</strong> ${recommended.name}<br>` +
-                    `<strong>Reason:</strong> ${payload.reason || 'Lowest composite score'}`;
+                    `<strong>Recommended Officer:</strong> ${recommended.name}<br><strong>Reason:</strong> ${payload.reason || 'Lowest composite score'}`;
                 await maybeDrawRoute(state.selectedOfficerId, state.selectedIncidentId);
             }
         }
 
+        async function runNlpCommand() {
+            const input = document.getElementById('nlpCommandInput');
+            const command = (input.value || '').trim();
+            if (!command) return;
+            const payload = await fetchJSON('/api/commands/nlp-dispatch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command }),
+            });
+
+            upsertIncident(payload.incident);
+            state.selectedIncidentId = String(payload.incident.id);
+            state.selectedOfficerId = Number(payload.recommended_officer.officer_id);
+            renderIncidentList();
+            showIncidentPanel(payload.incident);
+            await maybeDrawRoute(state.selectedOfficerId, state.selectedIncidentId);
+            appendNotification(`NLP dispatch: ${payload.recommended_officer.name} -> ${payload.incident.title}`);
+            showToast('Command executed and dispatch triggered', 'high');
+            input.value = '';
+        }
+
+        async function toggleDemoMode() {
+            if (!state.demoRunning) {
+                await fetchJSON('/api/demo/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ interval_seconds: 4.0 }),
+                });
+                state.demoRunning = true;
+                document.getElementById('demoBtn').textContent = 'Stop Demo';
+                appendNotification('Demo mode started');
+                return;
+            }
+
+            await fetchJSON('/api/demo/stop', { method: 'POST' });
+            state.demoRunning = false;
+            document.getElementById('demoBtn').textContent = 'Start Demo';
+            appendNotification('Demo mode stopped');
+        }
+
         async function maybeDrawRoute(officerId, incidentId) {
-            if (!officerId || !incidentId) return;
+            if (!officerId || !incidentId || !state.mapReady || !state.map) return;
 
             const payload = await fetchJSON('/api/routes', {
                 method: 'POST',
@@ -738,24 +1030,9 @@
 
             const incident = state.incidents.find((i) => String(i.id) === String(incidentId));
             const officer = state.officers.find((o) => Number(o.id) === Number(officerId));
-
             document.getElementById('routeInfo').innerHTML =
-                `<strong>${officer ? officer.name : 'Officer'}</strong> -> ` +
-                `<strong>${incident ? incident.title : 'Incident'}</strong><br>` +
-                `Distance: ${payload.distance_km} km<br>` +
-                `ETA: ${payload.eta_minutes} min (${payload.traffic_based ? 'live traffic' : 'estimated'})`;
-
-            if (!state.directionsRenderer) {
-                state.directionsRenderer = new google.maps.DirectionsRenderer({
-                    map: state.map,
-                    suppressMarkers: false,
-                    polylineOptions: {
-                        strokeColor: '#45c4ff',
-                        strokeOpacity: 0.9,
-                        strokeWeight: 5,
-                    },
-                });
-            }
+                `<strong>${officer ? officer.name : 'Officer'}</strong> -> <strong>${incident ? incident.title : 'Incident'}</strong><br>` +
+                `Distance: ${payload.distance_km} km<br>ETA: ${payload.eta_minutes} min (${payload.traffic_based ? 'live traffic' : 'estimated'})`;
 
             if (payload.route && payload.route.polyline) {
                 const path = google.maps.geometry.encoding.decodePath(payload.route.polyline);
@@ -764,66 +1041,34 @@
                     strokeColor: '#45c4ff',
                     strokeOpacity: 0.9,
                     strokeWeight: 5,
+                    map: state.map,
                 });
-                routeLine.setMap(state.map);
-
-                // Simple smooth draw effect.
                 let opacity = 0;
                 const timer = setInterval(() => {
-                    opacity += 0.15;
+                    opacity += 0.12;
                     routeLine.setOptions({ strokeOpacity: Math.min(opacity, 0.9) });
-                    if (opacity >= 0.9) {
-                        clearInterval(timer);
-                    }
-                }, 50);
-                return;
-            }
-
-            if (state.directionsService && officer && incident) {
-                state.directionsService.route(
-                    {
-                        origin: { lat: Number(officer.lat), lng: Number(officer.lng) },
-                        destination: { lat: Number(incident.lat), lng: Number(incident.lng) },
-                        travelMode: google.maps.TravelMode.DRIVING,
-                        drivingOptions: {
-                            departureTime: new Date(),
-                            trafficModel: 'bestguess',
-                        },
-                    },
-                    (result, status) => {
-                        if (status === 'OK') {
-                            state.directionsRenderer.setDirections(result);
-                        }
-                    }
-                );
+                    if (opacity >= 0.9) clearInterval(timer);
+                }, 70);
             }
         }
 
         function wireRealtime() {
-            const wsUrl = 'ws://localhost:5000/ws/incidents';
-            state.ws = new WebSocket(wsUrl);
-
-            state.ws.onopen = () => {
-                console.log('Live feed connected');
-                setConnectionStatus(true);
-            };
-
+            state.ws = new WebSocket(wsUrl('/ws/incidents'));
+            state.ws.onopen = () => setConnectionStatus(true);
             state.ws.onclose = () => {
-                console.log('Disconnected');
                 setConnectionStatus(false);
-                // Lightweight reconnect
                 setTimeout(wireRealtime, 2500);
             };
-
             state.ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
                     if (data.type === 'incident_update') {
-                        addOrUpdateIncident(data.data);
+                        upsertIncident(data.data);
                         showToast(data.data.title, data.data.severity);
                         appendNotification(`Incident update: ${data.data.title}`);
+                        loadPredictions().catch(() => {});
                     } else if (data.type === 'officer_update' || data.type === 'officer_location_update') {
-                        updateOfficerCard(data.data);
+                        upsertOfficer(data.data);
                         appendNotification(`Officer update: ${data.data.name} (${data.data.status})`);
                     } else if (data.type === 'dispatch_status_update') {
                         showToast(`Dispatch updated: Officer ${data.data.officer_id} -> Incident ${data.data.incident_id}`, 'high');
@@ -835,19 +1080,36 @@
             };
         }
 
+        function setupTimelineControls() {
+            document.querySelectorAll('#timelineControls button').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    document.querySelectorAll('#timelineControls button').forEach((b) => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.predictionPeriod = btn.dataset.period || 'all';
+                    await loadPredictions();
+                });
+            });
+        }
+
         async function bootstrap() {
             try {
                 await loadMapsApi();
-                await Promise.all([loadIncidents(), loadOfficers(), loadHotspots(), loadAnalytics()]);
+                await Promise.all([loadIncidents(), loadOfficers(), loadHotspots(), loadPredictions(), loadAnalytics()]);
                 wireRealtime();
+                setupTimelineControls();
 
                 document.getElementById('recommendBtn').addEventListener('click', recommendOfficer);
-                document.getElementById('refreshHotspotsBtn').addEventListener('click', loadHotspots);
+                document.getElementById('refreshHotspotsBtn').addEventListener('click', async () => {
+                    await loadHotspots();
+                    await loadPredictions();
+                });
                 document.getElementById('sendChatBtn').addEventListener('click', sendChatMessage);
+                document.getElementById('runNlpBtn').addEventListener('click', runNlpCommand);
+                document.getElementById('demoBtn').addEventListener('click', toggleDemoMode);
 
-                // Fallback safety-net polling retained from Phase 1.
-                setInterval(loadOfficers, 30000);
+                setInterval(loadOfficers, 20000);
                 setInterval(loadAnalytics, 15000);
+                setInterval(loadPredictions, 20000);
             } catch (error) {
                 console.error('Dashboard bootstrap failed', error);
                 showToast('Failed to initialize dashboard', 'critical');
@@ -858,11 +1120,17 @@
             const cfg = await fetchJSON('/api/maps-config');
             const apiKey = cfg.google_maps_api_key;
             if (!apiKey) {
-                throw new Error('GOOGLE_MAPS_API_KEY is not configured');
+                state.mapReady = false;
+                const mapEl = document.getElementById('map');
+                mapEl.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;padding:24px;color:#c8d8e8;text-align:center;">Google Maps API key is not configured. Map layers are disabled, but live incident list, analytics, NLP dispatch, chat, and demo mode remain available.</div>';
+                mapEl.style.display = 'flex';
+                mapEl.style.alignItems = 'stretch';
+                showToast('Map disabled: GOOGLE_MAPS_API_KEY missing', 'medium');
+                return;
             }
 
             await new Promise((resolve, reject) => {
-                window.initPhase2Map = () => {
+                window.initPhase4Map = () => {
                     state.map = new google.maps.Map(document.getElementById('map'), {
                         center: { lat: 11.0168, lng: 76.9558 },
                         zoom: 13,
@@ -875,15 +1143,15 @@
                             { elementType: 'labels.text.stroke', stylers: [{ color: '#1b2935' }] },
                         ],
                     });
-
                     state.trafficLayer = new google.maps.TrafficLayer();
                     state.trafficLayer.setMap(state.map);
                     state.directionsService = new google.maps.DirectionsService();
+                    state.mapReady = true;
                     resolve();
                 };
 
                 const script = document.createElement('script');
-                script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=visualization,geometry&callback=initPhase2Map`;
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=visualization,geometry&callback=initPhase4Map`;
                 script.async = true;
                 script.defer = true;
                 script.onerror = () => reject(new Error('Google Maps script failed to load'));
