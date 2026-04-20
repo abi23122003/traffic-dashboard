@@ -81,11 +81,24 @@ app = FastAPI(
 
 # Socket.IO server for push updates to the command center frontend.
 SOCKETIO_REDIS_URL = os.getenv("SOCKETIO_REDIS_URL", "redis://redis:6379/0")
-socket_client_manager = socketio.AsyncRedisManager(SOCKETIO_REDIS_URL)
+
+# Try to use Redis manager for distributed systems, fall back to in-memory for development
+try:
+    socket_client_manager = socketio.AsyncRedisManager(SOCKETIO_REDIS_URL)
+    logger.info(f"✅ Socket.IO using Redis manager: {SOCKETIO_REDIS_URL}")
+except Exception as e:
+    logger.warning(f"⚠️ Redis connection failed ({e}), using in-memory manager for Socket.IO")
+    socket_client_manager = None  # Will use in-memory manager by default
+
 sio = socketio.AsyncServer(
     async_mode="asgi",
     cors_allowed_origins="*",
-    client_manager=socket_client_manager,
+    client_manager=socket_client_manager,  # None = use in-memory manager
+    ping_timeout=60,  # Server expects ping from client within 60 seconds
+    ping_interval=25,  # Server sends ping every 25 seconds
+    max_http_buffer_size=1000000,  # 1MB max message size
+    logger=True,  # Enable Socket.IO logger
+    engineio_logger=False,  # Don't spam with engine.io logs
 )
 app.mount("/socket.io", socketio.ASGIApp(sio, socketio_path="/"))
 
@@ -2029,15 +2042,23 @@ async def login_user(
         )
     access_token_expires = timedelta(minutes=30 * 24 * 60)
     user_department = (getattr(user, "department", None) or "general").strip().lower()
+    user_role = (getattr(user, "role", None) or "user").strip().lower()
+    user_district_id = getattr(user, "district_id", None)
 
     role = UserRole.user
     district_id = None
     fleet_zone = None
     if user.is_admin:
         role = UserRole.admin
+    elif user_role == "police_supervisor":
+        role = UserRole.police_supervisor
+        district_id = user_district_id or "district_1"
     elif user_department == "police":
         role = UserRole.police_supervisor
-        district_id = "district_1"
+        district_id = user_district_id or "district_1"
+    elif user_role == "logistics_manager":
+        role = UserRole.logistics_manager
+        fleet_zone = "zone_default"
     elif user_department == "logistics":
         role = UserRole.logistics_manager
         fleet_zone = "zone_default"
@@ -2056,7 +2077,7 @@ async def login_user(
         value=access_token,
         httponly=True,
         secure=is_secure,
-        samesite="Lax" if is_secure else "None",
+        samesite="Lax",  # Use Lax for both secure and non-secure (None requires Secure=True)
         max_age=30 * 24 * 60 * 60,
         path="/",
     )
@@ -2550,30 +2571,17 @@ async def dispatch_patrol_unit(
         # Store mobile token for FCM notification
         officer_mobile_token = officer_status.mobile_token
         
-        # Query fresh data from database
-        existing_incident_assignment = (
-            session.query(PoliceDispatchAssignment)
-            .filter(PoliceDispatchAssignment.incident_id == request.incident_id)
-            .with_for_update()  # Lock the row
-            .first()
-        )
+        # Query fresh data from database and delete ALL existing assignments for this incident and unit
+        session.query(PoliceDispatchAssignment).filter(
+            PoliceDispatchAssignment.incident_id == request.incident_id
+        ).delete(synchronize_session=False)
         
-        # Delete incident assignment if exists
-        if existing_incident_assignment:
-            session.delete(existing_incident_assignment)
-            session.flush()
+        session.query(PoliceDispatchAssignment).filter(
+            PoliceDispatchAssignment.unit_id == officer_id
+        ).delete(synchronize_session=False)
         
-        # Query and delete unit assignment if exists
-        existing_unit_assignment = (
-            session.query(PoliceDispatchAssignment)
-            .filter(PoliceDispatchAssignment.unit_id == officer_id)
-            .with_for_update()  # Lock the row
-            .first()
-        )
-        
-        if existing_unit_assignment:
-            session.delete(existing_unit_assignment)
-            session.flush()
+        session.commit()
+        session.expunge_all()
         
         # Create new assignment
         assignment = PoliceDispatchAssignment(
@@ -3923,7 +3931,7 @@ async def role_login(
         value=access_token,
         httponly=True,
         secure=is_secure,
-        samesite="Lax" if is_secure else "None",
+        samesite="Lax",  # Use Lax for both secure and non-secure (None requires Secure=True)
         max_age=30 * 24 * 60 * 60,
         path="/",
     )

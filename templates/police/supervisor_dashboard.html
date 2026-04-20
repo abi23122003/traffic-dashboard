@@ -1932,7 +1932,7 @@
     <script src="/static/chart.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     {% if google_maps_api_key %}
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=geometry"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=geometry,visualization"></script>
     {% endif %}
     <script>
         // Configure Leaflet to use custom marker icons from static/images
@@ -2029,6 +2029,12 @@
         }
 
         function getAuthToken() {
+            // Check localStorage first (primary storage location)
+            const tokenFromStorage = localStorage.getItem('access_token');
+            if (tokenFromStorage) {
+                return tokenFromStorage;
+            }
+
             // Fall back to checking cookies
             const tokenFromCookie = getCookie('token') || getCookie('access_token');
             if (tokenFromCookie) {
@@ -2139,12 +2145,16 @@
             console.log('Connecting to Socket.IO /police namespace...');
             commandCenterSocket = io('/police', {
                 path: '/socket.io/',
-                withCredentials: true,  // Send HttpOnly cookies with connection
+                withCredentials: true,  // Automatically send HttpOnly cookies with connection
                 transports: ['websocket', 'polling'],
                 reconnection: true,
                 reconnectionDelay: 1000,
-                reconnectionDelayMax: 5000,
+                reconnectionDelayMax: 10000,
                 reconnectionAttempts: 10,
+                timeout: 20000,  // 20 second connection timeout (increased from 10)
+                upgrade: true,  // Allow transport upgrade from polling to websocket
+                rememberUpgrade: true,  // Remember transport choice
+                rejectUnauthorized: false,  // For self-signed certificates in dev
             });
 
             // Update status indicator
@@ -2159,6 +2169,7 @@
 
             commandCenterSocket.on('connect', () => {
                 console.log('✅ Socket.IO connected to /police namespace (SID:', commandCenterSocket.id, ')');
+                console.log('  Transport:', commandCenterSocket.io.engine.transport.name);
                 commandCenterSocket.emit('join_district', { district_id: supervisorDistrictId });
                 updateSocketIOStatus('connected', 'Real-time connected');
                 showToast('Real-time updates connected', 'success', 2000);
@@ -2166,18 +2177,47 @@
 
             commandCenterSocket.on('connect_error', (error) => {
                 console.error('❌ Socket.IO connection error:', error);
+                console.error('  Error type:', error.type || 'unknown');
+                console.error('  Error message:', error.message || 'unknown');
+                console.error('  Current transport:', commandCenterSocket.io?.engine?.transport?.name || 'unknown');
                 updateSocketIOStatus('error', 'Connection error');
-                showToast('Real-time connection error: ' + error.message, 'error', 3000);
+                
+                // Log detailed error for troubleshooting
+                let errorMsg = error.message || 'Unknown error';
+                if (error.message && error.message.includes('403')) {
+                    errorMsg = 'Authentication failed - insufficient permissions';
+                    console.error('  Likely cause: User does not have police supervisor role');
+                } else if (error.message && error.message.includes('401')) {
+                    errorMsg = 'Authentication failed - please log in again';
+                    console.error('  Likely cause: Session token expired or missing');
+                } else if (error.message && error.message.includes('timeout')) {
+                    errorMsg = 'Connection timeout - server may be slow or unreachable';
+                    console.error('  Likely cause: Network latency or server not responding');
+                }
+                
+                showToast('Real-time connection error: ' + errorMsg, 'error', 5000);
+            });
+
+            commandCenterSocket.on('transport', (transport) => {
+                console.log('📡 Socket.IO transport:', transport.name, 'connected');
             });
 
             commandCenterSocket.on('disconnect', (reason) => {
                 console.warn('⚠️ Socket.IO disconnected:', reason);
                 updateSocketIOStatus('connecting', 'Reconnecting...');
+                
                 if (reason === 'io server disconnect') {
-                    // Server disconnected the client, authentication likely failed
-                    console.error('Server forcibly disconnected. Check authentication.');
-                    updateSocketIOStatus('error', 'Auth failed');
-                    showToast('Real-time connection lost (auth required)', 'warning', 3000);
+                    // Server forcibly disconnected - likely auth issue
+                    console.error('Server disconnected client. Authentication may have failed.');
+                    updateSocketIOStatus('error', 'Auth required');
+                    showToast('Real-time connection lost (authentication required)', 'warning', 3000);
+                    
+                    // Manual reconnection after delay
+                    setTimeout(() => {
+                        if (!commandCenterSocket || !commandCenterSocket.connected) {
+                            commandCenterSocket.connect();
+                        }
+                    }, 5000);
                 }
             });
 
@@ -3385,6 +3425,7 @@
 
             dispatchFeedback.textContent = 'Dispatching...';
             try {
+                await refreshDispatchState(); // Refresh state to ensure fresh data
                 const response = await fetch('/api/dispatch', {
                     method: 'POST',
                     headers: {
@@ -3397,6 +3438,9 @@
 
                 const payload = await response.json().catch(() => ({}));
                 if (!response.ok) {
+                    if (response.status === 409) {
+                        throw new Error('Officer already assigned or unavailable. Refreshing list...');
+                    }
                     throw new Error(payload.detail || `HTTP ${response.status}`);
                 }
 

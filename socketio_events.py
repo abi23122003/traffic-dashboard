@@ -164,9 +164,18 @@ def register_police_socketio_handlers(sio: Any, logger: Any) -> None:
             user_claims = authenticate_socket_user(environ)
         except HTTPException as exc:
             logger.warning(
-                "Socket.IO auth rejected sid=%s: %s",
+                "Socket.IO auth rejected sid=%s: %s (HTTP status: %s)",
                 sid,
                 exc.detail,
+                exc.status_code,
+            )
+            # Return False to close connection - client will see error in browser console
+            return False
+        except Exception as exc:
+            logger.error(
+                "Socket.IO auth error sid=%s: %s",
+                sid,
+                str(exc),
             )
             return False
 
