@@ -1890,14 +1890,14 @@
         </div>
     </div>
 
-    <div id="dispatch-modal-backdrop" class="modal-backdrop" aria-hidden="true">
+    <div id="dispatch-modal-backdrop" class="modal-backdrop" aria-hidden="true" role="presentation">
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dispatch-modal-title">
             <div class="modal-header">
                 <div>
                     <h3 id="dispatch-modal-title" class="modal-title">Dispatch Incident</h3>
                     <div id="dispatch-modal-subtitle" class="section-subtitle">Choose a unit to assign.</div>
                 </div>
-                <button class="close-btn" type="button" aria-label="Close dispatch modal" onclick="closeDispatchModal()">×</button>
+                <button class="close-btn" type="button" aria-label="Close dispatch modal" onclick="closeDispatchModal()" tabindex="-1">×</button>
             </div>
 
             <form id="dispatch-form">
@@ -1908,14 +1908,14 @@
                 </div>
                 <div class="form-row">
                     <label class="form-label" for="dispatch-unit-select">Select Officer</label>
-                    <select id="dispatch-unit-select" class="unit-select" required></select>
+                    <select id="dispatch-unit-select" class="unit-select" required tabindex="-1"></select>
                 </div>
 
                 <div class="dispatch-feedback" id="dispatch-feedback"></div>
 
                 <div class="modal-actions">
-                    <button type="button" class="secondary-btn" onclick="closeDispatchModal()">Cancel</button>
-                    <button type="submit" class="primary-btn">Dispatch</button>
+                    <button type="button" class="secondary-btn" onclick="closeDispatchModal()" tabindex="-1">Cancel</button>
+                    <button type="submit" class="primary-btn" tabindex="-1">Dispatch</button>
                 </div>
             </form>
         </div>
@@ -3200,9 +3200,16 @@
 
         function fillUnitSelect(units) {
             const items = Array.isArray(units) ? units : [];
+            const previousValue = dispatchUnitSelect.value;
             dispatchUnitSelect.innerHTML = items.map((unit) => (
-                `<option value="${escapeHtml(unit.unit_id || '')}">${escapeHtml(unit.unit_id || 'Unit')} - ${escapeHtml(unit.officer_name || 'Unknown Officer')}</option>`
+                `<option value="${escapeHtml(unit.officer_id || unit.unit_id || '')}" data-officer-id="${escapeHtml(unit.officer_id || unit.unit_id || '')}">${escapeHtml(unit.unit_id || 'Unit')} - ${escapeHtml(unit.officer_name || 'Unknown Officer')}</option>`
             )).join('');
+            // Restore previous selection if available, otherwise select first
+            if (previousValue && Array.from(dispatchUnitSelect.options).some(opt => opt.value === previousValue)) {
+                dispatchUnitSelect.value = previousValue;
+            } else if (items.length > 0) {
+                dispatchUnitSelect.value = items[0].officer_id || items[0].unit_id || '';
+            }
             dispatchUnitSelect.disabled = items.length === 0;
         }
 
@@ -3236,13 +3243,27 @@
             // Clear any previous route
             clearDispatchRoute();
             
+            // Open modal - update aria-hidden BEFORE enabling interactive elements
             modalBackdrop.classList.add('open');
             modalBackdrop.setAttribute('aria-hidden', 'false');
+            // Remove tabindex restrictions to allow focus on visible elements
+            dispatchUnitSelect.removeAttribute('tabindex');
+            dispatchUnitSelect.focus();
         }
 
         function closeDispatchModal() {
-            modalBackdrop.classList.remove('open');
+            // Remove focus from modal elements BEFORE hiding
+            if (document.activeElement && modalBackdrop.contains(document.activeElement)) {
+                document.activeElement.blur();
+            }
+            // Hide from accessibility tree
             modalBackdrop.setAttribute('aria-hidden', 'true');
+            // Disable focus on modal elements
+            Array.from(modalBackdrop.querySelectorAll('button, select')).forEach(el => {
+                el.setAttribute('tabindex', '-1');
+            });
+            // Remove visual state
+            modalBackdrop.classList.remove('open');
             dispatchFeedback.textContent = '';
             dispatchTargetLocation.textContent = '-';
             dispatchForm.reset();
@@ -3499,7 +3520,7 @@
 
                 const data = await response.json();
                 livePatrolUnits = data.patrol_units || [];
-                liveAvailableUnits = data.available_patrol_units || livePatrolUnits.filter((unit) => (unit.status || '').toLowerCase() === 'idle');
+                liveAvailableUnits = data.available_patrol_units || livePatrolUnits.filter((unit) => (unit.status || '').toLowerCase() === 'available');
                 liveUnassignedIncidents = data.unassigned_incidents || [];
 
                 renderPatrolUnits(livePatrolUnits);
