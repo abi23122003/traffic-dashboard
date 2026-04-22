@@ -26,23 +26,32 @@ This project provides a full-stack solution for analyzing traffic routes using:
 
 ```
 TrafficDashboard/
-├── app.py                 # FastAPI backend with endpoints
-├── utils.py               # Unified TomTom API helpers and utilities
-├── db.py                  # SQLAlchemy database models and persistence
-├── model_train.py         # ML model training script
-├── push_to_powerbi.py     # Optional Power BI push helper
-├── test_utils.py          # Unit tests for utility functions
-├── test_cost.py           # Cost calculation examples
-├── templates/
-│   └── index.html         # Frontend HTML with Leaflet map
+├── app.py
+├── main.py
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+├── pytest.ini
+├── START.sh
+├── START.bat
+├── tests/
+├── docs/
 ├── static/
-│   └── app.js             # Frontend JavaScript
-├── requirements.txt       # Python dependencies
-├── demo_run.sh            # Demo script (Linux/Mac)
-├── demo_run.bat           # Demo script (Windows)
-├── README.md              # This file
-└── SECOND_REVIEW.md       # Review checklist and documentation
+├── templates/
+└── mobile_app/
 ```
+
+The root keeps the application entrypoints, backend modules, and deployment files. Test code now lives in `tests/`, documentation lives in `docs/`, and the frontend assets remain in `static/`, `templates/`, and `mobile_app/`.
+
+## Docs
+
+- [GOOGLE_MAPS_SETUP.md](docs/GOOGLE_MAPS_SETUP.md): Google Maps API setup notes and configuration steps.
+- [IMPLEMENTATION_GOOGLE_MAPS.md](docs/IMPLEMENTATION_GOOGLE_MAPS.md): Implementation details for the Google Maps integration.
+- [IMPLEMENTATION_SUMMARY.md](docs/IMPLEMENTATION_SUMMARY.md): High-level summary of the implemented changes.
+- [QUICKSTART_GOOGLE_MAPS.md](docs/QUICKSTART_GOOGLE_MAPS.md): Quick start guide for enabling Google Maps features.
+- [SOCKETIO_QUICK_REFERENCE.md](docs/SOCKETIO_QUICK_REFERENCE.md): Short reference for Socket.IO events and usage.
+- [SOCKETIO_README.md](docs/SOCKETIO_README.md): Socket.IO overview and runtime behavior notes.
+- [SOCKETIO_SETUP.md](docs/SOCKETIO_SETUP.md): Socket.IO setup and deployment instructions.
 
 ## Setup & Installation
 
