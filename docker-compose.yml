@@ -53,8 +53,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-traffic_dashboard}
       
       # API Keys
-      TOMTOM_KEY: lDfiIMS9bisNZ02h56YGCXvHA5qkGRVP
-      GOOGLE_MAPS_API_KEY: AIzaSyDQ5QWTpkFlisgV5GhxnkeqPrQFLFCYsyU
+      TOMTOM_KEY: ${TOMTOM_KEY:-}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
 
       # Application
       SECRET_KEY: ${SECRET_KEY:-change-this-secret-key-in-production}

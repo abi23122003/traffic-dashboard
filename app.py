@@ -167,10 +167,11 @@ async def expired_signature_exception_handler(request: Request, exc: ExpiredSign
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     detail = exc.detail
-    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-        detail = "Unauthorized access. Please log in to continue."
-    elif exc.status_code == status.HTTP_403_FORBIDDEN:
+
+    if exc.status_code == status.HTTP_403_FORBIDDEN:
         detail = "Access denied. You do not have permission to view this resource."
+    elif exc.status_code == status.HTTP_401_UNAUTHORIZED and not detail:
+        detail = "Unauthorized access. Please log in to continue."
 
     return JSONResponse(
         status_code=exc.status_code,

@@ -324,11 +324,11 @@ def init_db():
         
         # Ensure default admin user exists
         try:
-            from auth import ensure_admin_user_exists
+            from auth import ensure_admin_user_exists, ensure_police_user_exists
             session = get_session()
             ensure_admin_user_exists(session)
+            ensure_police_user_exists(session)
             session.execute(text("UPDATE users SET department = 'admin' WHERE is_admin = 1"))
-            session.execute(text("UPDATE users SET department = 'police' WHERE username = 'officer_raj'"))
             session.commit()
             session.close()
             logger.info("✅ Default admin user verified/created")

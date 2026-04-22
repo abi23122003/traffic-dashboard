@@ -536,3 +536,57 @@ def ensure_admin_user_exists(db: Session) -> User:
         db.refresh(admin_user)
         logger.info(f"✅ Created default admin user: {admin_username}")
         return admin_user
+
+
+def ensure_police_user_exists(db: Session) -> User:
+    """
+    Ensure the default police user exists for supervisor dashboard access.
+    Creates it if missing, or normalizes key attributes if it already exists.
+    """
+    logger = get_logger(__name__)
+    police_username = os.getenv("DEFAULT_POLICE_USERNAME", "officer_raj")
+    police_password = os.getenv("DEFAULT_POLICE_PASSWORD", "Police123")
+    police_email = os.getenv("DEFAULT_POLICE_EMAIL", "officer_raj@trafficdashboard.com")
+
+    police_user = get_user_by_username(db, police_username)
+
+    if police_user:
+        should_commit = False
+
+        if not verify_password(police_password, police_user.hashed_password):
+            police_user.hashed_password = get_password_hash(police_password)
+            should_commit = True
+
+        if not police_user.is_active:
+            police_user.is_active = True
+            should_commit = True
+
+        if police_user.is_admin:
+            police_user.is_admin = False
+            should_commit = True
+
+        if (police_user.department or "").strip().lower() != "police":
+            police_user.department = "police"
+            should_commit = True
+
+        if should_commit:
+            db.commit()
+            db.refresh(police_user)
+            logger.info(f"✅ Normalized default police user: {police_username}")
+
+        return police_user
+
+    police_user = User(
+        username=police_username,
+        email=police_email,
+        hashed_password=get_password_hash(police_password),
+        full_name="Police Supervisor",
+        department="police",
+        is_active=True,
+        is_admin=False,
+    )
+    db.add(police_user)
+    db.commit()
+    db.refresh(police_user)
+    logger.info(f"✅ Created default police user: {police_username}")
+    return police_user
