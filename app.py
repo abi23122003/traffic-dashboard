@@ -9,6 +9,7 @@ import logging
 import re
 import csv
 import socketio
+from dotenv import load_dotenv
 from typing import Optional, Union, List
 from functools import wraps
 from fastapi import FastAPI, HTTPException, Query, Depends, status, BackgroundTasks, Request
@@ -28,6 +29,8 @@ import traceback
 import asyncio
 import time
 from sqlalchemy.exc import IntegrityError
+
+load_dotenv()
 
 # Import logging and rate limiting
 from logging_config import setup_logging, get_logger
@@ -683,6 +686,17 @@ def _build_patrol_units(
                 location = f"{location} ({incident['latitude']:.4f}, {incident['longitude']:.4f})"
             last_updated = incident.get("start_time") or last_updated
 
+        latitude = district["lat"]
+        longitude = district["lon"]
+        if assignment:
+            incident_match = next((item for item in incidents if item.get("id") == assignment.incident_id), None)
+            if incident_match and incident_match.get("latitude") is not None and incident_match.get("longitude") is not None:
+                latitude = float(incident_match["latitude"])
+                longitude = float(incident_match["longitude"])
+        elif incident and incident.get("latitude") is not None and incident.get("longitude") is not None:
+            latitude = float(incident["latitude"])
+            longitude = float(incident["longitude"])
+
         patrol_units.append({
             "unit_id": unit_id,
             "officer_name": officer_name,
@@ -691,6 +705,8 @@ def _build_patrol_units(
             "last_updated": _format_police_timestamp(last_updated),
             "district_id": district_id,
             "assigned_incident_id": assignment.incident_id if assignment else None,
+            "latitude": latitude,
+            "longitude": longitude,
         })
 
     return patrol_units
@@ -822,7 +838,12 @@ def _predict_police_hotspots(district_id: str, incidents: list[dict]) -> list[di
             predicted_type = "light traffic"
 
         predictions.append({
+            "zone_name": candidate["location"],
             "location": candidate["location"],
+            "latitude": candidate["latitude"],
+            "longitude": candidate["longitude"],
+            "incident_count": 1 if candidate.get("source") == "live_incident" else 0,
+            "severity": candidate.get("base_severity", "unknown"),
             "likelihood_score": average_score,
             "confidence": confidence,
             "predicted_type": predicted_type,
@@ -2327,6 +2348,10 @@ async def api_officers_status(current_user: dict = Depends(require_any_role("pol
             "status": str(unit.get("status") or "available").lower(),
             "skills": [],
             "district_id": unit.get("district_id") or district_id,
+            "current_location": unit.get("current_location") or "District duty",
+            "latitude": unit.get("latitude"),
+            "longitude": unit.get("longitude"),
+            "last_updated": unit.get("last_updated") or "-",
         }
         for unit in patrol_units
     ]
@@ -3510,26 +3535,12 @@ async def get_predicted_incidents(
     
     Returns GeoJSON FeatureCollection with risk zones.
     """
-    # Get recent incidents (last 24 hours)
-    from datetime import timedelta
-    now = datetime.now(UTC)
-    yesterday = now - timedelta(days=1)
-    
-    recent_incidents = db.query(Notification).filter(
-        Notification.timestamp >= yesterday,
-        Notification.timestamp <= now
-    ).all()
-    
-    incident_data = [
-        {
-            "timestamp": inc.timestamp.isoformat(),
-            "severity": inc.severity,
-            "message": inc.message,
-            "district_id": incident_data.get("district_id", district_id)
-        }
-        for inc in recent_incidents
-    ]
-    
+    user_district_id = current_user.get("district_id")
+    if user_district_id and district_id != user_district_id:
+        district_id = user_district_id
+
+    incident_data = _load_police_incidents(district_id)
+
     # Get predictions from ML model
     try:
         hotspots = _predict_police_hotspots(district_id, incident_data)
@@ -3541,7 +3552,7 @@ async def get_predicted_incidents(
     features = []
     for hotspot in hotspots:
         # Classify risk level based on prediction score
-        score = hotspot.get("avg_likelihood_score", 0) * 100  # Convert to 0-100
+        score = float(hotspot.get("likelihood_score", 0))
         if score >= 75:
             risk_level = "high"
         elif score >= 40:
@@ -3576,7 +3587,7 @@ async def get_predicted_incidents(
                 "coordinates": [polygon_coords]
             },
             "properties": {
-                "zone_name": hotspot.get("zone_name", f"Zone_{lat:.4f}_{lon:.4f}"),
+                "zone_name": hotspot.get("zone_name", hotspot.get("location", f"Zone_{lat:.4f}_{lon:.4f}")),
                 "risk_level": risk_level,
                 "prediction_score": round(score, 2),
                 "incident_count": hotspot.get("incident_count", 0),

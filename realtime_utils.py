@@ -9,13 +9,20 @@ from sqlalchemy.orm import Session
 import requests
 import os
 import math
+from dotenv import load_dotenv
 
 from db import AnalysisResult, SavedRoute
 from utils import tomtom_route, summarize_route
 from logging_config import get_logger
 
+load_dotenv()
+
 logger = get_logger(__name__)
-TOMTOM_KEY = os.getenv("TOMTOM_KEY")
+
+
+def get_tomtom_key() -> str | None:
+    """Read the TomTom key from the current process environment."""
+    return os.getenv("TOMTOM_KEY")
 
 
 def _build_bbox(lat: float, lon: float, radius_m: int) -> str:
@@ -49,14 +56,15 @@ def _extract_location(geometry: Dict) -> List[float]:
 
 def get_traffic_incidents(lat: float, lon: float, radius: int = 5000) -> List[Dict]:
     """Get traffic incidents near a location."""
-    if not TOMTOM_KEY:
+    tomtom_key = get_tomtom_key()
+    if not tomtom_key:
         return []
     
     try:
         url = "https://api.tomtom.com/traffic/services/5/incidentDetails"
         bbox = _build_bbox(lat, lon, radius)
         params = {
-            "key": TOMTOM_KEY,
+            "key": tomtom_key,
             "bbox": bbox,
             "fields": "{incidents{type,geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,startTime,endTime,from,to,length,delay,roadNumbers,timeValidity}}}",
             "language": "en-GB",

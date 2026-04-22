@@ -2105,9 +2105,12 @@
                 officer_name: officer.name || 'Unknown Officer',
                 status: officer.status || 'available',
                 district_id: officer.district_id || supervisorDistrictId,
-                current_location: officer.district_id || 'District duty',
+                current_location: officer.current_location || 'District duty',
                 skills: officer.skills || [],
                 badge: officer.badge || officer.id,
+                latitude: officer.latitude,
+                longitude: officer.longitude,
+                last_updated: officer.last_updated || '-',
             }));
             liveAvailableUnits = livePatrolUnits.filter((unit) => {
                 const status = (unit.status || '').toLowerCase();
@@ -2126,8 +2129,8 @@
 
         async function hydrateCommandCenterFromApi() {
             await Promise.all([
-                loadIncidentsFromApi(),
-                loadOfficersFromApi(),
+                refreshDispatchState(),
+                refreshIncidentFeed(),
             ]);
         }
 
@@ -2235,9 +2238,10 @@
                 try {
                     console.log('Refreshing dashboard after event:', eventPayload);
                     await Promise.all([
-                        loadIncidentsFromApi(),
-                        loadOfficersFromApi(),
+                        refreshDispatchState(),
+                        refreshIncidentFeed(),
                         refreshHeatmapData(),
+                        refreshResponseTimes(),
                     ]);
                 } catch (error) {
                     console.error('Failed to refresh after socket incident update:', error);
@@ -3563,16 +3567,6 @@
             console.error('Failed to parse initial dashboard data', error);
         }
 
-        // Load incidents and officer status from backend APIs on initial page load.
-        hydrateCommandCenterFromApi().catch((error) => {
-            console.warn('API hydration failed, falling back to template payload:', error);
-            renderPatrolUnits(initialUnits);
-            renderIncidentList(initialIncidents);
-            renderAvailableUnits(initialAvailableUnits);
-            renderIncidentFeed(initialIncidentFeed);
-            fillUnitSelect(initialAvailableUnits);
-        });
-
         dispatchForm.addEventListener('submit', submitDispatch);
         modalBackdrop.addEventListener('click', (event) => {
             if (event.target === modalBackdrop) {
@@ -3815,14 +3809,20 @@
 
         initializeHeatmap();
 
-        loadIncidentsFromApi();
-        loadOfficersFromApi();
+        hydrateCommandCenterFromApi().catch((error) => {
+            console.warn('Initial dashboard hydration failed, falling back to template payload.', error);
+            renderPatrolUnits(initialUnits);
+            renderIncidentList(initialIncidents);
+            renderAvailableUnits(initialAvailableUnits);
+            renderIncidentFeed(initialIncidentFeed);
+            fillUnitSelect(initialAvailableUnits);
+        });
         refreshHeatmapData();
         refreshResponseTimes();
         refreshShiftStatus();
         connectAlertStream();
         connectCommandCenterSocket();
-        setInterval(loadOfficersFromApi, 30000);
+        setInterval(refreshDispatchState, 30000);
         setInterval(refreshIncidentFeed, 20000);
         setInterval(refreshHeatmapData, 60000);
         setInterval(refreshResponseTimes, 60000);
@@ -3834,7 +3834,7 @@
 
         async function togglePredictedHotspots() {
             const btn = document.getElementById('hotspots-toggle-btn');
-            const districtId = {{ district_info.get("district_id", "") | tojson }};
+            const districtId = supervisorDistrictId;
 
             if (!(window.google && google.maps && heatmapMap)) {
                 showToast('Predicted hotspot overlay requires Google Maps to finish loading.', 'error');
@@ -3933,7 +3933,7 @@
 
         // ============ OFFICER WORKLOAD ============
         async function refreshOfficerWorkload() {
-            const districtId = {{ district_info.get("district_id", "") | tojson }};
+            const districtId = supervisorDistrictId;
             const shiftId = window.currentShiftId; // Should be set by refreshShiftStatus()
 
             if (!shiftId) {

@@ -12,6 +12,7 @@ from jose.exceptions import ExpiredSignatureError
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 
@@ -289,22 +290,30 @@ def require_police_department_user():
 
 def get_user_by_username(db: Session, username: str) -> Optional[User]:
     """Get user by username."""
-    return db.query(User).filter(User.username == username).first()
+    normalized_username = (username or "").strip()
+    if not normalized_username:
+        return None
+    return db.query(User).filter(func.lower(User.username) == normalized_username.lower()).first()
 
 
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
     """Get user by email."""
-    return db.query(User).filter(User.email == email).first()
+    normalized_email = (email or "").strip()
+    if not normalized_email:
+        return None
+    return db.query(User).filter(func.lower(User.email) == normalized_email.lower()).first()
 
 
 def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
     """Authenticate a user by username or email."""
+    normalized_login = (username or "").strip()
+
     # Try username first
-    user = get_user_by_username(db, username)
+    user = get_user_by_username(db, normalized_login)
     
     # If not found by username, try email
     if not user:
-        user = get_user_by_email(db, username)
+        user = get_user_by_email(db, normalized_login)
     
     if not user:
         return None

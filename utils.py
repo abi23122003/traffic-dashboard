@@ -12,7 +12,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-TOMTOM_KEY = os.getenv("TOMTOM_KEY")
+
+def get_tomtom_key() -> str | None:
+    """Read the TomTom key from the current process environment."""
+    return os.getenv("TOMTOM_KEY")
 
 # Session with retry logic for network calls
 _session = requests.Session()
@@ -41,7 +44,8 @@ def tomtom_geocode(query: str, timeout: int = 10, country_set: str = "IN") -> tu
         ValueError: If no results found or API key missing
         requests.RequestException: If API call fails
     """
-    if not TOMTOM_KEY:
+    tomtom_key = get_tomtom_key()
+    if not tomtom_key:
         raise ValueError("TOMTOM_KEY not set in environment")
     
     # Use search API for better global results
@@ -49,7 +53,7 @@ def tomtom_geocode(query: str, timeout: int = 10, country_set: str = "IN") -> tu
     try:
         # Add country set to prioritize India, but allow global results
         params = {
-            "key": TOMTOM_KEY,
+            "key": tomtom_key,
             "query": query,
             "limit": 5,  # Get more results to find the best match
             "countrySet": country_set
@@ -117,7 +121,8 @@ def tomtom_autocomplete(q: str, timeout: int = 10) -> list[dict]:
     Raises:
         requests.RequestException: If API call fails
     """
-    if not TOMTOM_KEY:
+    tomtom_key = get_tomtom_key()
+    if not tomtom_key:
         raise ValueError("TOMTOM_KEY not set in environment")
     
     url = "https://api.tomtom.com/search/2/search/.json"
@@ -125,7 +130,7 @@ def tomtom_autocomplete(q: str, timeout: int = 10) -> list[dict]:
         # Use search API with proper parameters for global search
         # Simplified parameters to avoid 400 errors
         params = {
-            "key": TOMTOM_KEY,
+            "key": tomtom_key,
             "query": q,
             "limit": 10
         }
@@ -192,12 +197,13 @@ def tomtom_route(
         ValueError: If API key missing
         requests.RequestException: If API call fails
     """
-    if not TOMTOM_KEY:
+    tomtom_key = get_tomtom_key()
+    if not tomtom_key:
         raise ValueError("TOMTOM_KEY not set in environment")
     
     url = f"https://api.tomtom.com/routing/1/calculateRoute/{olat},{olon}:{dlat},{dlon}/json"
     params = {
-        "key": TOMTOM_KEY,
+        "key": tomtom_key,
         "maxAlternatives": maxAlternatives,
         "computeTravelTimeFor": "all"
     }
