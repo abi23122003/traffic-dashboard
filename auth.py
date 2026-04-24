@@ -16,7 +16,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 
-from db import get_session, User
+from db import get_session, get_db, User
 from logging_config import get_logger
 
 # JWT Configuration
@@ -261,7 +261,7 @@ def require_police_department_user():
 
     async def _police_department_dependency(
         current_user: dict = Depends(get_current_user),
-        db: Session = Depends(get_session),
+        db: Session = Depends(get_db),
     ) -> dict:
         if current_user.get("role") != UserRole.police_supervisor.value:
             raise HTTPException(
@@ -374,7 +374,7 @@ def create_user(db: Session, user_data: UserCreate) -> User:
 
 async def get_current_db_user(
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ) -> User:
     """Get current authenticated user from JWT token."""
     credentials_exception = HTTPException(
@@ -472,7 +472,7 @@ async def get_current_admin_user(
 
 async def get_optional_user(
     request: Request,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ) -> Optional[User]:
     """Get current user if authenticated, otherwise return None (for optional auth)."""
     # Try to get token from Authorization header manually

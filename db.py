@@ -13,6 +13,8 @@ from logging_config import get_logger
 logger = get_logger(__name__)
 
 Base = declarative_base()
+_ENGINE = None
+_SESSION_LOCAL = None
 
 # Database configuration - supports PostgreSQL or SQLite
 DB_TYPE = os.getenv("DB_TYPE", "sqlite").lower()
@@ -249,6 +251,10 @@ def get_engine():
     Create and return SQLAlchemy engine.
     Supports PostgreSQL (production) or SQLite (development).
     """
+    global _ENGINE
+    if _ENGINE is not None:
+        return _ENGINE
+
     if DB_TYPE == "postgresql" or DB_TYPE == "postgres":
         # PostgreSQL connection string
         if not POSTGRES_PASSWORD:
@@ -271,7 +277,8 @@ def get_engine():
             with engine.connect() as conn:
                 conn.execute("SELECT 1")
             logger.info(f"✅ Connected to PostgreSQL database: {POSTGRES_DB}")
-            return engine
+            _ENGINE = engine
+            return _ENGINE
         except Exception as e:
             logger.error(f"❌ Failed to connect to PostgreSQL: {e}")
             logger.info("Falling back to SQLite")
@@ -283,12 +290,16 @@ def get_engine():
 
 def _get_sqlite_engine():
     """Create SQLite engine."""
+    global _ENGINE
+    if _ENGINE is not None:
+        return _ENGINE
     logger.info(f"Using SQLite database: {DB_PATH}")
-    return create_engine(
+    _ENGINE = create_engine(
         f"sqlite:///{DB_PATH}",
         connect_args={"check_same_thread": False},
         echo=False
     )
+    return _ENGINE
 
 
 def _ensure_user_department_column(engine):
@@ -309,9 +320,20 @@ def _ensure_user_department_column(engine):
 
 def get_session() -> Session:
     """Create and return a database session."""
-    engine = get_engine()
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    return SessionLocal()
+    global _SESSION_LOCAL
+    if _SESSION_LOCAL is None:
+        engine = get_engine()
+        _SESSION_LOCAL = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    return _SESSION_LOCAL()
+
+
+def get_db():
+    """FastAPI dependency that guarantees per-request session cleanup."""
+    session = get_session()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 def init_db():

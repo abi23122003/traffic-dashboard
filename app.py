@@ -8,6 +8,7 @@ import json
 import logging
 import re
 import csv
+import socket
 import socketio
 from dotenv import load_dotenv
 from typing import Optional, Union, List
@@ -28,6 +29,7 @@ import uuid
 import traceback
 import asyncio
 import time
+import threading
 from sqlalchemy.exc import IntegrityError
 
 load_dotenv()
@@ -41,6 +43,8 @@ setup_logging()
 logger = get_logger(__name__)
 
 from utils import (
+    clean_location,
+    format_officer_name,
     tomtom_geocode,
     tomtom_autocomplete,
     tomtom_route,
@@ -49,7 +53,7 @@ from utils import (
     haversine_m
 )
 from db import (
-    init_db, get_session, save_analysis, AnalysisResult,
+    init_db, get_session, get_db, save_analysis, AnalysisResult,
     User, SavedRoute, RouteRating, Notification, PoliceDispatchAssignment, OfficerDispatchStatus, DispatchLog, SharedAlert, Shift, ShiftAttendance, OfficerIncidentCount, MLFeedback, MLRetrainAudit
 )
 from sqlalchemy.orm import Session
@@ -92,6 +96,37 @@ try:
 except Exception as e:
     logger.warning(f"⚠️ Redis connection failed ({e}), using in-memory manager for Socket.IO")
     socket_client_manager = None  # Will use in-memory manager by default
+
+
+socket_client_manager = None
+
+
+def _can_reach_socketio_redis(redis_url: str) -> bool:
+    """Only enable Redis pub/sub when the configured host is actually reachable."""
+    try:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(redis_url)
+        host = parsed.hostname
+        port = parsed.port or 6379
+        if not host:
+            return False
+
+        with socket.create_connection((host, port), timeout=1.5):
+            return True
+    except Exception:
+        return False
+
+
+if _can_reach_socketio_redis(SOCKETIO_REDIS_URL):
+    try:
+        socket_client_manager = socketio.AsyncRedisManager(SOCKETIO_REDIS_URL)
+        logger.info(f"Socket.IO using Redis manager: {SOCKETIO_REDIS_URL}")
+    except Exception as e:
+        logger.warning(f"Redis manager unavailable ({e}); using in-memory Socket.IO manager")
+        socket_client_manager = None
+else:
+    logger.info(f"Redis not reachable at {SOCKETIO_REDIS_URL}; using in-memory Socket.IO manager")
 
 sio = socketio.AsyncServer(
     async_mode="asgi",
@@ -195,19 +230,72 @@ app.add_middleware(
 app.add_middleware(RateLimitMiddleware)
 
 templates = Jinja2Templates(directory="templates")
+templates.env.filters["clean_location"] = clean_location
+templates.env.filters["format_officer_name"] = format_officer_name
 
-# Initialize database
-init_db()
 
-# Load ML model if available
+def _resolve_officer_name(officer: Optional[User]) -> Optional[str]:
+    if not officer:
+        return None
+
+    blocked_role_labels = {
+        "police supervisor",
+        "supervisor",
+        "police officer",
+        "officer",
+    }
+
+    full_name = (getattr(officer, "full_name", None) or "").strip()
+    username = (getattr(officer, "username", None) or "").strip()
+
+    if full_name and full_name.lower() not in blocked_role_labels:
+        return full_name
+    if username and username.lower() not in blocked_role_labels:
+        return format_officer_name(username)
+    return None
+
+
+def _bootstrap_app_state() -> None:
+    global ML_MODEL, APP_BOOTSTRAP_DONE, APP_BOOTSTRAP_ERROR
+
+    try:
+        init_db()
+
+        if os.path.exists(MODEL_PATH):
+            try:
+                ML_MODEL = joblib.load(MODEL_PATH)
+                logger.info(f"Loaded ML model from {MODEL_PATH}")
+            except Exception as model_error:
+                logger.warning(f"Failed to load ML model: {model_error}")
+
+        APP_BOOTSTRAP_DONE = True
+        APP_BOOTSTRAP_ERROR = None
+    except Exception as exc:
+        APP_BOOTSTRAP_ERROR = str(exc)
+        logger.exception("Application bootstrap failed")
+
+
+def _start_bootstrap_once() -> None:
+    global APP_BOOTSTRAP_STARTED
+
+    with _bootstrap_lock:
+        if APP_BOOTSTRAP_STARTED:
+            return
+        APP_BOOTSTRAP_STARTED = True
+
+    threading.Thread(target=_bootstrap_app_state, daemon=True, name="app-bootstrap").start()
+
+
+@app.on_event("startup")
+async def schedule_app_bootstrap() -> None:
+    _start_bootstrap_once()
+
 ML_MODEL = None
 MODEL_PATH = os.getenv("MODEL_PATH", "rf_model.pkl")
-if os.path.exists(MODEL_PATH):
-    try:
-        ML_MODEL = joblib.load(MODEL_PATH)
-        logger.info(f"✅ Loaded ML model from {MODEL_PATH}")
-    except Exception as e:
-        logger.warning(f"⚠️ Failed to load ML model: {e}")
+APP_BOOTSTRAP_STARTED = False
+APP_BOOTSTRAP_DONE = False
+APP_BOOTSTRAP_ERROR: Optional[str] = None
+_bootstrap_lock = threading.Lock()
 
 # Mount static files if directory exists
 if os.path.exists("static"):
@@ -638,6 +726,7 @@ def _build_patrol_units(
             .order_by(User.id.asc())
             .all()
         )
+        named_police_users = [user for user in police_users if _resolve_officer_name(user)]
     finally:
         session.close()
 
@@ -645,12 +734,12 @@ def _build_patrol_units(
     assignment_by_unit = {assignment.unit_id: assignment for assignment in assignments}
     assignment_by_incident = {assignment.incident_id: assignment for assignment in assignments}
 
-    unit_count = max(4, len(incidents), len(police_users))
+    unit_count = max(4, len(incidents), len(named_police_users))
     patrol_units: list[dict] = []
 
     for index in range(unit_count):
         incident = incidents[index % len(incidents)] if incidents else None
-        officer = police_users[index % len(police_users)] if police_users else None
+        officer = named_police_users[index % len(named_police_users)] if named_police_users else None
         unit_id = f"{district_id.upper().replace('_', '-')}-U{index + 1:02d}"
         assignment = assignment_by_unit.get(unit_id)
 
@@ -661,12 +750,7 @@ def _build_patrol_units(
         else:
             status = "available" if index % 3 else "responding"
 
-        officer_name = (
-            getattr(officer, "full_name", None)
-            or getattr(officer, "username", None)
-            or supervisor_name
-            or f"Officer {index + 1}"
-        )
+        officer_name = _resolve_officer_name(officer)
 
         location = district["name"]
         last_updated = datetime.now(UTC)
@@ -675,15 +759,11 @@ def _build_patrol_units(
             incident_match = next((item for item in incidents if item.get("id") == assignment.incident_id), None)
             if incident_match:
                 location = incident_match.get("description") or incident_match.get("type") or district["name"]
-                if incident_match.get("latitude") is not None and incident_match.get("longitude") is not None:
-                    location = f"{location} ({incident_match['latitude']:.4f}, {incident_match['longitude']:.4f})"
             else:
                 location = f"Assigned to incident {assignment.incident_id}"
             last_updated = assignment.assigned_at or last_updated
         elif incident:
             location = incident.get("description") or incident.get("type") or district["name"]
-            if incident.get("latitude") is not None and incident.get("longitude") is not None:
-                location = f"{location} ({incident['latitude']:.4f}, {incident['longitude']:.4f})"
             last_updated = incident.get("start_time") or last_updated
 
         latitude = district["lat"]
@@ -700,9 +780,11 @@ def _build_patrol_units(
         patrol_units.append({
             "unit_id": unit_id,
             "officer_name": officer_name,
+            "officer": officer_name,
             "status": status,
-            "current_location": location,
+            "current_location": clean_location(location),
             "last_updated": _format_police_timestamp(last_updated),
+            "updated_at": last_updated.isoformat() if isinstance(last_updated, datetime) else str(last_updated),
             "district_id": district_id,
             "assigned_incident_id": assignment.incident_id if assignment else None,
             "latitude": latitude,
@@ -724,6 +806,7 @@ def _build_police_dashboard_context(current_user: dict, district_id: str) -> dic
     assigned_incident_ids = {assignment.incident_id for assignment in assignments}
     unassigned_incidents = [incident for incident in incidents if incident.get("id") not in assigned_incident_ids]
     available_patrol_units = [unit for unit in patrol_units if unit["status"] == "available"]
+    responding_units = [unit for unit in patrol_units if unit["status"] == "responding"]
     active_units = [unit for unit in patrol_units if unit["status"] != "available"]
 
     return {
@@ -734,6 +817,9 @@ def _build_police_dashboard_context(current_user: dict, district_id: str) -> dic
         "total_active_incidents": len(unassigned_incidents),
         "units_deployed": len(active_units),
         "units_available": len(available_patrol_units),
+        "total": len(patrol_units),
+        "available": len(available_patrol_units),
+        "responding": len(responding_units),
         "avg_response_time": district_summary.get("avg_response_time", 0.0),
         "patrol_units": patrol_units,
         "available_patrol_units": available_patrol_units,
@@ -1478,8 +1564,11 @@ async def get_manifest():
 @app.get("/health")
 async def health():
     """Health check endpoint."""
+    _start_bootstrap_once()
     return {
-        "status": "healthy",
+        "status": "healthy" if APP_BOOTSTRAP_DONE and not APP_BOOTSTRAP_ERROR else "starting",
+        "bootstrap_done": APP_BOOTSTRAP_DONE,
+        "bootstrap_error": APP_BOOTSTRAP_ERROR,
         "model_loaded": ML_MODEL is not None,
         "timestamp": datetime.now(UTC).isoformat()
     }
@@ -1488,6 +1577,7 @@ async def health():
 @app.get("/api/stats")
 async def get_stats():
     """Get real statistics from database for stats bar."""
+    session = None
     try:
         session = get_session()
         
@@ -1524,7 +1614,6 @@ async def get_stats():
         
         # Total all time count
         total_count = session.query(AnalysisResult).count()
-        session.close()
         
         return {
             "routes_today": today_count,
@@ -1541,6 +1630,9 @@ async def get_stats():
             "traffic_status": "Light",
             "status_color": "#42a5f5"
         }
+    finally:
+        if session is not None:
+            session.close()
 
 
 @app.get("/autocomplete")
@@ -1675,6 +1767,7 @@ async def analyze_route(
             analyzed_routes.append(analyzed_route)
             
             # Save to database
+            session = None
             try:
                 session = get_session()
                 save_analysis(session, {
@@ -1690,9 +1783,11 @@ async def analyze_route(
                     "raw_json": route,
                     "user_id": current_user.id if current_user else None
                 })
-                session.close()
             except Exception as e:
                 logger.error(f"Database save error: {e}")
+            finally:
+                if session is not None:
+                    session.close()
         
         # Find best route (lowest cost)
         best_route = min(analyzed_routes, key=lambda x: x["calculated_cost"])
@@ -1725,6 +1820,7 @@ async def get_route_analysis(route_id: str, route_index: Optional[int] = None):
     Returns:
         Analysis data with historical trends and statistics
     """
+    session = None
     try:
         session = get_session()
         
@@ -1740,7 +1836,6 @@ async def get_route_analysis(route_id: str, route_index: Optional[int] = None):
             )
         
         results = query.order_by(AnalysisResult.timestamp.desc()).all()
-        session.close()
         
         if not results:
             raise HTTPException(status_code=404, detail="No analysis data found for this route")
@@ -1825,6 +1920,9 @@ async def get_route_analysis(route_id: str, route_index: Optional[int] = None):
     except Exception as e:
         logger.error(f"Failed to fetch analysis: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch analysis: {str(e)}")
+    finally:
+        if session is not None:
+            session.close()
 
 
 @app.post("/api/refresh-route")
@@ -1921,6 +2019,7 @@ async def refresh_route_analysis(
             analyzed_routes.append(analyzed_route)
             
             # Save to database
+            session = None
             try:
                 session = get_session()
                 save_analysis(session, {
@@ -1936,9 +2035,11 @@ async def refresh_route_analysis(
                     "raw_json": route,
                     "user_id": current_user.id if current_user else None
                 })
-                session.close()
             except Exception as e:
                 logger.error(f"Database save error: {e}")
+            finally:
+                if session is not None:
+                    session.close()
         
         best_route = min(analyzed_routes, key=lambda x: x["calculated_cost"])
         
@@ -1964,7 +2065,7 @@ async def refresh_route_analysis(
 # ============================================================================
 
 @app.post("/api/auth/register", response_model=UserResponse)
-async def register_user(user_data: UserCreate, db: Session = Depends(get_session)):
+async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user."""
     try:
         if len(user_data.password) < 6:
@@ -2011,7 +2112,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_session
 
 
 @app.get("/test/create-user")
-async def create_test_user(db: Session = Depends(get_session)):
+async def create_test_user(db: Session = Depends(get_db)):
     """Create a test user for development/testing (remove in production)."""
     # Check if test user already exists
     existing_user = get_user_by_username(db, "testuser")
@@ -2050,7 +2151,7 @@ async def create_test_user(db: Session = Depends(get_session)):
 @app.post("/api/auth/login", response_model=RoleToken)
 async def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_db),
     *,
     response: Response,
 ):
@@ -2163,7 +2264,7 @@ async def supervisor_analytics_page(request: Request, current_user: dict = Depen
 @app.get("/api/supervisor/analytics")
 async def supervisor_analytics_data(
     current_user: dict = Depends(require_police_department_user()),
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_db),
 ):
     """Return analytics series for supervisor command center dashboards."""
     now = datetime.now(UTC)
@@ -2343,7 +2444,7 @@ async def api_officers_status(current_user: dict = Depends(require_any_role("pol
     officers = [
         {
             "id": unit.get("unit_id"),
-            "name": unit.get("officer_name") or "Unknown Officer",
+            "name": unit.get("officer_name") or unit.get("officer") or "Unassigned",
             "badge": unit.get("unit_id"),
             "status": str(unit.get("status") or "available").lower(),
             "skills": [],
@@ -2352,6 +2453,7 @@ async def api_officers_status(current_user: dict = Depends(require_any_role("pol
             "latitude": unit.get("latitude"),
             "longitude": unit.get("longitude"),
             "last_updated": unit.get("last_updated") or "-",
+            "updated_at": unit.get("updated_at") or unit.get("last_updated") or "-",
         }
         for unit in patrol_units
     ]
@@ -3064,7 +3166,7 @@ def generate_detailed_shift_report_pptx(
 async def generate_shift_report(
     shift_id: int = Query(..., description="Shift ID to generate report for"),
     current_user: dict = Depends(require_role("police_supervisor")),
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_db),
 ):
     """Generate a comprehensive shift report as PPTX with 5 slides.
     
@@ -3526,7 +3628,7 @@ async def alerts_stream(current_user: dict = Depends(require_role("police_superv
 async def get_predicted_incidents(
     district_id: str = Query(..., description="District ID"),
     current_user: dict = Depends(require_police_department_user()),
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_db),
 ):
     """Get predicted high-risk incident zones as GeoJSON.
     
@@ -3607,7 +3709,7 @@ async def get_officer_workload(
     district_id: str = Query(..., description="District ID"),
     shift_id: Optional[int] = Query(None, description="Optional shift ID (uses current active shift if not provided)"),
     current_user: dict = Depends(require_police_department_user()),
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_db),
 ):
     """Get officer incident counts and rotation status for current shift.
     
@@ -3698,7 +3800,7 @@ async def log_incident_handled(
     officer_username: str = Query(...),
     severity: str = Query(..., pattern="^(critical|high|medium|low)$"),
     current_user: dict = Depends(require_police_department_user()),
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_db),
 ):
     """Log that an officer has handled an incident (increments workload counter).
     
@@ -3768,7 +3870,7 @@ async def log_incident_handled(
 async def resolve_incident(
     request: IncidentResolveRequest,
     current_user: dict = Depends(require_police_department_user()),
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_db),
 ):
     """Mark incident resolved and persist supervised feedback record for ML training."""
     resolved_at = request.resolved_at.astimezone(UTC) if request.resolved_at else datetime.now(UTC)
@@ -3867,7 +3969,7 @@ async def resolve_incident(
 @app.post("/api/ml/retrain")
 async def retrain_ml_model(
     current_user: User = Depends(get_current_admin_user),
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_db),
 ):
     """Export feedback rows to CSV and trigger existing SVR retraining pipeline."""
     feedback_rows = db.query(MLFeedback).order_by(MLFeedback.created_at.asc()).all()
@@ -3942,7 +4044,7 @@ async def retrain_ml_model(
 @app.post("/auth/login", response_model=RoleToken)
 async def role_login(
     login_data: RoleLoginRequest,
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_db),
     *,
     response: Response,
 ):
@@ -4024,7 +4126,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_active_
 async def create_saved_route(
     route_data: SavedRouteCreate,
     current_user: Optional[User] = Depends(get_optional_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Save a route for the current user."""
     if not current_user:
@@ -4055,7 +4157,7 @@ async def create_saved_route(
 @handle_db_errors
 async def get_saved_routes(
     current_user: Optional[User] = Depends(get_optional_user),
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_db),
     favorites_only: bool = Query(False)
 ):
     """Get saved routes for current user."""
@@ -4073,7 +4175,7 @@ async def get_saved_routes(
 async def toggle_favorite(
     route_id: int,
     current_user: Optional[User] = Depends(get_optional_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Toggle favorite status of a saved route."""
     if not current_user:
@@ -4094,7 +4196,7 @@ async def toggle_favorite(
 async def delete_saved_route(
     route_id: int,
     current_user: Optional[User] = Depends(get_optional_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Delete a saved route."""
     if not current_user:
@@ -4112,7 +4214,7 @@ async def delete_saved_route(
 
 @app.get("/api/share-route/{share_token}")
 @handle_db_errors
-async def get_shared_route(share_token: str, db: Session = Depends(get_session)):
+async def get_shared_route(share_token: str, db: Session = Depends(get_db)):
     """Get a shared route by token."""
     route = db.query(SavedRoute).filter(SavedRoute.share_token == share_token).first()
     if not route:
@@ -4128,7 +4230,7 @@ async def get_shared_route(share_token: str, db: Session = Depends(get_session))
 async def get_peak_hours(
     route_id: str,
     days: int = Query(30, ge=1, le=365),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Get peak hours analysis for a route."""
     return get_peak_hours_analysis(db, route_id, days)
@@ -4138,7 +4240,7 @@ async def get_peak_hours(
 async def get_day_analysis(
     route_id: str,
     days: int = Query(90, ge=1, le=365),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Get day of week analysis."""
     return get_day_of_week_analysis(db, route_id, days)
@@ -4148,7 +4250,7 @@ async def get_day_analysis(
 async def get_seasonal_analysis(
     route_id: str,
     months: int = Query(12, ge=1, le=24),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Get seasonal trends."""
     return get_seasonal_trends(db, route_id, months)
@@ -4158,7 +4260,7 @@ async def get_seasonal_analysis(
 async def get_reliability(
     route_id: str,
     days: int = Query(30, ge=1, le=365),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Get route reliability score."""
     return calculate_route_reliability(db, route_id, days)
@@ -4168,7 +4270,7 @@ async def get_reliability(
 async def get_prediction(
     route_id: str,
     hours_ahead: int = Query(24, ge=1, le=168),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Predict future congestion."""
     return predict_future_congestion(db, route_id, hours_ahead)
@@ -4177,7 +4279,7 @@ async def get_prediction(
 @app.get("/api/analytics/hotspots")
 async def get_hotspots(
     days: int = Query(7, ge=1, le=30),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Get traffic hotspots."""
     return get_traffic_hotspots(db, days)
@@ -4190,7 +4292,7 @@ async def get_hotspots(
 @app.get("/api/export/csv/{route_id}")
 async def export_csv(
     route_id: str,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Export route data to CSV."""
     csv_content = export_to_csv(db, route_id)
@@ -4204,7 +4306,7 @@ async def export_csv(
 @app.get("/api/export/excel/{route_id}")
 async def export_excel(
     route_id: str,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Export route data to Excel."""
     import tempfile
@@ -4220,7 +4322,7 @@ async def export_excel(
 @app.get("/api/export/pdf/{route_id}")
 async def export_pdf(
     route_id: str,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Export route data to PDF."""
     import tempfile
@@ -4243,7 +4345,7 @@ async def get_notifications(
     unread_only: bool = Query(False),
     limit: int = Query(50, ge=1, le=100),
     current_user: Optional[User] = Depends(get_optional_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Get user notifications."""
     if not current_user:
@@ -4256,7 +4358,7 @@ async def get_notifications(
 async def mark_read(
     notification_id: int,
     current_user: Optional[User] = Depends(get_optional_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Mark notification as read."""
     if not current_user:
@@ -4271,7 +4373,7 @@ async def mark_read(
 @handle_db_errors
 async def check_alerts(
     current_user: Optional[User] = Depends(get_optional_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Check for traffic alerts on saved routes."""
     if not current_user:
@@ -4305,7 +4407,7 @@ async def monitor_route(
     route_id: str,
     background_tasks: BackgroundTasks,
     current_user: Optional[User] = Depends(get_optional_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Monitor route for changes."""
     change = monitor_route_changes(db, route_id)
@@ -4330,7 +4432,7 @@ async def monitor_route(
 async def create_rating(
     rating_data: RouteRatingCreate,
     current_user: Optional[User] = Depends(get_optional_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Rate a route."""
     user_id = current_user.id if current_user else None
@@ -4348,7 +4450,7 @@ async def create_rating(
 
 @app.get("/api/ratings/{route_id}")
 @handle_db_errors
-async def get_ratings(route_id: str, db: Session = Depends(get_session)):
+async def get_ratings(route_id: str, db: Session = Depends(get_db)):
     """Get ratings for a route."""
     ratings = db.query(RouteRating).filter(RouteRating.route_id == route_id).all()
     if not ratings:
@@ -4370,7 +4472,7 @@ async def get_ratings(route_id: str, db: Session = Depends(get_session)):
 @handle_db_errors
 async def get_admin_stats(
     current_user: User = Depends(get_current_admin_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Get admin statistics (admin only)."""
     total_users = db.query(User).count()
@@ -4397,7 +4499,7 @@ async def get_admin_stats(
 @app.get("/api/admin/route-analysis")
 async def get_all_route_analyses(
     current_user: User = Depends(get_current_admin_user),
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_db),
     filter_period: Optional[str] = Query(None, alias="filter"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000)
@@ -4511,7 +4613,7 @@ async def get_all_route_analyses(
 @app.get("/api/admin/users")
 async def get_all_users(
     current_user: User = Depends(get_current_admin_user),
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_db),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000)
 ):
@@ -4539,7 +4641,7 @@ async def get_all_users(
 async def toggle_user_status(
     user_id: int,
     current_user: User = Depends(get_current_admin_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Activate/deactivate a user (admin only - department-restricted)."""
     user = db.query(User).filter(User.id == user_id).first()
@@ -4565,7 +4667,7 @@ async def toggle_user_status(
 async def toggle_admin_status(
     user_id: int,
     current_user: User = Depends(get_current_admin_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Grant/revoke admin privileges (admin only - department-restricted)."""
     user = db.query(User).filter(User.id == user_id).first()
@@ -4595,7 +4697,7 @@ async def update_user(
     user_id: int,
     user_update: UserUpdate,
     current_user: User = Depends(get_current_admin_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Update user details (admin only - department-restricted)."""
     user = db.query(User).filter(User.id == user_id).first()
@@ -4660,7 +4762,7 @@ async def update_user(
 async def delete_user(
     user_id: int,
     current_user: User = Depends(get_current_admin_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Delete a user (admin only - department-restricted)."""
     user = db.query(User).filter(User.id == user_id).first()
@@ -4689,7 +4791,7 @@ async def delete_user(
 @handle_db_errors
 async def get_user_stats(
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Get user-specific statistics."""
     saved_routes_count = db.query(SavedRoute).filter(SavedRoute.user_id == current_user.id).count()
@@ -4745,7 +4847,7 @@ async def get_cache_statistics():
 async def get_navigation_links(
     route_id: str,
     route_index: int = Query(0),
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Get navigation app links (Google Maps, Waze)."""
     result = db.query(AnalysisResult).filter(

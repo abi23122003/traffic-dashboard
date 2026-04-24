@@ -5,12 +5,25 @@ Provides unified functions for geocoding, routing, distance calculation, and rou
 
 import os
 import math
+import re
 import time
 import requests
 from requests.adapters import HTTPAdapter, Retry
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+def clean_location(location_str):
+    if not location_str:
+        return "Location unavailable"
+    return re.sub(r"\s*\(\d+\.\d+,\s*\d+\.\d+\)", "", str(location_str)).strip()
+
+
+def format_officer_name(raw_name):
+    if not raw_name:
+        return "Unassigned"
+    return str(raw_name).replace('_', ' ').title()
 
 
 def get_tomtom_key() -> str | None:

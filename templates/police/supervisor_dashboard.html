@@ -577,6 +577,85 @@
             gap: 14px;
         }
 
+        .unit-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .summary-bar {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(120, 170, 220, 0.18);
+            background: rgba(6, 17, 31, 0.55);
+            color: #d9e8f8;
+            font-size: 0.92rem;
+            flex-wrap: wrap;
+        }
+
+        .dot-sep {
+            color: var(--muted);
+        }
+
+        .summary-bar .avail {
+            color: #86efac;
+        }
+
+        .summary-bar .resp {
+            color: #f9a8d4;
+        }
+
+        .unit-filters {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .unit-search {
+            min-width: 240px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(120, 170, 220, 0.18);
+            background: rgba(6, 17, 31, 0.75);
+            color: var(--text);
+            outline: none;
+        }
+
+        .unit-search::placeholder {
+            color: var(--muted);
+        }
+
+        .status-pill-group {
+            display: inline-flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .status-pill {
+            padding: 9px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(120, 170, 220, 0.18);
+            background: rgba(6, 17, 31, 0.55);
+            color: #d9e8f8;
+            cursor: pointer;
+            font-weight: 700;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .status-pill:hover,
+        .status-pill.is-active {
+            border-color: rgba(79, 209, 197, 0.45);
+            background: rgba(79, 209, 197, 0.12);
+            transform: translateY(-1px);
+        }
+
         .unit-card {
             background: linear-gradient(180deg, rgba(16, 41, 69, 0.98), rgba(11, 27, 46, 0.98));
             border: 1px solid rgba(120, 170, 220, 0.18);
@@ -646,10 +725,50 @@
             word-break: break-word;
         }
 
+        .unit-location {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            cursor: pointer;
+        }
+
         .unit-meta {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 2px;
+        }
+
+        .card-actions button {
+            border: 1px solid rgba(120, 170, 220, 0.18);
+            background: rgba(6, 17, 31, 0.65);
+            color: #eef6ff;
+            border-radius: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .card-actions .btn-dispatch {
+            border-color: rgba(74, 222, 128, 0.28);
+            color: #86efac;
+        }
+
+        .card-actions .btn-route {
+            border-color: rgba(53, 176, 255, 0.28);
+            color: #b9e5ff;
+        }
+
+        .card-actions .btn-contact {
+            border-color: rgba(249, 168, 212, 0.28);
+            color: #fbcfe8;
         }
 
         .empty-state {
@@ -1623,7 +1742,60 @@
                 </div>
             </div>
 
-            <div id="patrol-units-grid" class="unit-grid"></div>
+            <div class="unit-toolbar">
+                <div class="summary-bar">
+                    <span id="summary-total">{{ total }} units</span>
+                    <span class="dot-sep">·</span>
+                    <span id="summary-available" class="avail">{{ available }} Available</span>
+                    <span class="dot-sep">·</span>
+                    <span id="summary-responding" class="resp">{{ responding }} Responding</span>
+                </div>
+                <div class="unit-filters">
+                    <input id="unit-search" class="unit-search" type="search" placeholder="Search by unit ID">
+                    <input id="active-status" type="hidden" value="all">
+                    <div class="status-pill-group">
+                        <button type="button" class="status-pill is-active" data-status-filter="all">All</button>
+                        <button type="button" class="status-pill" data-status-filter="available">Available</button>
+                        <button type="button" class="status-pill" data-status-filter="responding">Responding</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="patrol-units-grid" class="unit-grid">
+                {% for unit in patrol_units %}
+                <article class="unit-card" data-unit-id="{{ unit.unit_id }}" data-status="{{ unit.status | lower }}">
+                    <div class="unit-top">
+                        <div class="unit-id">{{ unit.unit_id }}</div>
+                        <div class="status-badge {{ 'status-responding' if unit.status | lower == 'responding' else 'status-active' }}">{{ unit.status }}</div>
+                    </div>
+                    <div class="unit-meta">
+                        <div>
+                            <div class="unit-label">Officer</div>
+                            <div class="unit-value">{{ unit.officer_name | format_officer_name }}</div>
+                        </div>
+                        <div>
+                            <div class="unit-label">Updated</div>
+                            <div class="unit-value">
+                                <span class="unit-updated-time" data-time="{{ unit.updated_at }}">{{ unit.updated_at }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="unit-label">Current Location</div>
+                        <div class="unit-value unit-location" title="{{ unit.current_location | clean_location }}">
+                            {{ unit.current_location | clean_location }}
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        {% if unit.status | lower == 'available' %}
+                        <button class="btn-dispatch" type="button" onclick="dispatchUnit('{{ unit.unit_id }}')">Dispatch</button>
+                        {% endif %}
+                        <button class="btn-route" type="button" onclick="viewRoute('{{ unit.unit_id }}')">View Route</button>
+                        <button class="btn-contact" type="button" onclick="contactUnit('{{ unit.unit_id }}')">Contact</button>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
         </section>
 
         <section class="section-shell heatmap-shell" aria-label="Incident severity heatmap">
@@ -1958,6 +2130,12 @@
         const incidentsFeedData = document.getElementById('incidents-feed-data');
         const districtInfoData = document.getElementById('district-info-data');
         const unitsRefreshLabel = document.getElementById('units-refresh-label');
+        const unitSearchInput = document.getElementById('unit-search');
+        const activeStatusInput = document.getElementById('active-status');
+        const statusFilterButtons = document.querySelectorAll('[data-status-filter]');
+        const summaryTotal = document.getElementById('summary-total');
+        const summaryAvailable = document.getElementById('summary-available');
+        const summaryResponding = document.getElementById('summary-responding');
         const dispatchRefreshLabel = document.getElementById('dispatch-refresh-label');
         const feedRefreshLabel = document.getElementById('feed-refresh-label');
         const heatmapRefreshLabel = document.getElementById('heatmap-refresh-label');
@@ -2004,6 +2182,12 @@
         let googleMapInitAttempts = 0;
         let responseTimeChart = null;
         let commandCenterSocket = null;
+        // Route preview uses the local estimated fallback by default so the
+        // dashboard does not depend on Google Directions billing/API state.
+        let googleDirectionsDenied = true;
+        let dashboardBackendReady = false;
+        let alertReconnectTimer = null;
+        let pollingIntervalsStarted = false;
         const seenIncidentFeedIds = new Set();
         
         // Route drawing variables for dispatch
@@ -2019,6 +2203,58 @@
                 .replaceAll('>', '&gt;')
                 .replaceAll('"', '&quot;')
                 .replaceAll("'", '&#39;');
+        }
+
+        function cleanLocationText(value) {
+            const text = String(value || '').trim();
+            if (!text) {
+                return 'Location unavailable';
+            }
+            return text.replace(/\s*\(\d+\.\d+,\s*\d+\.\d+\)/, '').trim();
+        }
+
+        function timeAgo(isoStr) {
+            if (!isoStr) return 'Unknown';
+            const past = new Date(isoStr);
+            const now = new Date();
+            const diff = Math.floor((now - past) / 1000);
+            if (diff < 60) return 'just now';
+            if (diff < 3600) return Math.floor(diff / 60) + ' min ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + ' hr ago';
+            const days = Math.floor(diff / 86400);
+            return days + ' day' + (days > 1 ? 's' : '') + ' ago';
+        }
+
+        function hydrateRelativeTimes() {
+            document.querySelectorAll('.unit-updated-time').forEach((el) => {
+                const raw = el.getAttribute('data-time');
+                if (raw) el.textContent = timeAgo(raw);
+            });
+        }
+
+        function updateSummaryBar(units) {
+            const items = Array.isArray(units) ? units : [];
+            const total = items.length;
+            const available = items.filter((unit) => String(unit.status || '').toLowerCase() === 'available').length;
+            const responding = items.filter((unit) => String(unit.status || '').toLowerCase() === 'responding').length;
+
+            if (summaryTotal) summaryTotal.textContent = `${total} units`;
+            if (summaryAvailable) summaryAvailable.textContent = `${available} Available`;
+            if (summaryResponding) summaryResponding.textContent = `${responding} Responding`;
+        }
+
+        function applyUnitCardFilters() {
+            const search = (unitSearchInput?.value || '').toLowerCase();
+            const status = activeStatusInput?.value || 'all';
+            const cards = document.querySelectorAll('.unit-card');
+
+            cards.forEach((card) => {
+                const id = String(card.dataset.unitId || '').toLowerCase();
+                const cardStatus = String(card.dataset.status || '').toLowerCase();
+                const matchSearch = id.includes(search);
+                const matchStatus = status === 'all' || cardStatus === status;
+                card.style.display = matchSearch && matchStatus ? '' : 'none';
+            });
         }
 
         function getCookie(name) {
@@ -2102,15 +2338,17 @@
             const payload = await response.json();
             livePatrolUnits = (payload.officers || []).map((officer) => ({
                 unit_id: officer.id,
-                officer_name: officer.name || 'Unknown Officer',
+                officer_name: officer.name || 'Unassigned',
+                officer: officer.name || 'Unassigned',
                 status: officer.status || 'available',
                 district_id: officer.district_id || supervisorDistrictId,
-                current_location: officer.current_location || 'District duty',
+                current_location: cleanLocationText(officer.current_location || 'District duty'),
                 skills: officer.skills || [],
                 badge: officer.badge || officer.id,
                 latitude: officer.latitude,
                 longitude: officer.longitude,
                 last_updated: officer.last_updated || '-',
+                updated_at: officer.updated_at || officer.last_updated || '-',
             }));
             liveAvailableUnits = livePatrolUnits.filter((unit) => {
                 const status = (unit.status || '').toLowerCase();
@@ -2134,7 +2372,65 @@
             ]);
         }
 
+        async function waitForBackendReady(maxAttempts = 30, delayMs = 2000) {
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+                try {
+                    const response = await fetch('/health', {
+                        headers: { 'Accept': 'application/json' },
+                        credentials: 'same-origin',
+                        cache: 'no-store',
+                    });
+
+                    if (response.ok) {
+                        dashboardBackendReady = true;
+                        return true;
+                    }
+                } catch (error) {
+                    if (attempt === maxAttempts) {
+                        console.error('Backend readiness check failed:', error);
+                    }
+                }
+
+                await new Promise((resolve) => setTimeout(resolve, delayMs));
+            }
+
+            return false;
+        }
+
+        function startDashboardPolling() {
+            if (pollingIntervalsStarted) {
+                return;
+            }
+
+            pollingIntervalsStarted = true;
+            setInterval(refreshDispatchState, 30000);
+            setInterval(refreshIncidentFeed, 20000);
+            setInterval(refreshHeatmapData, 60000);
+            setInterval(refreshResponseTimes, 60000);
+            setInterval(refreshShiftStatus, 30000);
+        }
+
+        async function startRealtimeServices() {
+            const ready = await waitForBackendReady();
+            if (!ready) {
+                showToast('Backend is still starting. Real-time services will retry shortly.', 'warning', 4000);
+                return;
+            }
+
+            refreshHeatmapData();
+            refreshResponseTimes();
+            refreshShiftStatus();
+            connectAlertStream();
+            connectCommandCenterSocket();
+            startDashboardPolling();
+        }
+
         function connectCommandCenterSocket() {
+            if (!dashboardBackendReady) {
+                console.log('Skipping Socket.IO connect until backend is ready.');
+                return;
+            }
+
             if (typeof io === 'undefined') {
                 console.warn('Socket.IO client library is not available.');
                 return;
@@ -2149,14 +2445,14 @@
             commandCenterSocket = io('/police', {
                 path: '/socket.io/',
                 withCredentials: true,  // Automatically send HttpOnly cookies with connection
-                transports: ['websocket', 'polling'],
+                transports: ['polling', 'websocket'],
                 reconnection: true,
                 reconnectionDelay: 1000,
                 reconnectionDelayMax: 10000,
                 reconnectionAttempts: 10,
-                timeout: 20000,  // 20 second connection timeout (increased from 10)
+                timeout: 10000,
                 upgrade: true,  // Allow transport upgrade from polling to websocket
-                rememberUpgrade: true,  // Remember transport choice
+                rememberUpgrade: false,
                 rejectUnauthorized: false,  // For self-signed certificates in dev
             });
 
@@ -2405,12 +2701,16 @@
         }
 
         function connectAlertStream() {
+            if (!dashboardBackendReady) {
+                console.log('Skipping alert stream connect until backend is ready.');
+                return;
+            }
+
             if (alertEventSource) {
                 return; // Already connected
             }
 
             try {
-                const token = getAuthToken();
                 alertEventSource = new EventSource('/police/alerts/stream');
 
                 alertEventSource.addEventListener('message', (event) => {
@@ -2440,9 +2740,18 @@
 
                 alertEventSource.addEventListener('error', (event) => {
                     console.error('Alert stream error:', event);
-                    if (alertEventSource.readyState === EventSource.CLOSED) {
+                    if (alertEventSource) {
+                        alertEventSource.close();
                         alertEventSource = null;
-                        console.log('Alert stream closed, will reconnect on next open');
+                    }
+                    if (!alertReconnectTimer) {
+                        alertReconnectTimer = setTimeout(() => {
+                            alertReconnectTimer = null;
+                            const sidebar = document.getElementById('alert-sidebar');
+                            if (sidebar && sidebar.classList.contains('open')) {
+                                connectAlertStream();
+                            }
+                        }, 5000);
                     }
                 });
 
@@ -2672,9 +2981,48 @@
             return best;
         }
 
+        function calculateFallbackDistanceKm(originCoords, destinationCoords) {
+            if (!originCoords || !destinationCoords) {
+                return null;
+            }
+
+            const toRadians = (degrees) => (Number(degrees) * Math.PI) / 180;
+            const earthRadiusKm = 6371;
+            const lat1 = toRadians(originCoords.lat);
+            const lat2 = toRadians(destinationCoords.lat);
+            const deltaLat = toRadians(Number(destinationCoords.lat) - Number(originCoords.lat));
+            const deltaLng = toRadians(Number(destinationCoords.lng) - Number(originCoords.lng));
+
+            const a = Math.sin(deltaLat / 2) ** 2
+                + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2;
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return earthRadiusKm * c;
+        }
+
+        function buildFallbackEta(originCoords, destinationCoords) {
+            const distanceKm = calculateFallbackDistanceKm(originCoords, destinationCoords);
+            if (!Number.isFinite(distanceKm)) {
+                return null;
+            }
+
+            const assumedCitySpeedKmH = 35;
+            const minutes = Math.max(1, Math.ceil((distanceKm / assumedCitySpeedKmH) * 60));
+            return {
+                minutes,
+                distanceText: `${distanceKm.toFixed(1)} km`,
+                durationText: `~${minutes} min (estimated)`,
+                usedFallback: true,
+            };
+        }
+
         function requestEtaMinutes(originCoords, destinationCoords) {
             return new Promise((resolve, reject) => {
-                if (!googleDirectionsService || !window.google || !google.maps) {
+                if (googleDirectionsDenied || !googleDirectionsService || !window.google || !google.maps) {
+                    const fallback = buildFallbackEta(originCoords, destinationCoords);
+                    if (fallback) {
+                        resolve(fallback);
+                        return;
+                    }
                     reject(new Error('Directions service unavailable'));
                     return;
                 }
@@ -2691,6 +3039,14 @@
                     },
                     (result, status) => {
                         if (status !== 'OK' || !result?.routes?.length || !result.routes[0].legs?.length) {
+                            if (status === 'REQUEST_DENIED') {
+                                googleDirectionsDenied = true;
+                            }
+                            const fallback = buildFallbackEta(originCoords, destinationCoords);
+                            if (fallback) {
+                                resolve(fallback);
+                                return;
+                            }
                             reject(new Error(`Directions request failed: ${status}`));
                             return;
                         }
@@ -2700,7 +3056,12 @@
                         const minutes = duration && Number.isFinite(duration.value)
                             ? Math.ceil(duration.value / 60)
                             : null;
-                        resolve({ minutes, distanceText: leg.distance?.text || '-', durationText: duration?.text || '-' });
+                        resolve({
+                            minutes,
+                            distanceText: leg.distance?.text || '-',
+                            durationText: duration?.text || '-',
+                            usedFallback: false,
+                        });
                     }
                 );
             });
@@ -3129,14 +3490,22 @@
 
             if (!items.length) {
                 patrolUnitsGrid.innerHTML = '<div class="empty-state">No patrol units available for this district.</div>';
+                updateSummaryBar([]);
                 return;
             }
 
+            updateSummaryBar(items);
             patrolUnitsGrid.innerHTML = items.map((unit) => {
                 const status = unit.status || 'Active';
                 const badgeClass = statusClass(status);
+                const officerName = unit.officer_name || unit.officer || 'Unassigned';
+                const cleanedLocation = cleanLocationText(unit.current_location || 'Unknown location');
+                const updatedAt = unit.updated_at || unit.last_updated || '-';
+                const dispatchAction = String(unit.status || '').toLowerCase() === 'available'
+                    ? `<button class="btn-dispatch" type="button" onclick="dispatchUnit('${escapeHtml(unit.unit_id || 'Unit')}')">Dispatch</button>`
+                    : '';
                 return `
-                    <article class="unit-card">
+                    <article class="unit-card" data-unit-id="${escapeHtml(unit.unit_id || 'Unit')}" data-status="${escapeHtml(String(unit.status || '').toLowerCase())}">
                         <div class="unit-top">
                             <div class="unit-id">${escapeHtml(unit.unit_id || 'Unit')}</div>
                             <div class="status-badge ${badgeClass}">${escapeHtml(status)}</div>
@@ -3144,20 +3513,27 @@
                         <div class="unit-meta">
                             <div>
                                 <div class="unit-label">Officer</div>
-                                <div class="unit-value">${escapeHtml(unit.officer_name || 'Unknown Officer')}</div>
+                                <div class="unit-value">${escapeHtml(officerName)}</div>
                             </div>
                             <div>
                                 <div class="unit-label">Updated</div>
-                                <div class="unit-value">${escapeHtml(unit.last_updated || '-')}</div>
+                                <div class="unit-value"><span class="unit-updated-time" data-time="${escapeHtml(updatedAt)}">${escapeHtml(updatedAt)}</span></div>
                             </div>
                         </div>
                         <div>
                             <div class="unit-label">Current Location</div>
-                            <div class="unit-value">${escapeHtml(unit.current_location || 'Unknown location')}</div>
+                            <div class="unit-value unit-location" title="${escapeHtml(cleanedLocation)}">${escapeHtml(cleanedLocation)}</div>
+                        </div>
+                        <div class="card-actions">
+                            ${dispatchAction}
+                            <button class="btn-route" type="button" onclick="viewRoute('${escapeHtml(unit.unit_id || 'Unit')}')">View Route</button>
+                            <button class="btn-contact" type="button" onclick="contactUnit('${escapeHtml(unit.unit_id || 'Unit')}')">Contact</button>
                         </div>
                     </article>
                 `;
             }).join('');
+            hydrateRelativeTimes();
+            applyUnitCardFilters();
         }
 
         function renderIncidentList(incidents) {
@@ -3181,7 +3557,7 @@
             `).join('');
         }
 
-        function renderAvailableUnits(units) {
+function renderAvailableUnits(units) {
             const items = Array.isArray(units) ? units : [];
             if (!items.length) {
                 availableUnitList.innerHTML = '<div class="empty-state">No available units right now.</div>';
@@ -3193,8 +3569,8 @@
                     <div class="available-unit-row">
                         <div>
                             <div class="available-unit-title">${escapeHtml(unit.unit_id || 'Unit')}</div>
-                            <div class="available-unit-meta">${escapeHtml(unit.officer_name || 'Unknown Officer')}</div>
-                            <div class="unit-mini">${escapeHtml(unit.status || 'Idle')} · ${escapeHtml(unit.current_location || 'Available')}</div>
+                            <div class="available-unit-meta">${escapeHtml(unit.officer_name || unit.officer || 'Unassigned')}</div>
+                            <div class="unit-mini">${escapeHtml(unit.status || 'Idle')} · ${escapeHtml(cleanLocationText(unit.current_location || 'Available'))}</div>
                         </div>
                         <div class="status-badge ${statusClass(unit.status)}">${escapeHtml(unit.status || 'Idle')}</div>
                     </div>
@@ -3202,11 +3578,11 @@
             `).join('');
         }
 
-        function fillUnitSelect(units) {
+function fillUnitSelect(units) {
             const items = Array.isArray(units) ? units : [];
             const previousValue = dispatchUnitSelect.value;
             dispatchUnitSelect.innerHTML = items.map((unit) => (
-                `<option value="${escapeHtml(unit.officer_id || unit.unit_id || '')}" data-officer-id="${escapeHtml(unit.officer_id || unit.unit_id || '')}">${escapeHtml(unit.unit_id || 'Unit')} - ${escapeHtml(unit.officer_name || 'Unknown Officer')}</option>`
+                `<option value="${escapeHtml(unit.officer_id || unit.unit_id || '')}" data-officer-id="${escapeHtml(unit.officer_id || unit.unit_id || '')}">${escapeHtml(unit.unit_id || 'Unit')} - ${escapeHtml(unit.officer_name || unit.officer || 'Unassigned')}</option>`
             )).join('');
             // Restore previous selection if available, otherwise select first
             if (previousValue && Array.from(dispatchUnitSelect.options).some(opt => opt.value === previousValue)) {
@@ -3232,8 +3608,11 @@
             dispatchIncidentIdInput.value = incidentRef.id;
             dispatchModalTitle.textContent = options.title || `Dispatch ${incidentRef.description || 'Incident'}`;
             dispatchModalSubtitle.textContent = options.subtitle || `${incidentRef.severity || 'unknown'} severity · ${incidentRef.start_time || '-'}`;
-            dispatchTargetLocation.textContent = options.targetLocation || incidentRef.description || 'Unknown location';
+            dispatchTargetLocation.textContent = cleanLocationText(options.targetLocation || incidentRef.description || 'Unknown location');
             fillUnitSelect(liveAvailableUnits);
+            if (options.preferredOfficerId && dispatchUnitSelect.querySelector(`option[value="${options.preferredOfficerId}"]`)) {
+                dispatchUnitSelect.value = options.preferredOfficerId;
+            }
             dispatchFeedback.textContent = liveAvailableUnits.length ? '' : 'No available units to dispatch.';
             
             // Initialize map if needed
@@ -3253,6 +3632,81 @@
             // Remove tabindex restrictions to allow focus on visible elements
             dispatchUnitSelect.removeAttribute('tabindex');
             dispatchUnitSelect.focus();
+        }
+
+        function dispatchUnit(id) {
+            if (!liveUnassignedIncidents.length) {
+                alert(`No unassigned incidents available for ${id}.`);
+                return;
+            }
+
+            openDispatchModal(liveUnassignedIncidents[0].id, {
+                allowFallback: true,
+                preferredOfficerId: id,
+                title: `Dispatch ${id}`,
+                subtitle: 'Assign this available unit to the next open incident.',
+            });
+        }
+
+        async function viewRoute(id) {
+            const officer = livePatrolUnits.find((unit) => String(unit.unit_id || '') === String(id || ''));
+            if (!officer) {
+                showToast(`Route unavailable for ${id}.`, 'error', 3000);
+                return;
+            }
+
+            if (!heatmapMap) {
+                initializeHeatmap();
+            }
+
+            const routeIncident = findBestIncidentForLocation(officer.current_location) || liveUnassignedIncidents[0] || null;
+            if (!routeIncident) {
+                showToast('No incident is available to calculate a patrol route right now.', 'warning', 3500);
+                return;
+            }
+
+            if (!window.google || !google.maps || !googleDirectionsService) {
+                showToast('Map is still loading. Please try route preview again in a moment.', 'warning', 3500);
+                return;
+            }
+
+            try {
+                const officerCoords = getOfficerCoordinates(officer);
+                const incidentCoords = {
+                    lat: Number(routeIncident.latitude),
+                    lng: Number(routeIncident.longitude)
+                };
+
+                if (!officerCoords || !Number.isFinite(incidentCoords.lat) || !Number.isFinite(incidentCoords.lng)) {
+                    showToast('Officer or incident coordinates are unavailable for route preview.', 'error', 3500);
+                    return;
+                }
+
+                heatmapMap.panTo(officerCoords);
+                heatmapMap.setZoom(Math.max(heatmapMap.getZoom() || 12, 13));
+                await drawDispatchRoute(officer, routeIncident);
+
+                if (googleInfoWindow) {
+                    googleInfoWindow.setContent(`
+                        <div style="min-width: 220px; color: #0f172a; font-size: 13px;">
+                            <strong>${escapeHtml(officer.officer_name || officer.unit_id || 'Unit')}</strong><br>
+                            Destination: ${escapeHtml(routeIncident.description || routeIncident.type || 'Incident')}<br>
+                            Status: ${escapeHtml(officer.status || 'Active')}
+                        </div>
+                    `);
+                    googleInfoWindow.setPosition(officerCoords);
+                    googleInfoWindow.open({ map: heatmapMap });
+                }
+
+                showToast(`Showing route for ${officer.officer_name || officer.unit_id}.`, 'success', 2500);
+            } catch (error) {
+                console.error('View route failed:', error);
+                showToast(`Could not show route: ${error.message || 'Unknown error'}`, 'error', 4000);
+            }
+        }
+
+        function contactUnit(id) {
+            alert(`Contact feature coming soon for unit ${id}`);
         }
 
         function closeDispatchModal() {
@@ -3315,27 +3769,6 @@
             try {
                 dispatchFeedback.textContent = 'Calculating route and ETA...';
                 
-                // Request route using Directions API
-                const request = {
-                    origin: officerCoords,
-                    destination: incidentCoords,
-                    travelMode: google.maps.TravelMode.DRIVING,
-                    drivingOptions: {
-                        departureTime: new Date(),
-                        trafficModel: google.maps.TrafficModel.BEST_GUESS
-                    }
-                };
-
-                const result = await new Promise((resolve, reject) => {
-                    googleDirectionsService.route(request, (result, status) => {
-                        if (status === 'OK') {
-                            resolve(result);
-                        } else {
-                            reject(new Error(`Directions API error: ${status}`));
-                        }
-                    });
-                });
-
                 // Clear previous route
                 if (dispatchRoutePolyline) {
                     dispatchRoutePolyline.setMap(null);
@@ -3344,9 +3777,51 @@
                     dispatchDirectionsRenderer.setMap(null);
                 }
 
-                // Draw new route with blue color
+                let routeSummary = buildFallbackEta(officerCoords, incidentCoords);
+                let polylinePath = [officerCoords, incidentCoords];
+
+                if (!googleDirectionsDenied && googleDirectionsService && window.google && google.maps) {
+                    try {
+                        const request = {
+                            origin: officerCoords,
+                            destination: incidentCoords,
+                            travelMode: google.maps.TravelMode.DRIVING,
+                            drivingOptions: {
+                                departureTime: new Date(),
+                                trafficModel: google.maps.TrafficModel.BEST_GUESS
+                            }
+                        };
+
+                        const result = await new Promise((resolve, reject) => {
+                            googleDirectionsService.route(request, (result, status) => {
+                                if (status === 'OK') {
+                                    resolve(result);
+                                } else {
+                                    if (status === 'REQUEST_DENIED') {
+                                        googleDirectionsDenied = true;
+                                    }
+                                    reject(new Error(`Directions API error: ${status}`));
+                                }
+                            });
+                        });
+
+                        const leg = result.routes[0]?.legs?.[0];
+                        const duration = leg?.duration_in_traffic || leg?.duration;
+                        const distance = leg?.distance;
+                        routeSummary = {
+                            minutes: Math.ceil((duration?.value || 0) / 60),
+                            distanceText: distance?.text || 'Unknown',
+                            durationText: duration?.text || 'Unknown',
+                            usedFallback: false,
+                        };
+                        polylinePath = result.routes[0]?.overview_path || polylinePath;
+                    } catch (error) {
+                        console.warn('Directions API unavailable, using estimated route fallback.', error);
+                    }
+                }
+
                 dispatchRoutePolyline = new google.maps.Polyline({
-                    path: result.routes[0].overview_path,
+                    path: polylinePath,
                     geodesic: true,
                     strokeColor: '#3b82f6',
                     strokeOpacity: 0.85,
@@ -3355,21 +3830,13 @@
                     zIndex: 50
                 });
 
-                // Extract ETA and distance information
-                const leg = result.routes[0].legs[0];
-                const duration = leg.duration_in_traffic || leg.duration;
-                const distance = leg.distance;
-                const minutes = Math.ceil((duration?.value || 0) / 60);
-                const distanceText = distance?.text || 'Unknown';
-                const durationText = duration?.text || 'Unknown';
-
                 // Display route info in dispatch feedback
                 dispatchFeedback.innerHTML = `
                     <div style="font-size: 0.95rem; line-height: 1.6;">
-                        <div style="color: #4ade80; font-weight: 700; margin-bottom: 4px;">✓ Route Calculated</div>
+                        <div style="color: #4ade80; font-weight: 700; margin-bottom: 4px;">${routeSummary?.usedFallback ? 'Estimated Route Preview' : '✓ Route Calculated'}</div>
                         <div>Officer: <strong>${escapeHtml(officer.officer_name || officer.unit_id)}</strong></div>
-                        <div>Distance: <strong>${escapeHtml(distanceText)}</strong></div>
-                        <div style="color: #f97316; font-weight: 700;">ETA: <strong>${minutes} min (${durationText})</strong></div>
+                        <div>Distance: <strong>${escapeHtml(routeSummary?.distanceText || 'Unknown')}</strong></div>
+                        <div style="color: #f97316; font-weight: 700;">ETA: <strong>${escapeHtml(routeSummary?.durationText || 'Unknown')}</strong></div>
                     </div>
                 `;
 
@@ -3568,6 +4035,18 @@
         }
 
         dispatchForm.addEventListener('submit', submitDispatch);
+        if (unitSearchInput) {
+            unitSearchInput.addEventListener('input', applyUnitCardFilters);
+        }
+        statusFilterButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                if (activeStatusInput) {
+                    activeStatusInput.value = button.dataset.statusFilter || 'all';
+                }
+                statusFilterButtons.forEach((pill) => pill.classList.toggle('is-active', pill === button));
+                applyUnitCardFilters();
+            });
+        });
         modalBackdrop.addEventListener('click', (event) => {
             if (event.target === modalBackdrop) {
                 closeDispatchModal();
@@ -3807,6 +4286,15 @@
             }
         }
 
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.unit-updated-time').forEach(el => {
+                const raw = el.getAttribute('data-time');
+                if (raw) el.textContent = timeAgo(raw);
+            });
+        });
+        hydrateRelativeTimes();
+        updateSummaryBar(initialUnits);
+        applyUnitCardFilters();
         initializeHeatmap();
 
         hydrateCommandCenterFromApi().catch((error) => {
@@ -3817,16 +4305,7 @@
             renderIncidentFeed(initialIncidentFeed);
             fillUnitSelect(initialAvailableUnits);
         });
-        refreshHeatmapData();
-        refreshResponseTimes();
-        refreshShiftStatus();
-        connectAlertStream();
-        connectCommandCenterSocket();
-        setInterval(refreshDispatchState, 30000);
-        setInterval(refreshIncidentFeed, 20000);
-        setInterval(refreshHeatmapData, 60000);
-        setInterval(refreshResponseTimes, 60000);
-        setInterval(refreshShiftStatus, 30000);
+        startRealtimeServices();
 
         // ============ PREDICTED HOTSPOTS ============
         let hotspotsLayer = null;

@@ -28,8 +28,8 @@ echo.
 echo Please wait while everything is set up...
 echo.
 
-REM Run automated startup
-python start_server.py
+REM Run the FastAPI app directly via Uvicorn
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
 
 REM If error, pause to see message
 if errorlevel 1 (

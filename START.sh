@@ -34,11 +34,8 @@ echo ""
 echo "Please wait while everything is set up..."
 echo ""
 
-# Make script executable
-chmod +x start_server.py 2>/dev/null
-
-# Run automated startup
-python3 start_server.py
+# Run the FastAPI app directly via Uvicorn
+python3 -m uvicorn main:app --host 127.0.0.1 --port 8000
 
 # Check exit code
 if [ $? -ne 0 ]; then
