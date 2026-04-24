@@ -1,30 +1,49 @@
-# Environment variables
-.env
-.env.local
-
-# Python cache
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.egg-info/
+*.py[cod]
+*$py.class
+
+# Pytest
 .pytest_cache/
+pytest-cache-files-*/
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+.cache/
+
+# Logs
+logs/*.log
+logs/*.txt
+logs/*.json
+!logs/.gitkeep
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment files
+.env
 
 # IDE
 .vscode/
+.idea/
 
-# Generated data and logs
-logs/
-*.log
-exports/
-traffic_results.csv
-svr_training_data.csv
-routes.csv
+# OS files
+.DS_Store
+Thumbs.db
 
-# Database and models
-*.db
-*.pkl
+# Build artifacts
+build/
+dist/
+*.egg-info/
 
-# Visualizations and reports
-visuals/
-*.pptx
-Report/
+# SQLite temp files
+*.db-journal
+*.sqlite-journal
+
+# Misc
+*.tmp
+*.bak
