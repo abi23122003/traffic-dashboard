@@ -547,61 +547,77 @@ def ensure_admin_user_exists(db: Session) -> User:
         return admin_user
 
 
-def ensure_police_user_exists(db: Session) -> User:
+def ensure_police_user_exists(db: Session):
     """
-    Ensure the default police user exists for supervisor dashboard access.
-    Creates it if missing, or normalizes key attributes if it already exists.
+    Ensure multiple default police users exist for supervisor dashboard access.
+    Creates them if missing, or normalizes key attributes if they already exist.
     """
     logger = get_logger(__name__)
-    police_username = os.getenv("DEFAULT_POLICE_USERNAME", "officer_raj")
-    police_password = os.getenv("DEFAULT_POLICE_PASSWORD", "Police123")
-    police_email = os.getenv("DEFAULT_POLICE_EMAIL", "officer_raj@trafficdashboard.com")
+    
+    default_officers = [
+        {
+            "username": "officer_raj",
+            "full_name": "Officer Raj",
+            "email": "officer_raj@trafficdashboard.com",
+            "password": "Police123"
+        },
+        {
+            "username": "officer_priya",
+            "full_name": "Officer Priya",
+            "email": "officer_priya@trafficdashboard.com",
+            "password": "Police123"
+        },
+        {
+            "username": "officer_arjun",
+            "full_name": "Officer Arjun",
+            "email": "officer_arjun@trafficdashboard.com",
+            "password": "Police123"
+        }
+    ]
+    
     police_district_id = os.getenv("DEFAULT_POLICE_DISTRICT", "district_1")
-
-    police_user = get_user_by_username(db, police_username)
-
-    if police_user:
-        should_commit = False
-
-        if not verify_password(police_password, police_user.hashed_password):
-            police_user.hashed_password = get_password_hash(police_password)
-            should_commit = True
-
-        if not police_user.is_active:
-            police_user.is_active = True
-            should_commit = True
-
-        if police_user.is_admin:
-            police_user.is_admin = False
-            should_commit = True
-
-        if (police_user.department or "").strip().lower() != "police":
-            police_user.department = "police"
-            should_commit = True
-
-        if (getattr(police_user, "district_id", None) or "").strip().lower() != police_district_id.lower():
-            police_user.district_id = police_district_id
-            should_commit = True
-
-        if should_commit:
+    created_count = 0
+    
+    for officer_data in default_officers:
+        username = officer_data["username"]
+        police_user = get_user_by_username(db, username)
+        
+        if police_user:
+            should_commit = False
+            if not verify_password(officer_data["password"], police_user.hashed_password):
+                police_user.hashed_password = get_password_hash(officer_data["password"])
+                should_commit = True
+            
+            if not police_user.is_active:
+                police_user.is_active = True
+                should_commit = True
+                
+            if (police_user.department or "").strip().lower() != "police":
+                police_user.department = "police"
+                should_commit = True
+                
+            if (getattr(police_user, "district_id", None) or "").strip().lower() != police_district_id.lower():
+                police_user.district_id = police_district_id
+                should_commit = True
+                
+            if should_commit:
+                db.commit()
+                db.refresh(police_user)
+        else:
+            new_user = User(
+                username=username,
+                email=officer_data["email"],
+                hashed_password=get_password_hash(officer_data["password"]),
+                full_name=officer_data["full_name"],
+                department="police",
+                district_id=police_district_id,
+                is_active=True,
+                is_admin=False
+            )
+            db.add(new_user)
             db.commit()
-            db.refresh(police_user)
-            logger.info(f"✅ Normalized default police user: {police_username}")
-
-        return police_user
-
-    police_user = User(
-        username=police_username,
-        email=police_email,
-        hashed_password=get_password_hash(police_password),
-        full_name="Police Supervisor",
-        department="police",
-        district_id=police_district_id,
-        is_active=True,
-        is_admin=False,
-    )
-    db.add(police_user)
-    db.commit()
-    db.refresh(police_user)
-    logger.info(f"✅ Created default police user: {police_username}")
-    return police_user
+            created_count += 1
+            
+    if created_count > 0:
+        logger.info(f"✅ Created {created_count} default police officers")
+    return True

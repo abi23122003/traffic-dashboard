@@ -971,7 +971,10 @@ def _build_patrol_units(
         officer_assignment = available_officers[index] if index < len(available_officers) else None
         officer = officer_assignment["user"] if officer_assignment else None
         officer_name = officer_assignment["display_name"] if officer_assignment else "Unassigned"
-        patrol_id = f"PU-{index + 1:03d}"
+        
+        # Use consistent unit ID format: DISTRICT-X-UXX
+        district_prefix = district_id.upper().replace("_", "-")
+        patrol_id = f"{district_prefix}-U{index + 1:02d}"
         unit_id = patrol_id
         assignment = assignment_by_unit.get(unit_id)
         assignment_override = None
@@ -2659,6 +2662,9 @@ async def police_dashboard(request: Request, current_user: dict = Depends(requir
             detail="district_id is required for police dashboard access",
         )
 
+    # Initialize/reset officer statuses for the district
+    _ensure_officer_statuses_initialized(district_id)
+
     context = _build_police_dashboard_context(current_user, district_id)
     context.update({
         "request": request,
@@ -2859,6 +2865,9 @@ async def api_officers_status(current_user: dict = Depends(require_any_role("pol
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="district_id is required for officer status",
         )
+
+    # Ensure officer statuses are initialized/reset
+    _ensure_officer_statuses_initialized(district_id)
 
     incidents = _load_police_incidents(district_id)
     assignments = _get_dispatch_assignments(district_id)
@@ -3093,7 +3102,9 @@ def _ensure_officer_statuses_initialized(district_id: str):
         unit_count = max(4, len(incidents), police_users)
         
         for index in range(unit_count):
-            unit_id = f"PU-{index + 1:03d}"
+            # Use consistent unit ID format: DISTRICT-X-UXX
+            district_prefix = district_id.upper().replace("_", "-")
+            unit_id = f"{district_prefix}-U{index + 1:02d}"
             
             # Check if officer status exists in database
             officer_status = session.query(OfficerDispatchStatus).filter(
