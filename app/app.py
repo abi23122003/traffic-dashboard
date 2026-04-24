@@ -52,6 +52,7 @@ from .utils import (
     format_incident_type,
     format_officer_name,
     tomtom_geocode,
+    tomtom_reverse_geocode_area,
     tomtom_autocomplete,
     tomtom_route,
     summarize_route,
@@ -858,20 +859,35 @@ def _build_patrol_units(
     unit_count = max(4, len(incidents), len(named_police_users))
     patrol_units: list[dict] = []
 
+    patrol_name_cycle = [
+        "Patrol Alpha",
+        "Patrol Bravo",
+        "Patrol Charlie",
+        "Patrol Delta",
+        "Patrol Echo",
+        "Patrol Foxtrot",
+        "Patrol Golf",
+        "Patrol Hotel",
+        "Patrol India",
+        "Patrol Juliet",
+    ]
+
     for index in range(unit_count):
         incident = incidents[index % len(incidents)] if incidents else None
         officer = named_police_users[index % len(named_police_users)] if named_police_users else None
         unit_id = f"{district_id.upper().replace('_', '-')}-U{index + 1:02d}"
         assignment = assignment_by_unit.get(unit_id)
 
-        if assignment and incident:
-            status = "responding"
+        officer_name = _resolve_officer_name(officer)
+
+        if not officer_name:
+            status = "offline"
         elif assignment:
             status = "responding"
+        elif incident and index % 3 == 0:
+            status = "busy"
         else:
-            status = "available" if index % 3 else "responding"
-
-        officer_name = _resolve_officer_name(officer)
+            status = "available"
 
         location = district["name"]
         last_updated = datetime.now(UTC)
@@ -898,12 +914,19 @@ def _build_patrol_units(
             latitude = float(incident["latitude"])
             longitude = float(incident["longitude"])
 
+        fallback_area = clean_location(location)
+        current_area = tomtom_reverse_geocode_area(latitude, longitude, fallback=fallback_area)
+        unit_name = patrol_name_cycle[index % len(patrol_name_cycle)]
+
         patrol_units.append({
+            "patrol_id": unit_id,
             "unit_id": unit_id,
+            "unit_name": unit_name,
             "officer_name": officer_name,
             "officer": officer_name,
             "status": status,
-            "current_location": clean_location(location),
+            "current_area": current_area,
+            "current_location": current_area,
             "last_updated": _format_police_timestamp(last_updated),
             "updated_at": last_updated.isoformat() if isinstance(last_updated, datetime) else str(last_updated),
             "district_id": district_id,
@@ -2689,12 +2712,15 @@ async def api_officers_status(current_user: dict = Depends(require_any_role("pol
 
     officers = [
         {
+            "patrol_id": unit.get("patrol_id") or unit.get("unit_id"),
             "id": unit.get("unit_id"),
+            "unit_name": unit.get("unit_name") or unit.get("unit_id"),
             "name": unit.get("officer_name") or unit.get("officer") or "Unassigned",
             "badge": unit.get("unit_id"),
             "status": str(unit.get("status") or "available").lower(),
             "skills": [],
             "district_id": unit.get("district_id") or district_id,
+            "current_area": unit.get("current_area") or unit.get("current_location") or "District duty",
             "current_location": unit.get("current_location") or "District duty",
             "latitude": unit.get("latitude"),
             "longitude": unit.get("longitude"),

@@ -7,6 +7,7 @@ import os
 import math
 import re
 import time
+import threading
 import requests
 from requests.adapters import HTTPAdapter, Retry
 from dotenv import load_dotenv
@@ -46,6 +47,81 @@ _retries = Retry(
     allowed_methods=["GET", "POST"]
 )
 _session.mount("https://", HTTPAdapter(max_retries=_retries))
+
+_REVERSE_GEOCODE_TTL_SECONDS = 600
+_REVERSE_GEOCODE_MAX_ENTRIES = 5000
+_reverse_geocode_cache: dict[tuple[float, float], tuple[float, str]] = {}
+_reverse_geocode_cache_lock = threading.Lock()
+
+
+def _extract_reverse_geocode_area(payload: dict) -> str | None:
+    addresses = payload.get("addresses") or []
+    if not addresses:
+        return None
+
+    first = addresses[0] or {}
+    address = first.get("address") or {}
+    candidates = [
+        address.get("municipalitySubdivision"),
+        address.get("municipality"),
+        address.get("countrySubdivision"),
+        address.get("country"),
+    ]
+    for value in candidates:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return None
+
+
+def tomtom_reverse_geocode_area(
+    latitude: float,
+    longitude: float,
+    timeout: int = 8,
+    fallback: str = "Location unavailable",
+) -> str:
+    """Resolve latitude/longitude into a human-readable area name using TomTom."""
+    try:
+        lat = float(latitude)
+        lon = float(longitude)
+    except (TypeError, ValueError):
+        return fallback
+
+    cache_key = (round(lat, 3), round(lon, 3))
+    now = time.time()
+    with _reverse_geocode_cache_lock:
+        cached = _reverse_geocode_cache.get(cache_key)
+        if cached and (now - cached[0]) < _REVERSE_GEOCODE_TTL_SECONDS:
+            return cached[1]
+
+    tomtom_key = get_tomtom_key()
+    if not tomtom_key:
+        return fallback
+
+    url = f"https://api.tomtom.com/search/2/reverseGeocode/{lat},{lon}.json"
+    area_name = fallback
+    try:
+        response = _session.get(
+            url,
+            params={"key": tomtom_key, "language": "en-US", "radius": 2500},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        payload = response.json() or {}
+        resolved = _extract_reverse_geocode_area(payload)
+        if resolved:
+            area_name = resolved
+    except requests.RequestException:
+        area_name = fallback
+
+    with _reverse_geocode_cache_lock:
+        if len(_reverse_geocode_cache) >= _REVERSE_GEOCODE_MAX_ENTRIES:
+            # Evict oldest entry in a lightweight way to keep memory bounded.
+            oldest_key = min(_reverse_geocode_cache, key=lambda key: _reverse_geocode_cache[key][0])
+            _reverse_geocode_cache.pop(oldest_key, None)
+        _reverse_geocode_cache[cache_key] = (now, area_name)
+
+    return area_name
 
 
 def tomtom_geocode(query: str, timeout: int = 10, country_set: str = "IN") -> tuple[float, float]:

@@ -680,6 +680,13 @@
             color: #f4f8fd;
         }
 
+        .unit-name {
+            margin-top: 4px;
+            font-size: 0.9rem;
+            color: #d9e8f8;
+            font-weight: 700;
+        }
+
         .status-badge {
             display: inline-flex;
             align-items: center;
@@ -692,22 +699,28 @@
             text-transform: uppercase;
         }
 
-        .status-active {
+        .status-available {
             background: rgba(74, 222, 128, 0.12);
             color: #86efac;
             border: 1px solid rgba(74, 222, 128, 0.24);
         }
 
-        .status-idle {
-            background: rgba(148, 163, 184, 0.12);
-            color: #cbd5e1;
-            border: 1px solid rgba(148, 163, 184, 0.2);
-        }
-
-        .status-responding {
+        .status-busy {
             background: rgba(248, 113, 113, 0.12);
             color: #fca5a5;
             border: 1px solid rgba(248, 113, 113, 0.24);
+        }
+
+        .status-responding {
+            background: rgba(251, 191, 36, 0.12);
+            color: #fcd34d;
+            border: 1px solid rgba(251, 191, 36, 0.24);
+        }
+
+        .status-offline {
+            background: rgba(148, 163, 184, 0.12);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.2);
         }
 
         .unit-label {
@@ -1789,7 +1802,9 @@
                     <div class="status-pill-group">
                         <button type="button" class="status-pill is-active" data-status-filter="all">All</button>
                         <button type="button" class="status-pill" data-status-filter="available">Available</button>
+                        <button type="button" class="status-pill" data-status-filter="busy">Busy</button>
                         <button type="button" class="status-pill" data-status-filter="responding">Responding</button>
+                        <button type="button" class="status-pill" data-status-filter="offline">Offline</button>
                     </div>
                 </div>
             </div>
@@ -1798,13 +1813,16 @@
                 {% for unit in patrol_units %}
                 <article class="unit-card" data-unit-id="{{ unit.unit_id }}" data-status="{{ unit.status | lower }}">
                     <div class="unit-top">
-                        <div class="unit-id">{{ unit.unit_id }}</div>
-                        <div class="status-badge {{ 'status-responding' if unit.status | lower == 'responding' else 'status-active' }}">{{ unit.status }}</div>
+                        <div>
+                            <div class="unit-id">🚓 {{ unit.patrol_id or unit.unit_id }}</div>
+                            <div class="unit-name">{{ unit.unit_name or 'Patrol Unit' }}</div>
+                        </div>
+                        <div class="status-badge {% if unit.status | lower == 'available' %}status-available{% elif unit.status | lower == 'busy' %}status-busy{% elif unit.status | lower == 'responding' %}status-responding{% else %}status-offline{% endif %}">{{ unit.status | upper }}</div>
                     </div>
                     <div class="unit-meta">
                         <div>
-                            <div class="unit-label">Officer</div>
-                            <div class="unit-value">{{ unit.officer_name | format_officer_name }}</div>
+                            <div class="unit-label">Officer In Charge</div>
+                            <div class="unit-value">👮 {{ unit.officer_name | format_officer_name }}</div>
                         </div>
                         <div>
                             <div class="unit-label">Updated</div>
@@ -1814,9 +1832,9 @@
                         </div>
                     </div>
                     <div>
-                        <div class="unit-label">Current Location</div>
-                        <div class="unit-value unit-location" title="{{ unit.current_location | clean_location }}">
-                            {{ unit.current_location | clean_location }}
+                        <div class="unit-label">Current Area</div>
+                        <div class="unit-value unit-location" title="{{ unit.current_area or unit.current_location | clean_location }}">
+                            📍 {{ unit.current_area or unit.current_location | clean_location }}
                         </div>
                     </div>
                     <div class="card-actions">
@@ -2436,12 +2454,15 @@
 
             const payload = await response.json();
             livePatrolUnits = filterUnitsForSupervisorDistrict((payload.officers || []).map((officer) => ({
+                patrol_id: officer.patrol_id || officer.id,
                 unit_id: officer.id,
+                unit_name: officer.unit_name || 'Patrol Unit',
                 officer_name: officer.name || 'Unassigned',
                 officer: officer.name || 'Unassigned',
                 status: officer.status || 'available',
                 district_id: officer.district_id || supervisorDistrictId,
-                current_location: cleanLocationText(officer.current_location || 'District duty'),
+                current_area: cleanLocationText(officer.current_area || officer.current_location || 'District duty'),
+                current_location: cleanLocationText(officer.current_area || officer.current_location || 'District duty'),
                 skills: officer.skills || [],
                 badge: officer.badge || officer.id,
                 latitude: officer.latitude,
@@ -2965,9 +2986,10 @@
 
         function statusClass(status) {
             const normalized = String(status || '').toLowerCase();
-            if (normalized === 'idle') return 'status-idle';
+            if (normalized === 'available') return 'status-available';
+            if (normalized === 'busy') return 'status-busy';
             if (normalized === 'responding') return 'status-responding';
-            return 'status-active';
+            return 'status-offline';
         }
 
         function severityClass(severity) {
@@ -3691,22 +3713,27 @@
             patrolUnitsGrid.innerHTML = items.map((unit) => {
                 const status = unit.status || 'Active';
                 const badgeClass = statusClass(status);
+                const patrolId = unit.patrol_id || unit.unit_id || 'Unit';
+                const unitName = unit.unit_name || 'Patrol Unit';
                 const officerName = unit.officer_name || unit.officer || 'Unassigned';
-                const cleanedLocation = cleanLocationText(unit.current_location || 'Unknown location');
+                const cleanedLocation = cleanLocationText(unit.current_area || unit.current_location || 'Unknown location');
                 const updatedAt = unit.updated_at || unit.last_updated || '-';
                 const dispatchAction = String(unit.status || '').toLowerCase() === 'available'
-                    ? `<button class="btn-dispatch" type="button" onclick="dispatchUnit('${escapeHtml(unit.unit_id || 'Unit')}')">Dispatch</button>`
+                    ? `<button class="btn-dispatch" type="button" onclick="dispatchUnit('${escapeHtml(unit.unit_id || patrolId)}')">Dispatch</button>`
                     : '';
                 return `
-                    <article class="unit-card" data-unit-id="${escapeHtml(unit.unit_id || 'Unit')}" data-status="${escapeHtml(String(unit.status || '').toLowerCase())}">
+                    <article class="unit-card" data-unit-id="${escapeHtml(patrolId)}" data-status="${escapeHtml(String(unit.status || '').toLowerCase())}">
                         <div class="unit-top">
-                            <div class="unit-id">${escapeHtml(unit.unit_id || 'Unit')}</div>
-                            <div class="status-badge ${badgeClass}">${escapeHtml(status)}</div>
+                            <div>
+                                <div class="unit-id">🚓 ${escapeHtml(patrolId)}</div>
+                                <div class="unit-name">${escapeHtml(unitName)}</div>
+                            </div>
+                            <div class="status-badge ${badgeClass}">${escapeHtml(String(status || 'offline').toUpperCase())}</div>
                         </div>
                         <div class="unit-meta">
                             <div>
-                                <div class="unit-label">Officer</div>
-                                <div class="unit-value">${escapeHtml(officerName)}</div>
+                                <div class="unit-label">Officer In Charge</div>
+                                <div class="unit-value">👮 ${escapeHtml(officerName)}</div>
                             </div>
                             <div>
                                 <div class="unit-label">Updated</div>
@@ -3714,13 +3741,13 @@
                             </div>
                         </div>
                         <div>
-                            <div class="unit-label">Current Location</div>
-                            <div class="unit-value unit-location" title="${escapeHtml(cleanedLocation)}">${escapeHtml(cleanedLocation)}</div>
+                            <div class="unit-label">Current Area</div>
+                            <div class="unit-value unit-location" title="${escapeHtml(cleanedLocation)}">📍 ${escapeHtml(cleanedLocation)}</div>
                         </div>
                         <div class="card-actions">
                             ${dispatchAction}
-                            <button class="btn-route" type="button" onclick="viewRoute('${escapeHtml(unit.unit_id || 'Unit')}')">View Route</button>
-                            <button class="btn-contact" type="button" onclick="contactUnit('${escapeHtml(unit.unit_id || 'Unit')}')">Contact</button>
+                            <button class="btn-route" type="button" onclick="viewRoute('${escapeHtml(unit.unit_id || patrolId)}')">View Route</button>
+                            <button class="btn-contact" type="button" onclick="contactUnit('${escapeHtml(unit.unit_id || patrolId)}')">Contact</button>
                         </div>
                     </article>
                 `;
@@ -3761,11 +3788,11 @@ function renderAvailableUnits(units) {
                 <article class="available-unit-card">
                     <div class="available-unit-row">
                         <div>
-                            <div class="available-unit-title">${escapeHtml(unit.unit_id || 'Unit')}</div>
-                            <div class="available-unit-meta">${escapeHtml(unit.officer_name || unit.officer || 'Unassigned')}</div>
-                            <div class="unit-mini">${escapeHtml(unit.status || 'Idle')} · ${escapeHtml(cleanLocationText(unit.current_location || 'Available'))}</div>
+                            <div class="available-unit-title">🚓 ${escapeHtml(unit.patrol_id || unit.unit_id || 'Unit')} | ${escapeHtml(unit.unit_name || 'Patrol Unit')}</div>
+                            <div class="available-unit-meta">👮 ${escapeHtml(unit.officer_name || unit.officer || 'Unassigned')}</div>
+                            <div class="unit-mini">📍 ${escapeHtml(cleanLocationText(unit.current_area || unit.current_location || 'Available'))}</div>
                         </div>
-                        <div class="status-badge ${statusClass(unit.status)}">${escapeHtml(unit.status || 'Idle')}</div>
+                        <div class="status-badge ${statusClass(unit.status)}">${escapeHtml(String(unit.status || 'offline').toUpperCase())}</div>
                     </div>
                 </article>
             `).join('');
