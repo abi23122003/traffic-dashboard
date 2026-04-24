@@ -1086,8 +1086,26 @@
             font-weight: 700;
         }
 
-        .assigned-unit.unassigned {
-            color: #f87171;
+        .unit-unassigned {
+            color: #6B7280;
+        }
+
+        .incident-type-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: rgba(120, 170, 220, 0.12);
+            color: #d9e8f8;
+            border: 1px solid rgba(120, 170, 220, 0.18);
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .incident-type-general {
+            color: #cbd5e1;
+            background: rgba(107, 114, 128, 0.14);
+            border-color: rgba(107, 114, 128, 0.22);
         }
 
         .heatmap-shell {
@@ -1630,6 +1648,17 @@
             color: #fcd34d;
         }
 
+        .btn-create-shift {
+            margin-top: 12px;
+            border: 1px solid rgba(120, 170, 220, 0.18);
+            background: rgba(6, 17, 31, 0.7);
+            color: #eef6ff;
+            border-radius: 10px;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
         .rotation-alerts {
             display: flex;
             flex-direction: column;
@@ -1892,7 +1921,12 @@
                             <td>{{ loop.index }}</td>
                             <td>{{ item.location }}</td>
                             <td><span class="risk-score {% if score > 70 %}high-risk{% endif %}">{{ item.likelihood_score }}%</span></td>
-                            <td>{{ item.predicted_type }}</td>
+                            {% set formatted_type = item.predicted_type | format_incident_type %}
+                            <td>
+                                <span class="incident-type-badge{% if formatted_type == 'General' %} incident-type-general{% endif %}">
+                                    {{ formatted_type }}
+                                </span>
+                            </td>
                             <td>{{ item.confidence }}%</td>
                             <td>
                                 <button
@@ -2005,6 +2039,9 @@
 
             <div id="shift-empty-state" class="empty-state">
                 <p>No active shift. Create a new shift to begin operations.</p>
+                <button onclick="createShift()" class="btn-create-shift">
+                    + Create Shift
+                </button>
             </div>
         </section>
 
@@ -2030,6 +2067,7 @@
 
             <div id="workload-empty-state" class="empty-state">
                 <p>Load a shift to see officer workload data.</p>
+                <button onclick="createShift()" class="btn-create-shift">Start a Shift to view workload</button>
             </div>
         </section>
     </main>
@@ -2124,6 +2162,7 @@
         }
 
         const patrolUnitsGrid = document.getElementById('patrol-units-grid');
+        const currentUser = {{ current_user["username"] | tojson }};
         const patrolUnitsData = document.getElementById('patrol-units-data');
         const unassignedIncidentsData = document.getElementById('unassigned-incidents-data');
         const availableUnitsData = document.getElementById('available-units-data');
@@ -2226,9 +2265,43 @@
         }
 
         function hydrateRelativeTimes() {
-            document.querySelectorAll('.unit-updated-time').forEach((el) => {
+            document.querySelectorAll('[data-time]').forEach((el) => {
                 const raw = el.getAttribute('data-time');
                 if (raw) el.textContent = timeAgo(raw);
+            });
+        }
+
+        function formatIncidentTypeLabel(typeStr) {
+            const value = String(typeStr || '').trim();
+            if (!value || ['unknown', 'none'].includes(value.toLowerCase())) {
+                return 'General';
+            }
+            return value
+                .toLowerCase()
+                .split(/\s+/)
+                .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                .join(' ');
+        }
+
+        function incidentTypeBadgeClass(typeStr) {
+            return formatIncidentTypeLabel(typeStr) === 'General'
+                ? 'incident-type-badge incident-type-general'
+                : 'incident-type-badge';
+        }
+
+        function enhanceIncidentCards() {
+            document.querySelectorAll('.incident-card').forEach((card) => {
+                const metaRows = card.querySelectorAll('.incident-meta');
+                if (metaRows.length < 2) {
+                    return;
+                }
+
+                const severity = card.getAttribute('data-severity') || 'unknown';
+                const incidentType = card.getAttribute('data-incident-type') || '';
+                const startTime = card.getAttribute('data-start-time') || '';
+
+                metaRows[0].innerHTML = `${escapeHtml(severity)} severity · <span class="${incidentTypeBadgeClass(incidentType)}">${escapeHtml(formatIncidentTypeLabel(incidentType))}</span>`;
+                metaRows[1].innerHTML = `<span data-time="${escapeHtml(startTime)}">${escapeHtml(startTime || '-')}</span>`;
             });
         }
 
@@ -2889,17 +2962,18 @@
 
         function createFeedItemMarkup(item, isNew) {
             const assignedUnitText = item.assigned_unit ? escapeHtml(item.assigned_unit) : 'Unassigned';
-            const assignedClass = item.assigned_unit ? 'assigned-unit' : 'assigned-unit unassigned';
+            const assignedClass = item.assigned_unit ? 'assigned-unit' : 'assigned-unit unit-unassigned';
             const newClass = isNew ? 'feed-item feed-new' : 'feed-item';
+            const incidentType = formatIncidentTypeLabel(item.type);
             return `
                 <article class="${newClass}" data-incident-id="${escapeHtml(item.incident_id || '')}">
                     <div class="feed-top">
-                        <div class="feed-type">${incidentIcon(item.type)} <span>${escapeHtml(item.type || 'traffic')}</span></div>
+                        <div class="feed-type">${incidentIcon(item.type)} <span class="${incidentTypeBadgeClass(item.type)}">${escapeHtml(incidentType)}</span></div>
                         <span class="severity-badge ${severityClass(item.severity)}">${escapeHtml(item.severity || 'unknown')}</span>
                     </div>
                     <div class="feed-location">${escapeHtml(item.location_name || 'Unknown location')}</div>
                     <div class="feed-meta">
-                        <span>Reported: ${escapeHtml(item.time_reported || '-')}</span>
+                        <span>Reported: <span data-time="${escapeHtml(item.time_reported || '')}">${escapeHtml(item.time_reported || '-')}</span></span>
                         <span>•</span>
                         <span class="${assignedClass}">Unit: ${assignedUnitText}</span>
                     </div>
@@ -2921,6 +2995,7 @@
                     seenIncidentFeedIds.add(item.incident_id);
                 }
             });
+            hydrateRelativeTimes();
         }
 
         function parseCoordinatesFromLocation(locationText) {
@@ -3544,12 +3619,12 @@
             }
 
             incidentList.innerHTML = items.map((incident) => `
-                <article class="incident-card">
+                <article class="incident-card" data-incident-type="${escapeHtml(incident.type || '')}" data-start-time="${escapeHtml(incident.start_time || '')}" data-severity="${escapeHtml(incident.severity || 'unknown')}">
                     <div class="incident-row">
                         <div>
                             <div class="incident-title">${escapeHtml(incident.description || 'Incident')}</div>
                             <div class="incident-meta">${escapeHtml(incident.severity || 'unknown')} severity · ${escapeHtml(incident.type || 'traffic')}</div>
-                            <div class="incident-meta">${escapeHtml(incident.start_time || '-')}</div>
+                            <div class="incident-meta"><span data-time="${escapeHtml(incident.start_time || '')}">${escapeHtml(incident.start_time || '-')}</span></div>
                         </div>
                         <button class="dispatch-btn" type="button" onclick="openDispatchModal('${escapeHtml(incident.id)}')">Dispatch</button>
                     </div>
@@ -3576,6 +3651,8 @@ function renderAvailableUnits(units) {
                     </div>
                 </article>
             `).join('');
+            enhanceIncidentCards();
+            hydrateRelativeTimes();
         }
 
 function fillUnitSelect(units) {
@@ -4126,7 +4203,8 @@ function fillUnitSelect(units) {
                     window.currentShiftId = data.shift.id;
 
                     const startTime = new Date(data.shift.start_time);
-                    shiftStartTime.textContent = startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    shiftStartTime.setAttribute('data-time', data.shift.start_time || '');
+                    shiftStartTime.textContent = data.shift.start_time || '-';
 
                     const now = new Date();
                     const durationMs = now - startTime;
@@ -4141,13 +4219,13 @@ function fillUnitSelect(units) {
 
                     officersList.innerHTML = (data.officers || [])
                         .map((officer) => {
-                            const clockInTime = new Date(officer.clock_in_time);
                             return `<div class="officer-item">
                                 <div class="officer-name">${escapeHtml(officer.officer_name)}</div>
-                                <div class="officer-clockin">Clocked in: ${clockInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                <div class="officer-clockin">Clocked in: <span data-time="${escapeHtml(officer.clock_in_time || '')}">${escapeHtml(officer.clock_in_time || '-')}</span></div>
                             </div>`;
                         })
                         .join('');
+                    hydrateRelativeTimes();
                     
                     // Refresh officer workload when shift is active
                     refreshOfficerWorkload();
@@ -4162,11 +4240,26 @@ function fillUnitSelect(units) {
             }
         }
 
+        function createShift() {
+            fetch('/api/shifts/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ started_by: currentUser })
+            })
+                .then((r) => r.json())
+                .then(() => location.reload())
+                .catch((error) => {
+                    console.error('Failed to create shift:', error);
+                    showToast('Failed to create shift', 'error', 3000);
+                });
+        }
+
         function openAttendanceModal() {
             attendanceOfficersList.innerHTML = '<div class="empty-state">Loading officers...</div>';
             attendanceModalBackdrop.classList.add('open');
 
-            fetch('/police/dashboard', {
+            fetch('/police/units/live', {
                 credentials: 'same-origin',
             })
                 .then((res) => res.json())
@@ -4287,7 +4380,7 @@ function fillUnitSelect(units) {
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.unit-updated-time').forEach(el => {
+            document.querySelectorAll('[data-time]').forEach(el => {
                 const raw = el.getAttribute('data-time');
                 if (raw) el.textContent = timeAgo(raw);
             });

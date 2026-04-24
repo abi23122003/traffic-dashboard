@@ -44,6 +44,7 @@ logger = get_logger(__name__)
 
 from utils import (
     clean_location,
+    format_incident_type,
     format_officer_name,
     tomtom_geocode,
     tomtom_autocomplete,
@@ -231,6 +232,7 @@ app.add_middleware(RateLimitMiddleware)
 
 templates = Jinja2Templates(directory="templates")
 templates.env.filters["clean_location"] = clean_location
+templates.env.filters["format_incident_type"] = format_incident_type
 templates.env.filters["format_officer_name"] = format_officer_name
 
 
@@ -3455,6 +3457,76 @@ async def mark_shift_attendance(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to mark attendance",
+        )
+    finally:
+        session.close()
+
+
+@app.post("/api/shifts/create")
+async def create_shift(current_user: dict = Depends(require_role("police_supervisor"))):
+    """Create a new active shift for the current supervisor if one does not exist."""
+    district_id = current_user.get("district_id")
+    username = current_user.get("username", "Unknown")
+
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required",
+        )
+
+    session = get_session()
+    try:
+        active_shift = (
+            session.query(Shift)
+            .filter(
+                Shift.district_id == district_id,
+                Shift.supervisor_id == username,
+                Shift.status == "active",
+            )
+            .order_by(Shift.start_time.desc())
+            .first()
+        )
+        if active_shift:
+            return {
+                "message": "Active shift already exists",
+                "shift_id": active_shift.id,
+                "status": "active",
+            }
+
+        user = get_user_by_username(session, username)
+        supervisor_name = (
+            getattr(user, "full_name", None)
+            or format_officer_name(username)
+        )
+
+        shift = Shift(
+            district_id=district_id,
+            supervisor_id=username,
+            supervisor_name=supervisor_name,
+            status="active",
+            start_time=datetime.now(UTC),
+            officers_on_duty=0,
+            incidents_count=0,
+        )
+        session.add(shift)
+        session.commit()
+        session.refresh(shift)
+
+        return {
+            "message": "Shift created successfully",
+            "shift_id": shift.id,
+            "status": shift.status,
+            "start_time": shift.start_time.isoformat() if shift.start_time else None,
+        }
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as exc:
+        session.rollback()
+        logger.error(f"Failed to create shift: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create shift",
         )
     finally:
         session.close()

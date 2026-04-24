@@ -26,6 +26,12 @@ def format_officer_name(raw_name):
     return str(raw_name).replace('_', ' ').title()
 
 
+def format_incident_type(type_str):
+    if not type_str or str(type_str).lower() in ["unknown", "none", ""]:
+        return "General"
+    return str(type_str).title()
+
+
 def get_tomtom_key() -> str | None:
     """Read the TomTom key from the current process environment."""
     return os.getenv("TOMTOM_KEY")
