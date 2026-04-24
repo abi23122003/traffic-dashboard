@@ -38,6 +38,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=True)
     department = Column(String(50), nullable=False, default="general")
+    district_id = Column(String, nullable=True, index=True, default="district_1")
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
@@ -121,6 +122,7 @@ class OfficerDispatchStatus(Base):
     id = Column(Integer, primary_key=True, index=True)
     district_id = Column(String, nullable=False, index=True)
     officer_id = Column(String, nullable=False, unique=True, index=True)
+    zone = Column(String(120), nullable=True, index=True)
     status = Column(String(30), nullable=False, default="available", index=True)
     assigned_incident_id = Column(String, nullable=True, index=True)
     mobile_token = Column(String, nullable=True, index=True)  # Firebase device token for push notifications

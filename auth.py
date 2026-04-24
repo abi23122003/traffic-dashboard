@@ -556,6 +556,7 @@ def ensure_police_user_exists(db: Session) -> User:
     police_username = os.getenv("DEFAULT_POLICE_USERNAME", "officer_raj")
     police_password = os.getenv("DEFAULT_POLICE_PASSWORD", "Police123")
     police_email = os.getenv("DEFAULT_POLICE_EMAIL", "officer_raj@trafficdashboard.com")
+    police_district_id = os.getenv("DEFAULT_POLICE_DISTRICT", "district_1")
 
     police_user = get_user_by_username(db, police_username)
 
@@ -578,6 +579,10 @@ def ensure_police_user_exists(db: Session) -> User:
             police_user.department = "police"
             should_commit = True
 
+        if (getattr(police_user, "district_id", None) or "").strip().lower() != police_district_id.lower():
+            police_user.district_id = police_district_id
+            should_commit = True
+
         if should_commit:
             db.commit()
             db.refresh(police_user)
@@ -591,6 +596,7 @@ def ensure_police_user_exists(db: Session) -> User:
         hashed_password=get_password_hash(police_password),
         full_name="Police Supervisor",
         department="police",
+        district_id=police_district_id,
         is_active=True,
         is_admin=False,
     )
