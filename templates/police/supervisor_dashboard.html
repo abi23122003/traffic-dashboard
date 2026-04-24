@@ -2626,6 +2626,7 @@
             await Promise.all([
                 refreshDispatchState(),
                 refreshIncidentFeed(),
+                refreshResponseTimes(),
             ]);
         }
 
@@ -2663,6 +2664,7 @@
             setInterval(refreshDispatchState, 30000);
             setInterval(refreshIncidentFeed, 20000);
             setInterval(refreshHeatmapData, 60000);
+            setInterval(refreshResponseTimes, 60000);
         }
 
         async function startRealtimeServices() {
@@ -3574,36 +3576,24 @@
         }
 
         function renderResponseTimeTable(zones) {
-            responseTimeTableBody.innerHTML = `
-                <tr>
-                    <td>West Zone</td>
-                    <td>7.20 min</td>
-                    <td>DISTRICT-1-U05</td>
-                    <td>DISTRICT-1-U08</td>
-                    <td>4</td>
-                </tr>
-                <tr class="response-alert-row">
-                    <td>South Zone</td>
-                    <td>9.80 min</td>
-                    <td>DISTRICT-1-U12</td>
-                    <td>DISTRICT-1-U19</td>
-                    <td>6</td>
-                </tr>
-                <tr>
-                    <td>North Zone</td>
-                    <td>6.10 min</td>
-                    <td>DISTRICT-1-U03</td>
-                    <td>DISTRICT-1-U07</td>
-                    <td>3</td>
-                </tr>
-                <tr class="response-alert-row">
-                    <td>East Zone</td>
-                    <td>11.30 min</td>
-                    <td>DISTRICT-1-U21</td>
-                    <td>DISTRICT-1-U28</td>
-                    <td>5</td>
-                </tr>
-            `;
+            const list = Array.isArray(zones) ? zones : [];
+            if (!list.length) {
+                responseTimeTableBody.innerHTML = '<tr><td colspan="5" class="empty-state">No response-time metrics available for this district.</td></tr>';
+                return;
+            }
+
+            responseTimeTableBody.innerHTML = list.map((zone) => {
+                const rowClass = zone.exceeds_target ? 'response-alert-row' : '';
+                return `
+                    <tr class="${rowClass}">
+                        <td>${escapeHtml(zone.zone)}</td>
+                        <td>${formatMinutes(zone.avg_response_time)}</td>
+                        <td>${escapeHtml(zone.fastest_unit || '-')}</td>
+                        <td>${escapeHtml(zone.slowest_unit || '-')}</td>
+                        <td>${zone.total_incidents || 0}</td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function renderResponseTimeChart(zones, targetThreshold) {
@@ -3611,11 +3601,12 @@
                 return;
             }
 
-            const zoneLabels = ['West Zone', 'South Zone', 'North Zone', 'East Zone'];
-            const zoneValues = [7.2, 9.8, 6.1, 11.3];
-            const target = 8.0;
+            const list = Array.isArray(zones) ? zones : [];
+            const zoneLabels = list.map(z => z.zone);
+            const zoneValues = list.map(z => Number(z.avg_response_time || 0));
+            const target = Number(targetThreshold || 8);
             const barColors = zoneValues.map(v => v <= target ? '#22c55e' : '#ef4444');
-            const suggestedMax = Math.max(...zoneValues) + 2;
+            const suggestedMax = Math.max(...zoneValues, target) + 2;
 
             if (responseTimeChart) {
                 responseTimeChart.destroy();
