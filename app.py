@@ -3465,8 +3465,8 @@ async def generate_shift_report(
 
         # Get all incidents for this shift (notifications within shift time window)
         incidents_query = db.query(Notification).filter(
-            Notification.timestamp >= shift.start_time,
-            Notification.timestamp <= (shift.end_time or datetime.now(UTC))
+            Notification.created_at >= shift.start_time,
+            Notification.created_at <= (shift.end_time or datetime.now(UTC))
         ).all()
 
         incidents = [
