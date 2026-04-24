@@ -3,7 +3,7 @@
 import logging
 from typing import Optional, Dict, Any
 from datetime import datetime, UTC
-from fcm_service import send_dispatch_notification
+from .fcm_service import send_dispatch_notification
 
 logger = logging.getLogger(__name__)
 

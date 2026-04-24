@@ -11,11 +11,12 @@ import os
 import math
 from dotenv import load_dotenv
 
-from db import AnalysisResult, SavedRoute
-from utils import tomtom_route, summarize_route
-from logging_config import get_logger
+from .db import AnalysisResult, SavedRoute
+from .utils import tomtom_route, summarize_route
+from .logging_config import get_logger
+from .paths import ENV_FILE
 
-load_dotenv()
+load_dotenv(ENV_FILE)
 
 logger = get_logger(__name__)
 
@@ -128,7 +129,7 @@ async def auto_refresh_route(
         summary = summarize_route(route)
         
         # Save to database
-        from db import save_analysis
+        from .db import save_analysis
         save_analysis(db, {
             "route_id": route_id,
             "origin": {"lat": origin_lat, "lon": origin_lon},

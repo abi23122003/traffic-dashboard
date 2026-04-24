@@ -8,9 +8,10 @@ import logging
 import logging.handlers
 from pathlib import Path
 from datetime import datetime
+from .paths import LOGS_DIR
 
 # Create logs directory if it doesn't exist
-LOG_DIR = Path("logs")
+LOG_DIR = LOGS_DIR
 LOG_DIR.mkdir(exist_ok=True)
 
 # Log file paths

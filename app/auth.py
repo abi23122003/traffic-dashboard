@@ -16,8 +16,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 
-from db import get_session, get_db, User
-from logging_config import get_logger
+from .db import get_session, get_db, User
+from .logging_config import get_logger
 
 # JWT Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")

@@ -10,8 +10,9 @@ import time
 import requests
 from requests.adapters import HTTPAdapter, Retry
 from dotenv import load_dotenv
+from .paths import ENV_FILE
 
-load_dotenv()
+load_dotenv(ENV_FILE)
 
 
 def clean_location(location_str):
@@ -339,7 +340,7 @@ def compute_route_cost(
     """
     if use_fuel_prices:
         try:
-            from fuel_price import calculate_route_cost_with_fuel
+            from .fuel_price import calculate_route_cost_with_fuel
             
             distance_km = distance_m / 1000.0
             travel_time_min = travel_time_s / 60.0
@@ -360,7 +361,7 @@ def compute_route_cost(
             pass
         except Exception as e:
             # Log error and fallback to legacy calculation
-            from logging_config import get_logger
+            from .logging_config import get_logger
             logger = get_logger(__name__)
             logger.warning(f"Error calculating fuel-based cost: {e}. Using legacy calculation.")
     

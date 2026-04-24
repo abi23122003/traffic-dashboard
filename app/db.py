@@ -4,11 +4,13 @@ Database persistence layer using SQLAlchemy with PostgreSQL or SQLite fallback.
 
 import os
 import json
+from pathlib import Path
 from datetime import datetime, UTC
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, Boolean, ForeignKey, JSON, inspect, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
-from logging_config import get_logger
+from .logging_config import get_logger
+from .paths import DATA_DIR, ROOT_DIR
 
 logger = get_logger(__name__)
 
@@ -18,7 +20,11 @@ _SESSION_LOCAL = None
 
 # Database configuration - supports PostgreSQL or SQLite
 DB_TYPE = os.getenv("DB_TYPE", "sqlite").lower()
-DB_PATH = os.getenv("DB_PATH", "traffic_analysis.db")
+_db_path_value = os.getenv("DB_PATH")
+if _db_path_value:
+    DB_PATH = str((ROOT_DIR / _db_path_value).resolve()) if not Path(_db_path_value).is_absolute() else _db_path_value
+else:
+    DB_PATH = str((DATA_DIR / "traffic_analysis.db").resolve())
 
 # PostgreSQL configuration
 POSTGRES_USER = os.getenv("POSTGRES_USER", "traffic_user")
@@ -348,7 +354,7 @@ def init_db():
         
         # Ensure default admin user exists
         try:
-            from auth import ensure_admin_user_exists, ensure_police_user_exists
+            from .auth import ensure_admin_user_exists, ensure_police_user_exists
             session = get_session()
             ensure_admin_user_exists(session)
             ensure_police_user_exists(session)

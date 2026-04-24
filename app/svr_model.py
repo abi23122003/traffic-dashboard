@@ -3,7 +3,6 @@ SVR Model — Historical Time-Based Congestion Forecaster
 Purpose: Predicts expected congestion level based on TIME patterns only
 (hour of day, day of week, month) — completely independent of live route data.
 """
-import os
 import numpy as np
 import pandas as pd
 from sklearn.svm import SVR
@@ -14,9 +13,10 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import joblib
 from datetime import datetime
 import logging
+from .paths import DATA_DIR
 
 logger = logging.getLogger(__name__)
-MODEL_PATH = "svr_model.pkl"
+MODEL_PATH = DATA_DIR / "svr_model.pkl"
 
 FEATURE_COLS = ["hour","weekday","is_weekend","month","is_peak_am","is_peak_pm","is_night"]
 TARGET_COL = "historical_congestion"
@@ -72,7 +72,7 @@ def generate_historical_data(n_samples=300):
 def train_svr():
     print("SVR Historical Congestion Model Training")
     df = generate_historical_data(300)
-    df.to_csv("svr_training_data.csv", index=False)
+    df.to_csv(DATA_DIR / "svr_training_data.csv", index=False)
     print(f"Generated {len(df)} records")
     X = df[FEATURE_COLS]
     y = df[TARGET_COL]

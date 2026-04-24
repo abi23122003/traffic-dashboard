@@ -11,9 +11,9 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from db import Notification, SavedRoute, AnalysisResult, User
-from analytics import get_peak_hours_analysis, predict_future_congestion
-from logging_config import get_logger
+from .db import Notification, SavedRoute, AnalysisResult, User
+from .analytics import get_peak_hours_analysis, predict_future_congestion
+from .logging_config import get_logger
 
 logger = get_logger(__name__)
 

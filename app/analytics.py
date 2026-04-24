@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, extract, Float, case, cast
 import pandas as pd
 import numpy as np
-from db import AnalysisResult
+from .db import AnalysisResult
 
 
 def get_peak_hours_analysis(db: Session, route_id: str, days: int = 30) -> Dict:

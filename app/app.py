@@ -11,6 +11,7 @@ import csv
 import random
 import socket
 import socketio
+from pathlib import Path
 from dotenv import load_dotenv
 from typing import Optional, Union, List
 from functools import wraps
@@ -34,17 +35,19 @@ import threading
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 
-load_dotenv()
+from .paths import DATA_DIR, ENV_FILE, STATIC_DIR, TEMPLATES_DIR
+
+load_dotenv(ENV_FILE)
 
 # Import logging and rate limiting
-from logging_config import setup_logging, get_logger
-from rate_limiter import RateLimitMiddleware
+from .logging_config import setup_logging, get_logger
+from .rate_limiter import RateLimitMiddleware
 
 # Setup logging
 setup_logging()
 logger = get_logger(__name__)
 
-from utils import (
+from .utils import (
     clean_location,
     format_incident_type,
     format_officer_name,
@@ -55,32 +58,32 @@ from utils import (
     compute_route_cost,
     haversine_m
 )
-from db import (
+from .db import (
     init_db, get_session, get_db, save_analysis, AnalysisResult,
     User, SavedRoute, RouteRating, Notification, PoliceDispatchAssignment, OfficerDispatchStatus, DispatchLog, SharedAlert, Shift, ShiftAttendance, OfficerIncidentCount, MLFeedback, MLRetrainAudit
 )
 from sqlalchemy.orm import Session
-from auth import (
+from .auth import (
     verify_password, get_password_hash, create_access_token,
     get_current_user, get_current_active_user, get_current_admin_user,
     authenticate_user, create_user, get_user_by_username, Token, UserCreate as AuthUserCreate, UserResponse,
     get_optional_user, RoleLoginRequest, RoleToken, UserRole, create_role_access_token, require_role, require_any_role,
     require_police_department_user
 )
-from analytics import (
+from .analytics import (
     get_peak_hours_analysis, get_day_of_week_analysis,
     get_seasonal_trends, calculate_route_reliability, predict_future_congestion,
     get_traffic_hotspots
 )
-from export_utils import export_to_csv, export_to_excel, export_to_pdf
-from notifications import (
+from .export_utils import export_to_csv, export_to_excel, export_to_pdf
+from .notifications import (
     create_notification, check_traffic_alerts,
     suggest_best_time_to_leave, check_congestion_warnings,
     get_user_notifications, mark_notification_read
 )
-from cache_utils import cached, clear_cache, get_cache_stats
-from realtime_utils import get_traffic_incidents, auto_refresh_route, monitor_route_changes
-from dispatch_notifications import send_officer_dispatch_notification
+from .cache_utils import cached, clear_cache, get_cache_stats
+from .realtime_utils import get_traffic_incidents, auto_refresh_route, monitor_route_changes
+from .dispatch_notifications import send_officer_dispatch_notification
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -143,7 +146,7 @@ sio = socketio.AsyncServer(
 )
 app.mount("/socket.io", socketio.ASGIApp(sio, socketio_path="/"))
 
-from socketio_events import (
+from .socketio_events import (
     register_police_socketio_handlers,
     emit_incident_new,
     emit_incident_updated,
@@ -232,7 +235,7 @@ app.add_middleware(
 # Add rate limiting middleware
 app.add_middleware(RateLimitMiddleware)
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 templates.env.filters["clean_location"] = clean_location
 templates.env.filters["format_incident_type"] = format_incident_type
 templates.env.filters["format_officer_name"] = format_officer_name
@@ -318,15 +321,18 @@ async def schedule_app_bootstrap() -> None:
     _start_bootstrap_once()
 
 ML_MODEL = None
-MODEL_PATH = os.getenv("MODEL_PATH", "rf_model.pkl")
+_model_path_value = os.getenv("MODEL_PATH")
+MODEL_PATH = Path(_model_path_value) if _model_path_value else DATA_DIR / "rf_model.pkl"
+if not MODEL_PATH.is_absolute():
+    MODEL_PATH = (Path.cwd() / MODEL_PATH).resolve()
 APP_BOOTSTRAP_STARTED = False
 APP_BOOTSTRAP_DONE = False
 APP_BOOTSTRAP_ERROR: Optional[str] = None
 _bootstrap_lock = threading.Lock()
 
 # Mount static files if directory exists
-if os.path.exists("static"):
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # ============================================================================
 # ERROR HANDLING DECORATOR
@@ -1677,7 +1683,7 @@ async def serve_index(request: Request):
         return RedirectResponse(url="/login", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
     
     # User is logged in, serve index/route optimizer page
-    index_path = os.path.join("templates", "index.html")
+    index_path = TEMPLATES_DIR / "index.html"
     if os.path.exists(index_path):
         with open(index_path, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
@@ -1690,7 +1696,7 @@ async def serve_index(request: Request):
 @app.get("/favicon.ico")
 async def serve_favicon():
     """Serve the favicon."""
-    favicon_path = os.path.join("static", "favicon.svg")
+    favicon_path = STATIC_DIR / "favicon.svg"
     if os.path.exists(favicon_path):
         with open(favicon_path, "r", encoding="utf-8") as f:
             return Response(content=f.read(), media_type="image/svg+xml")
@@ -1701,7 +1707,7 @@ async def serve_favicon():
 @app.get("/login", response_class=HTMLResponse)
 async def serve_login():
     """Serve the login/registration page."""
-    login_path = os.path.join("templates", "login.html")
+    login_path = TEMPLATES_DIR / "login.html"
     if os.path.exists(login_path):
         with open(login_path, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
@@ -1732,7 +1738,7 @@ async def serve_auth_login_alias(request: Request):
 @app.get("/admin", response_class=HTMLResponse)
 async def serve_admin(current_user: dict = Depends(require_role("admin"))):
     """Serve the admin dashboard page."""
-    admin_path = os.path.join("templates", "admin.html")
+    admin_path = TEMPLATES_DIR / "admin.html"
     if os.path.exists(admin_path):
         with open(admin_path, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
@@ -1751,7 +1757,7 @@ async def serve_account(current_user: dict = Depends(get_current_user)):
     if role == UserRole.admin.value:
         return RedirectResponse(url="/admin", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
-    account_path = os.path.join("templates", "account.html")
+    account_path = TEMPLATES_DIR / "account.html"
     if os.path.exists(account_path):
         with open(account_path, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
@@ -1764,7 +1770,7 @@ async def serve_account(current_user: dict = Depends(get_current_user)):
 @app.get("/password-toggle-demo", response_class=HTMLResponse)
 async def serve_password_toggle_demo():
     """Serve the password toggle demo page."""
-    demo_path = os.path.join("templates", "password_toggle_demo.html")
+    demo_path = TEMPLATES_DIR / "password_toggle_demo.html"
     if os.path.exists(demo_path):
         with open(demo_path, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
@@ -1777,7 +1783,7 @@ async def serve_password_toggle_demo():
 @app.get("/analysis-report", response_class=HTMLResponse)
 async def serve_analysis_report():
     """Serve the analysis report HTML page."""
-    report_path = os.path.join("templates", "analysis_report.html")
+    report_path = TEMPLATES_DIR / "analysis_report.html"
     if os.path.exists(report_path):
         with open(report_path, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
@@ -1790,7 +1796,7 @@ async def serve_analysis_report():
 @app.get("/static/manifest.json")
 async def get_manifest():
     """Serve PWA manifest."""
-    manifest_path = os.path.join("static", "manifest.json")
+    manifest_path = STATIC_DIR / "manifest.json"
     if os.path.exists(manifest_path):
         return FileResponse(manifest_path, media_type="application/json")
     return JSONResponse({"error": "Manifest not found"}, status_code=404)
@@ -1972,7 +1978,7 @@ async def analyze_route(
             
             svr_predicted = None
             try:
-                from svr_model import svr_predict
+                from .svr_model import svr_predict
                 svr_predicted = svr_predict({})
             except Exception as e:
                 svr_predicted = None
@@ -4362,7 +4368,7 @@ async def retrain_ml_model(
             )
 
     try:
-        from svr_model import train_svr
+        from .svr_model import train_svr
 
         train_svr()
     except Exception as exc:
@@ -4761,7 +4767,7 @@ async def monitor_route(
     change = monitor_route_changes(db, route_id)
     if change:
         if current_user:
-            from notifications import create_notification
+            from .notifications import create_notification
             create_notification(
                 db, current_user.id, 'traffic_alert',
                 f"Route Change: {route_id}",

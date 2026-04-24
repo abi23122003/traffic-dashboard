@@ -14,7 +14,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 
-from db import AnalysisResult
+from .db import AnalysisResult
 
 
 def export_to_csv(db: Session, route_id: str, output_path: str = None) -> str:

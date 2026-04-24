@@ -27,7 +27,7 @@ from typing import Any, Optional
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
 
-from auth import ALGORITHM, SECRET_KEY
+from .auth import ALGORITHM, SECRET_KEY
 
 POLICE_NAMESPACE = "/police"
 POLICE_ROLES = {"police_supervisor", "police_officer"}
