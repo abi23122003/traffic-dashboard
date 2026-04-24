@@ -656,6 +656,39 @@
             transform: translateY(-1px);
         }
 
+        .dispatch-selected-btn {
+            border: 0;
+            border-radius: 12px;
+            padding: 10px 16px;
+            background: linear-gradient(180deg, #f97316, #ea580c);
+            color: #fff;
+            font-weight: 900;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 12px 24px rgba(249, 115, 22, 0.22);
+        }
+
+        .dispatch-selected-btn:disabled {
+            opacity: 0.52;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .patrol-dispatch-feedback {
+            margin-top: 10px;
+            min-height: 22px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .patrol-dispatch-feedback.success {
+            color: #86efac;
+        }
+
+        .patrol-dispatch-feedback.error {
+            color: #fca5a5;
+        }
+
         .unit-card {
             background: linear-gradient(180deg, rgba(16, 41, 69, 0.98), rgba(11, 27, 46, 0.98));
             border: 1px solid rgba(120, 170, 220, 0.18);
@@ -664,6 +697,27 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+        }
+
+        .unit-card.is-selectable {
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .unit-card.is-selectable:hover {
+            transform: translateY(-2px);
+            border-color: rgba(74, 222, 128, 0.34);
+            box-shadow: 0 10px 24px rgba(74, 222, 128, 0.14);
+        }
+
+        .unit-card.is-selected {
+            border-color: rgba(251, 191, 36, 0.72);
+            box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.25);
+        }
+
+        .unit-card.is-disabled {
+            opacity: 0.74;
+            cursor: not-allowed;
         }
 
         .unit-top {
@@ -1806,12 +1860,14 @@
                         <button type="button" class="status-pill" data-status-filter="responding">Responding</button>
                         <button type="button" class="status-pill" data-status-filter="offline">Offline</button>
                     </div>
+                    <button type="button" id="dispatch-selected-btn" class="dispatch-selected-btn">🚨 Dispatch</button>
                 </div>
             </div>
+            <div id="patrol-dispatch-feedback" class="patrol-dispatch-feedback">Select one available patrol unit, then click Dispatch.</div>
 
             <div id="patrol-units-grid" class="unit-grid">
                 {% for unit in patrol_units %}
-                <article class="unit-card" data-unit-id="{{ unit.unit_id }}" data-status="{{ unit.status | lower }}">
+                <article class="unit-card {{ 'is-selectable' if unit.status | lower == 'available' else 'is-disabled' }}" data-patrol-id="{{ unit.patrol_id or unit.unit_id }}" data-unit-id="{{ unit.unit_id }}" data-status="{{ unit.status | lower }}" aria-selected="false">
                     <div class="unit-top">
                         <div>
                             <div class="unit-id">🚓 {{ unit.patrol_id or unit.unit_id }}</div>
@@ -1867,9 +1923,9 @@
                 <div id="incident-heatmap" class="heatmap-map"></div>
                 <aside class="heatmap-legend" aria-label="Heatmap legend">
                     <h3 class="legend-title">Intensity Legend</h3>
-                    <div class="legend-item"><span class="legend-swatch swatch-low"></span><span>Low</span></div>
-                    <div class="legend-item"><span class="legend-swatch swatch-medium"></span><span>Medium</span></div>
-                    <div class="legend-item"><span class="legend-swatch swatch-high"></span><span>High</span></div>
+                    <div class="legend-item"><span id="legend-low-swatch" class="legend-swatch swatch-low"></span><span>Low</span></div>
+                    <div class="legend-item"><span id="legend-medium-swatch" class="legend-swatch swatch-medium"></span><span>Medium</span></div>
+                    <div class="legend-item"><span id="legend-high-swatch" class="legend-swatch swatch-high"></span><span>High</span></div>
                     <hr style="margin: 12px 0; border: none; border-top: 1px solid rgba(120, 170, 220, 0.16);">
                     <h3 class="legend-title">Predicted Hotspots</h3>
                     <div class="legend-item"><span class="legend-swatch swatch-hotspot-high"></span><span>High Risk (75+)</span></div>
@@ -2193,6 +2249,8 @@
         const unitsRefreshLabel = document.getElementById('units-refresh-label');
         const unitSearchInput = document.getElementById('unit-search');
         const activeStatusInput = document.getElementById('active-status');
+        const dispatchSelectedBtn = document.getElementById('dispatch-selected-btn');
+        const patrolDispatchFeedback = document.getElementById('patrol-dispatch-feedback');
         const statusFilterButtons = document.querySelectorAll('[data-status-filter]');
         const summaryTotal = document.getElementById('summary-total');
         const summaryAvailable = document.getElementById('summary-available');
@@ -2229,8 +2287,18 @@
         const incidentsHandledSpan = document.getElementById('incidents-handled');
         const officersList = document.getElementById('officers-list');
         const shiftStatusSubtitle = document.getElementById('shift-status-subtitle');
+        const legendLowSwatch = document.getElementById('legend-low-swatch');
+        const legendMediumSwatch = document.getElementById('legend-medium-swatch');
+        const legendHighSwatch = document.getElementById('legend-high-swatch');
         const supervisorDistrictId = {{ district_id | tojson }};
         const currentDistrict = {{ district | tojson }};
+
+        const INTENSITY_COLOR_MAP = {
+            LOW: '#3b82f6',
+            MEDIUM: '#f59e0b',
+            HIGH: '#ef4444',
+            UNKNOWN: '#64748b',
+        };
 
         let livePatrolUnits = [];
         let liveAvailableUnits = [];
@@ -2252,6 +2320,7 @@
         let dashboardBackendReady = false;
         let alertReconnectTimer = null;
         let pollingIntervalsStarted = false;
+        let selectedPatrolId = null;
         const seenIncidentFeedIds = new Set();
         
         // Route drawing variables for dispatch
@@ -2283,6 +2352,18 @@
                 return 'N/A';
             }
             return text.replaceAll('_', '-').toUpperCase();
+        }
+
+        function applyHeatmapLegendColors() {
+            if (legendLowSwatch) {
+                legendLowSwatch.style.background = INTENSITY_COLOR_MAP.LOW;
+            }
+            if (legendMediumSwatch) {
+                legendMediumSwatch.style.background = INTENSITY_COLOR_MAP.MEDIUM;
+            }
+            if (legendHighSwatch) {
+                legendHighSwatch.style.background = INTENSITY_COLOR_MAP.HIGH;
+            }
         }
 
         function filterUnitsForSupervisorDistrict(units) {
@@ -2366,12 +2447,123 @@
             const cards = document.querySelectorAll('.unit-card');
 
             cards.forEach((card) => {
-                const id = String(card.dataset.unitId || '').toLowerCase();
+                const id = String(card.dataset.patrolId || card.dataset.unitId || '').toLowerCase();
                 const cardStatus = String(card.dataset.status || '').toLowerCase();
                 const matchSearch = id.includes(search);
                 const matchStatus = status === 'all' || cardStatus === status;
                 card.style.display = matchSearch && matchStatus ? '' : 'none';
             });
+        }
+
+        function isDispatchableStatus(value) {
+            return String(value || '').toLowerCase() === 'available';
+        }
+
+        function setPatrolDispatchFeedback(message, type = '') {
+            if (!patrolDispatchFeedback) {
+                return;
+            }
+            patrolDispatchFeedback.textContent = message;
+            patrolDispatchFeedback.classList.remove('success', 'error');
+            if (type === 'success') {
+                patrolDispatchFeedback.classList.add('success');
+            } else if (type === 'error') {
+                patrolDispatchFeedback.classList.add('error');
+            }
+        }
+
+        function updatePatrolSelectionUI() {
+            const cards = document.querySelectorAll('.unit-card');
+            cards.forEach((card) => {
+                const patrolId = String(card.dataset.patrolId || card.dataset.unitId || '');
+                const status = String(card.dataset.status || '').toLowerCase();
+                const selectable = isDispatchableStatus(status);
+                const isSelected = selectable && selectedPatrolId === patrolId;
+
+                card.classList.toggle('is-selectable', selectable);
+                card.classList.toggle('is-disabled', !selectable);
+                card.classList.toggle('is-selected', isSelected);
+                card.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+            });
+
+            if (dispatchSelectedBtn) {
+                dispatchSelectedBtn.disabled = !selectedPatrolId;
+            }
+        }
+
+        function clearSelectedPatrol() {
+            selectedPatrolId = null;
+            updatePatrolSelectionUI();
+        }
+
+        async function dispatchSelectedPatrol() {
+            if (!selectedPatrolId) {
+                setPatrolDispatchFeedback('Select an available patrol before dispatching.', 'error');
+                return;
+            }
+
+            const selectedUnit = livePatrolUnits.find((unit) => {
+                const patrolId = String(unit.patrol_id || unit.unit_id || '');
+                return patrolId === selectedPatrolId;
+            });
+
+            if (!selectedUnit || !isDispatchableStatus(selectedUnit.status)) {
+                clearSelectedPatrol();
+                setPatrolDispatchFeedback('Selected patrol is no longer available.', 'error');
+                return;
+            }
+
+            if (dispatchSelectedBtn) {
+                dispatchSelectedBtn.disabled = true;
+            }
+            setPatrolDispatchFeedback(`Dispatching ${selectedPatrolId}...`);
+
+            try {
+                const response = await fetch('/dispatch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        patrol_id: selectedPatrolId,
+                        user_id: String(currentUser || ''),
+                    }),
+                });
+
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(payload.detail || `Dispatch failed (HTTP ${response.status})`);
+                }
+
+                livePatrolUnits = livePatrolUnits.map((unit) => {
+                    const patrolId = String(unit.patrol_id || unit.unit_id || '');
+                    if (patrolId !== selectedPatrolId) {
+                        return unit;
+                    }
+                    return {
+                        ...unit,
+                        status: 'responding',
+                        assigned_user_id: String(currentUser || ''),
+                        updated_at: payload.assigned_at || new Date().toISOString(),
+                    };
+                });
+                liveAvailableUnits = livePatrolUnits.filter((unit) => isDispatchableStatus(unit.status));
+
+                renderPatrolUnits(livePatrolUnits);
+                renderAvailableUnits(liveAvailableUnits);
+                fillUnitSelect(liveAvailableUnits);
+                setPatrolDispatchFeedback(payload.message || `Patrol ${selectedPatrolId} dispatched successfully.`, 'success');
+                selectedPatrolId = null;
+                updatePatrolSelectionUI();
+            } catch (error) {
+                setPatrolDispatchFeedback(error.message || 'Dispatch failed.', 'error');
+            } finally {
+                if (dispatchSelectedBtn) {
+                    dispatchSelectedBtn.disabled = !selectedPatrolId;
+                }
+            }
         }
 
         function getCookie(name) {
@@ -3241,15 +3433,37 @@
             }
         }
 
-        function severityColor(severity) {
-            const normalized = String(severity || '').toLowerCase();
-            if (normalized === 'critical' || normalized === 'high') return '#ef4444';
-            if (normalized === 'medium' || normalized === 'moderate') return '#f59e0b';
-            if (normalized === 'low') return '#22c55e';
-            return '#64748b';
+        function normalizeIntensityLevel(value) {
+            const text = String(value || '').trim().toUpperCase();
+            if (text === 'LOW' || text === 'MEDIUM' || text === 'HIGH') {
+                return text;
+            }
+            return 'UNKNOWN';
         }
 
-        function updateHeatLayer(incidents) {
+        function intensityLevelFromNumeric(value) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) {
+                return 'UNKNOWN';
+            }
+            if (numeric >= 0.8) {
+                return 'HIGH';
+            }
+            if (numeric >= 0.5) {
+                return 'MEDIUM';
+            }
+            return 'LOW';
+        }
+
+        function hotspotColor(hotspot) {
+            const explicitLevel = normalizeIntensityLevel(hotspot?.intensity_level);
+            const level = explicitLevel === 'UNKNOWN'
+                ? intensityLevelFromNumeric(hotspot?.intensity)
+                : explicitLevel;
+            return INTENSITY_COLOR_MAP[level] || INTENSITY_COLOR_MAP.UNKNOWN;
+        }
+
+        function updateHeatLayer(hotspots) {
             if (!heatmapMap || !window.google || !google.maps) {
                 return;
             }
@@ -3257,30 +3471,44 @@
             googleIncidentMarkers.forEach((marker) => marker.setMap(null));
             googleIncidentMarkers = [];
 
-            const rows = (Array.isArray(incidents) ? incidents : [])
-                .filter((incident) => Number.isFinite(Number(incident.latitude)) && Number.isFinite(Number(incident.longitude)));
+            const rows = (Array.isArray(hotspots) ? hotspots : [])
+                .filter((hotspot) => Number.isFinite(Number(hotspot.lat)) && Number.isFinite(Number(hotspot.lng)));
 
             const bounds = new google.maps.LatLngBounds();
-            rows.forEach((incident) => {
+            rows.forEach((hotspot) => {
                 const position = {
-                    lat: Number(incident.latitude),
-                    lng: Number(incident.longitude),
+                    lat: Number(hotspot.lat),
+                    lng: Number(hotspot.lng),
                 };
+                const level = normalizeIntensityLevel(hotspot.intensity_level) === 'UNKNOWN'
+                    ? intensityLevelFromNumeric(hotspot.intensity)
+                    : normalizeIntensityLevel(hotspot.intensity_level);
+                const markerColor = hotspot.marker_color || hotspotColor(hotspot);
                 const marker = new google.maps.Marker({
                     map: heatmapMap,
                     position,
-                    title: incident.description || incident.type || 'Incident',
+                    title: `${hotspot.location_name || 'Hotspot'} (${level})`,
                     icon: {
                         path: google.maps.SymbolPath.CIRCLE,
                         scale: 7,
-                        fillColor: severityColor(incident.severity),
+                        fillColor: markerColor,
                         fillOpacity: 0.95,
                         strokeColor: '#0f172a',
                         strokeWeight: 1.2,
                     },
                 });
                 marker.addListener('click', () => {
-                    showIncidentInfo(marker, incident);
+                    if (!googleInfoWindow) {
+                        googleInfoWindow = new google.maps.InfoWindow();
+                    }
+                    googleInfoWindow.setContent(`
+                        <div style="min-width: 220px; color: #0f172a; font-size: 13px;">
+                            <strong>${escapeHtml(hotspot.location_name || 'Hotspot')}</strong><br>
+                            Intensity: ${escapeHtml(level)}<br>
+                            Score: ${Number.isFinite(Number(hotspot.intensity)) ? Number(hotspot.intensity).toFixed(2) : '-'}
+                        </div>
+                    `);
+                    googleInfoWindow.open({ anchor: marker, map: heatmapMap });
                 });
                 googleIncidentMarkers.push(marker);
                 bounds.extend(position);
@@ -3375,6 +3603,25 @@
             googleTrafficLayer.setMap(heatmapMap);
             googleDirectionsService = new google.maps.DirectionsService();
             googleInfoWindow = new google.maps.InfoWindow();
+            applyHeatmapLegendColors();
+        }
+
+        async function fetchHotspotData() {
+            const response = await fetch('/police/heatmap/data', {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+            });
+            if (!response.ok) {
+                throw new Error(`Hotspot API failed (HTTP ${response.status})`);
+            }
+            const payload = await response.json();
+            if (Array.isArray(payload)) {
+                return payload;
+            }
+            if (Array.isArray(payload?.hotspots)) {
+                return payload.hotspots;
+            }
+            return [];
         }
 
         function formatMinutes(value) {
@@ -3667,7 +3914,9 @@
                     initializeHeatmap();
                 }
 
-                updateHeatLayer(liveUnassignedIncidents);
+                applyHeatmapLegendColors();
+                const hotspots = await fetchHotspotData();
+                updateHeatLayer(hotspots);
                 renderOfficerMarkers(livePatrolUnits);
 
                 if (heatmapRefreshLabel) {
@@ -3706,6 +3955,7 @@
             if (!items.length) {
                 patrolUnitsGrid.innerHTML = '<div class="empty-state">No patrol units available for this district.</div>';
                 updateSummaryBar([]);
+                clearSelectedPatrol();
                 return;
             }
 
@@ -3722,7 +3972,7 @@
                     ? `<button class="btn-dispatch" type="button" onclick="dispatchUnit('${escapeHtml(unit.unit_id || patrolId)}')">Dispatch</button>`
                     : '';
                 return `
-                    <article class="unit-card" data-unit-id="${escapeHtml(patrolId)}" data-status="${escapeHtml(String(unit.status || '').toLowerCase())}">
+                    <article class="unit-card ${isDispatchableStatus(status) ? 'is-selectable' : 'is-disabled'}" data-patrol-id="${escapeHtml(patrolId)}" data-unit-id="${escapeHtml(unit.unit_id || patrolId)}" data-status="${escapeHtml(String(unit.status || '').toLowerCase())}" aria-selected="false">
                         <div class="unit-top">
                             <div>
                                 <div class="unit-id">🚓 ${escapeHtml(patrolId)}</div>
@@ -3754,6 +4004,7 @@
             }).join('');
             hydrateRelativeTimes();
             applyUnitCardFilters();
+            updatePatrolSelectionUI();
         }
 
         function renderIncidentList(incidents) {
@@ -4258,6 +4509,36 @@ function fillUnitSelect(units) {
         }
 
         dispatchForm.addEventListener('submit', submitDispatch);
+        if (dispatchSelectedBtn) {
+            dispatchSelectedBtn.addEventListener('click', dispatchSelectedPatrol);
+            dispatchSelectedBtn.disabled = true;
+        }
+        patrolUnitsGrid.addEventListener('click', (event) => {
+            const card = event.target.closest('.unit-card');
+            if (!card || !patrolUnitsGrid.contains(card)) {
+                return;
+            }
+
+            const clickedInteractive = event.target.closest('button, a, input, select, textarea');
+            if (clickedInteractive) {
+                return;
+            }
+
+            const status = String(card.dataset.status || '').toLowerCase();
+            if (!isDispatchableStatus(status)) {
+                setPatrolDispatchFeedback('Only AVAILABLE patrol units can be selected.', 'error');
+                return;
+            }
+
+            const patrolId = String(card.dataset.patrolId || card.dataset.unitId || '');
+            selectedPatrolId = selectedPatrolId === patrolId ? null : patrolId;
+            updatePatrolSelectionUI();
+            if (selectedPatrolId) {
+                setPatrolDispatchFeedback(`Selected ${selectedPatrolId}. Click 🚨 Dispatch to assign it to your account.`);
+            } else {
+                setPatrolDispatchFeedback('Selection cleared. Choose one patrol to dispatch.');
+            }
+        });
         if (unitSearchInput) {
             unitSearchInput.addEventListener('input', applyUnitCardFilters);
         }
@@ -4534,6 +4815,7 @@ function fillUnitSelect(units) {
         hydrateRelativeTimes();
         updateSummaryBar(initialUnits);
         applyUnitCardFilters();
+        updatePatrolSelectionUI();
         initializeHeatmap();
 
         hydrateCommandCenterFromApi().catch((error) => {

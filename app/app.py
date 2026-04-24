@@ -164,6 +164,8 @@ register_police_socketio_handlers(sio, logger)
 _alerts_store = {}
 _alert_subscribers = {}  # {district_id: [callback_func, ...]}
 _manual_incidents_store: dict[str, list[dict]] = {}
+_patrol_user_assignments: dict[str, dict[str, dict[str, object]]] = {}
+_patrol_user_assignments_lock = threading.Lock()
 
 
 def add_alert(district_id: str, severity: str, message: str, incident_id: Optional[str] = None):
@@ -524,10 +526,24 @@ def _build_heatmap_points(incidents: list[dict]) -> list[dict]:
         try:
             severity = str(incident.get("severity") or "unknown").lower()
             intensity = severity_intensity.get(severity, 0.45)
+            if intensity >= 0.8:
+                intensity_level = "HIGH"
+                marker_color = "#ef4444"
+            elif intensity >= 0.5:
+                intensity_level = "MEDIUM"
+                marker_color = "#f59e0b"
+            else:
+                intensity_level = "LOW"
+                marker_color = "#3b82f6"
+
             points.append({
+                "incident_id": incident.get("id"),
+                "location_name": incident.get("description") or "Unknown location",
                 "lat": float(lat),
                 "lng": float(lng),
                 "intensity": float(intensity),
+                "intensity_level": intensity_level,
+                "marker_color": marker_color,
             })
         except (TypeError, ValueError):
             continue
@@ -836,6 +852,8 @@ def _build_patrol_units(
     assignments: Optional[list[PoliceDispatchAssignment]] = None,
 ) -> list[dict]:
     district = DISTRICT_LOCATIONS.get(district_id, DISTRICT_LOCATIONS["district_1"])
+    status_by_unit: dict[str, str] = {}
+    status_by_officer: dict[str, str] = {}
     session = get_session()
     try:
         police_users = (
@@ -848,15 +866,48 @@ def _build_patrol_units(
             .order_by(User.id.asc())
             .all()
         )
-        named_police_users = [user for user in police_users if _resolve_officer_name(user)]
+        named_police_users = [
+            {
+                "user": user,
+                "officer_name": _resolve_officer_name(user),
+            }
+            for user in police_users
+            if _resolve_officer_name(user)
+        ]
+        status_rows = (
+            session.query(OfficerDispatchStatus)
+            .filter(OfficerDispatchStatus.district_id == district_id)
+            .all()
+        )
+        status_by_unit = {row.officer_id: str(row.status or '').lower() for row in status_rows}
+        status_by_officer = {row.officer_id: str(row.status or '').lower() for row in status_rows}
     finally:
         session.close()
 
     assignments = assignments or []
     assignment_by_unit = {assignment.unit_id: assignment for assignment in assignments}
-    assignment_by_incident = {assignment.incident_id: assignment for assignment in assignments}
 
-    unit_count = max(4, len(incidents), len(named_police_users))
+    available_officers = [
+        item for item in named_police_users
+        if status_by_officer.get(item["user"].username, "available") == "available"
+    ]
+
+    # Ensure displayed officer labels are unique even when multiple accounts
+    # share the same full_name (for example seeded test users named "Officer Raj").
+    display_name_counts: dict[str, int] = {}
+    for item in available_officers:
+        base_name = str(item.get("officer_name") or "Unassigned").strip() or "Unassigned"
+        display_name_counts[base_name] = display_name_counts.get(base_name, 0) + 1
+
+    for item in available_officers:
+        base_name = str(item.get("officer_name") or "Unassigned").strip() or "Unassigned"
+        username = str(getattr(item.get("user"), "username", "") or "").strip()
+        if display_name_counts.get(base_name, 0) > 1 and username:
+            item["display_name"] = f"{base_name} ({username})"
+        else:
+            item["display_name"] = base_name
+
+    unit_count = max(4, len(incidents), len(available_officers))
     patrol_units: list[dict] = []
 
     patrol_name_cycle = [
@@ -874,18 +925,29 @@ def _build_patrol_units(
 
     for index in range(unit_count):
         incident = incidents[index % len(incidents)] if incidents else None
-        officer = named_police_users[index % len(named_police_users)] if named_police_users else None
-        unit_id = f"{district_id.upper().replace('_', '-')}-U{index + 1:02d}"
+        officer_assignment = available_officers[index] if index < len(available_officers) else None
+        officer = officer_assignment["user"] if officer_assignment else None
+        officer_name = officer_assignment["display_name"] if officer_assignment else "Unassigned"
+        patrol_id = f"PU-{index + 1:03d}"
+        unit_id = patrol_id
         assignment = assignment_by_unit.get(unit_id)
+        assignment_override = None
+        with _patrol_user_assignments_lock:
+            assignment_override = (_patrol_user_assignments.get(district_id) or {}).get(unit_id)
+        persisted_status = status_by_unit.get(unit_id)
 
-        officer_name = _resolve_officer_name(officer)
-
-        if not officer_name:
+        if persisted_status in {"responding", "enroute"}:
+            status = "responding"
+        elif persisted_status == "busy":
+            status = "busy"
+        elif persisted_status == "offline":
             status = "offline"
+        elif assignment_override:
+            status = "responding"
         elif assignment:
             status = "responding"
-        elif incident and index % 3 == 0:
-            status = "busy"
+        elif officer_assignment is None:
+            status = "offline"
         else:
             status = "available"
 
@@ -899,6 +961,11 @@ def _build_patrol_units(
             else:
                 location = f"Assigned to incident {assignment.incident_id}"
             last_updated = assignment.assigned_at or last_updated
+        elif assignment_override:
+            location = district["name"]
+            assigned_at = assignment_override.get("assigned_at")
+            if isinstance(assigned_at, datetime):
+                last_updated = assigned_at
         elif incident:
             location = incident.get("description") or incident.get("type") or district["name"]
             last_updated = incident.get("start_time") or last_updated
@@ -916,12 +983,13 @@ def _build_patrol_units(
 
         fallback_area = clean_location(location)
         current_area = tomtom_reverse_geocode_area(latitude, longitude, fallback=fallback_area)
-        unit_name = patrol_name_cycle[index % len(patrol_name_cycle)]
+        unit_name = patrol_name_cycle[index % len(patrol_name_cycle)] if officer_assignment else f"Reserve Unit {index + 1:02d}"
 
         patrol_units.append({
-            "patrol_id": unit_id,
+            "patrol_id": patrol_id,
             "unit_id": unit_id,
             "unit_name": unit_name,
+            "officer_username": officer.username if officer else None,
             "officer_name": officer_name,
             "officer": officer_name,
             "status": status,
@@ -931,6 +999,7 @@ def _build_patrol_units(
             "updated_at": last_updated.isoformat() if isinstance(last_updated, datetime) else str(last_updated),
             "district_id": district_id,
             "assigned_incident_id": assignment.incident_id if assignment else None,
+            "assigned_user_id": assignment_override.get("user_id") if isinstance(assignment_override, dict) else None,
             "latitude": latitude,
             "longitude": longitude,
         })
@@ -1415,6 +1484,12 @@ class DispatchRequest(BaseModel):
     incident_id: str = Field(..., min_length=1)
     officer_id: Optional[str] = Field(None, min_length=1)
     unit_id: Optional[str] = Field(None, min_length=1)
+
+
+class PatrolSelectionDispatchRequest(BaseModel):
+    """Dispatch selected patrol directly to a logged-in supervisor user."""
+    patrol_id: str = Field(..., min_length=1)
+    user_id: str = Field(..., min_length=1)
 
 
 class ShiftAttendanceRequest(BaseModel):
@@ -2934,7 +3009,7 @@ def _ensure_officer_statuses_initialized(district_id: str):
         unit_count = max(4, len(incidents), police_users)
         
         for index in range(unit_count):
-            unit_id = f"{district_id.upper().replace('_', '-')}-U{index + 1:02d}"
+            unit_id = f"PU-{index + 1:03d}"
             
             # Check if officer status exists in database
             officer_status = session.query(OfficerDispatchStatus).filter(
@@ -2966,6 +3041,116 @@ def _ensure_officer_statuses_initialized(district_id: str):
         session.rollback()
     finally:
         session.close()
+
+
+@app.post("/dispatch")
+async def dispatch_selected_patrol(
+    request: PatrolSelectionDispatchRequest,
+    current_user: dict = Depends(require_police_department_user()),
+):
+    """Assign a selected patrol unit to a user and mark it RESPONDING."""
+    district_id = _resolve_current_user_district_id(current_user)
+    if not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="district_id is required for dispatch",
+        )
+
+    patrol_id = (request.patrol_id or "").strip()
+    user_id = (request.user_id or "").strip()
+    if not patrol_id or not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="patrol_id and user_id are required",
+        )
+
+    caller_id = str(current_user.get("username") or "").strip()
+    if caller_id and caller_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="user_id does not match logged-in user",
+        )
+
+    incidents = _load_police_incidents(district_id)
+    patrol_units = _build_patrol_units(
+        district_id,
+        incidents,
+        current_user.get("username", "Unknown Supervisor"),
+        _get_dispatch_assignments(district_id),
+    )
+    patrol = next((unit for unit in patrol_units if str(unit.get("patrol_id") or unit.get("unit_id")) == patrol_id), None)
+    if not patrol:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patrol unit not found")
+
+    current_status = str(patrol.get("status") or "").lower()
+    if current_status in {"busy", "responding", "offline"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Patrol is already {current_status.upper()}",
+        )
+
+    now = datetime.now(UTC)
+    with _patrol_user_assignments_lock:
+        district_assignments = _patrol_user_assignments.setdefault(district_id, {})
+        existing = district_assignments.get(patrol_id)
+        if existing and str(existing.get("status") or "").lower() in {"responding", "busy"}:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Patrol is already assigned",
+            )
+
+        district_assignments[patrol_id] = {
+            "user_id": user_id,
+            "status": "responding",
+            "assigned_at": now,
+        }
+
+    session = get_session()
+    try:
+        officer_status = (
+            session.query(OfficerDispatchStatus)
+            .filter(
+                OfficerDispatchStatus.district_id == district_id,
+                OfficerDispatchStatus.officer_id == patrol_id,
+            )
+            .first()
+        )
+        if officer_status is None:
+            officer_status = OfficerDispatchStatus(
+                district_id=district_id,
+                officer_id=patrol_id,
+            )
+            session.add(officer_status)
+
+        officer_status.status = "responding"
+        officer_status.assigned_incident_id = f"user:{user_id}"
+        officer_status.updated_at = now
+
+        session.add(
+            DispatchLog(
+                district_id=district_id,
+                incident_id=f"user:{user_id}",
+                officer_id=patrol_id,
+                assigned_by=str(current_user.get("username") or user_id),
+                assigned_at=now,
+                status="dispatched",
+            )
+        )
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+    return {
+        "success": True,
+        "patrol_id": patrol_id,
+        "user_id": user_id,
+        "status": "RESPONDING",
+        "assigned_at": now.isoformat(),
+        "message": f"Patrol {patrol_id} dispatched successfully",
+    }
 
 
 @app.post("/api/dispatch")
