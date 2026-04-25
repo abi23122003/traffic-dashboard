@@ -2302,13 +2302,19 @@
 
         function filterUnitsForSupervisorDistrict(units) {
             const expectedDistrict = String(supervisorDistrictId || '').trim().toLowerCase();
-            return (Array.isArray(units) ? units : []).filter((unit) => {
+            const items = Array.isArray(units) ? units : [];
+            if (!expectedDistrict) {
+                return items;
+            }
+
+            const filtered = items.filter((unit) => {
                 const unitDistrict = String(unit?.district_id || unit?.district || '').trim().toLowerCase();
-                if (!expectedDistrict) {
-                    return true;
-                }
                 return unitDistrict === expectedDistrict;
             });
+
+            // If the session district label and unit district labels drift out
+            // of sync, prefer showing the units rather than blanking the UI.
+            return filtered.length ? filtered : items;
         }
 
         function timeAgo(isoStr) {
@@ -2321,6 +2327,23 @@
             if (diff < 86400) return Math.floor(diff / 3600) + ' hr ago';
             const days = Math.floor(diff / 86400);
             return days + ' day' + (days > 1 ? 's' : '') + ' ago';
+        }
+
+        function normalizePatrolStatus(value) {
+            const status = String(value || '').trim().toLowerCase();
+            if (status === 'idle' || status === 'standby' || status === 'available') {
+                return 'available';
+            }
+            if (status === 'enroute' || status === 'en route' || status === 'response' || status === 'responding') {
+                return 'responding';
+            }
+            if (status === 'busy') {
+                return 'busy';
+            }
+            if (status === 'offline') {
+                return 'offline';
+            }
+            return status || 'offline';
         }
 
         function hydrateRelativeTimes() {
@@ -2367,8 +2390,8 @@
         function updateSummaryBar(units) {
             const items = filterUnitsForSupervisorDistrict(units);
             const total = items.length;
-            const available = items.filter((unit) => String(unit.status || '').toLowerCase() === 'available').length;
-            const responding = items.filter((unit) => String(unit.status || '').toLowerCase() === 'responding').length;
+            const available = items.filter((unit) => normalizePatrolStatus(unit.status) === 'available').length;
+            const responding = items.filter((unit) => normalizePatrolStatus(unit.status) === 'responding').length;
 
             if (summaryTotal) summaryTotal.textContent = `${total} units`;
             if (summaryAvailable) summaryAvailable.textContent = `${available} Available`;
@@ -2382,15 +2405,15 @@
 
             cards.forEach((card) => {
                 const id = String(card.dataset.patrolId || card.dataset.unitId || '').toLowerCase();
-                const cardStatus = String(card.dataset.status || '').toLowerCase();
+                const cardStatus = normalizePatrolStatus(card.dataset.status);
                 const matchSearch = id.includes(search);
-                const matchStatus = status === 'all' || cardStatus === status;
+                const matchStatus = status === 'all' || cardStatus === normalizePatrolStatus(status);
                 card.style.display = matchSearch && matchStatus ? '' : 'none';
             });
         }
 
         function isDispatchableStatus(value) {
-            return String(value || '').toLowerCase() === 'available';
+            return normalizePatrolStatus(value) === 'available';
         }
 
         function setPatrolDispatchFeedback(message, type = '') {
@@ -2410,7 +2433,7 @@
             const cards = document.querySelectorAll('.unit-card');
             cards.forEach((card) => {
                 const patrolId = String(card.dataset.patrolId || card.dataset.unitId || '');
-                const status = String(card.dataset.status || '').toLowerCase();
+                const status = normalizePatrolStatus(card.dataset.status);
                 const selectable = isDispatchableStatus(status);
                 const isSelected = selectable && selectedPatrolId === patrolId;
 
@@ -2596,7 +2619,7 @@
                 unit_name: officer.unit_name || 'Patrol Unit',
                 officer_name: officer.name || 'Unassigned',
                 officer: officer.name || 'Unassigned',
-                status: officer.status || 'available',
+                status: normalizePatrolStatus(officer.status || 'available'),
                 district_id: officer.district_id || supervisorDistrictId,
                 current_area: cleanLocationText(officer.current_area || officer.current_location || 'District duty'),
                 current_location: cleanLocationText(officer.current_area || officer.current_location || 'District duty'),
@@ -2607,10 +2630,7 @@
                 last_updated: officer.last_updated || '-',
                 updated_at: officer.updated_at || officer.last_updated || '-',
             })));
-            liveAvailableUnits = livePatrolUnits.filter((unit) => {
-                const status = (unit.status || '').toLowerCase();
-                return status === 'idle' || status === 'available';
-            });
+            liveAvailableUnits = livePatrolUnits.filter((unit) => isDispatchableStatus(unit.status));
 
             renderPatrolUnits(livePatrolUnits);
             renderAvailableUnits(liveAvailableUnits);
@@ -3893,18 +3913,18 @@
 
             updateSummaryBar(items);
             patrolUnitsGrid.innerHTML = items.map((unit) => {
-                const status = unit.status || 'Active';
+                const status = normalizePatrolStatus(unit.status || 'offline');
                 const badgeClass = statusClass(status);
                 const patrolId = unit.patrol_id || unit.unit_id || 'Unit';
                 const unitName = unit.unit_name || 'Patrol Unit';
                 const officerName = unit.officer_name || unit.officer || 'Unassigned';
                 const cleanedLocation = cleanLocationText(unit.current_area || unit.current_location || 'Unknown location');
                 const updatedAt = unit.updated_at || unit.last_updated || '-';
-                const dispatchAction = String(unit.status || '').toLowerCase() === 'available'
+                const dispatchAction = isDispatchableStatus(status)
                     ? `<button class="btn-dispatch" type="button" onclick="dispatchUnit('${escapeHtml(unit.unit_id || patrolId)}')">Dispatch</button>`
                     : '';
                 return `
-                    <article class="unit-card ${isDispatchableStatus(status) ? 'is-selectable' : 'is-disabled'}" data-patrol-id="${escapeHtml(patrolId)}" data-unit-id="${escapeHtml(unit.unit_id || patrolId)}" data-status="${escapeHtml(String(unit.status || '').toLowerCase())}" aria-selected="false">
+                    <article class="unit-card ${isDispatchableStatus(status) ? 'is-selectable' : 'is-disabled'}" data-patrol-id="${escapeHtml(patrolId)}" data-unit-id="${escapeHtml(unit.unit_id || patrolId)}" data-status="${escapeHtml(status)}" aria-selected="false">
                         <div class="unit-top">
                             <div>
                                 <div class="unit-id">🚓 ${escapeHtml(patrolId)}</div>
@@ -3961,7 +3981,7 @@
             `).join('');
         }
 
-function renderAvailableUnits(units) {
+        function renderAvailableUnits(units) {
             const items = filterUnitsForSupervisorDistrict(units);
             if (!items.length) {
                 availableUnitList.innerHTML = '<div class="empty-state">No available units right now.</div>';
@@ -3976,7 +3996,7 @@ function renderAvailableUnits(units) {
                             <div class="available-unit-meta">👮 ${escapeHtml(unit.officer_name || unit.officer || 'Unassigned')}</div>
                             <div class="unit-mini">📍 ${escapeHtml(cleanLocationText(unit.current_area || unit.current_location || 'Available'))}</div>
                         </div>
-                        <div class="status-badge ${statusClass(unit.status)}">${escapeHtml(String(unit.status || 'offline').toUpperCase())}</div>
+                        <div class="status-badge ${statusClass(normalizePatrolStatus(unit.status))}">${escapeHtml(String(normalizePatrolStatus(unit.status) || 'offline').toUpperCase())}</div>
                     </div>
                 </article>
             `).join('');
@@ -4384,8 +4404,17 @@ function fillUnitSelect(units) {
                 }
 
                 const data = await response.json();
-                livePatrolUnits = filterUnitsForSupervisorDistrict(data.patrol_units || []);
-                liveAvailableUnits = filterUnitsForSupervisorDistrict(data.available_patrol_units || livePatrolUnits.filter((unit) => (unit.status || '').toLowerCase() === 'available'));
+                livePatrolUnits = filterUnitsForSupervisorDistrict((data.patrol_units || []).map((unit) => ({
+                    ...unit,
+                    status: normalizePatrolStatus(unit.status),
+                })));
+                const serverAvailableUnits = (data.available_patrol_units || []).map((unit) => ({
+                    ...unit,
+                    status: normalizePatrolStatus(unit.status),
+                }));
+                liveAvailableUnits = filterUnitsForSupervisorDistrict(
+                    serverAvailableUnits.length ? serverAvailableUnits : livePatrolUnits.filter((unit) => isDispatchableStatus(unit.status))
+                );
 
                 renderPatrolUnits(livePatrolUnits);
                 renderAvailableUnits(liveAvailableUnits);

@@ -993,7 +993,9 @@ def _build_patrol_units(
         elif assignment:
             status = "responding"
         elif officer_assignment is None:
-            status = "offline"
+            # Keep seeded/mock patrol slots dispatchable even before
+            # real officer accounts are created for the district.
+            status = "available"
         else:
             status = "available"
 
@@ -1067,7 +1069,12 @@ def _build_police_dashboard_context(current_user: dict, district_id: str) -> dic
     unassigned_incidents = [incident for incident in incidents if incident.get("id") not in assigned_incident_ids]
     available_patrol_units = [unit for unit in patrol_units if unit["status"] == "available"]
     responding_units = [unit for unit in patrol_units if unit["status"] == "responding"]
-    active_units = [unit for unit in patrol_units if unit["status"] != "available"]
+    deployed_units = [
+        unit for unit in patrol_units
+        if str(unit.get("status") or "").lower() in {"responding", "busy"}
+    ]
+    avg_response_time_value = district_summary.get("avg_response_time", 0.0)
+    avg_response_time = avg_response_time_value if avg_response_time_value else "N/A"
 
     return {
         "district": _format_district_label(district_id),
@@ -1075,13 +1082,13 @@ def _build_police_dashboard_context(current_user: dict, district_id: str) -> dic
         "district_name": district_info.get("name", district_id or "Unknown District"),
         "supervisor_name": supervisor_name,
         "shift_time": datetime.now(UTC).strftime("%I:%M %p UTC"),
-        "total_active_incidents": len(unassigned_incidents),
-        "units_deployed": len(active_units),
+        "total_active_incidents": len(incidents),
+        "units_deployed": len(deployed_units),
         "units_available": len(available_patrol_units),
         "total": len(patrol_units),
         "available": len(available_patrol_units),
         "responding": len(responding_units),
-        "avg_response_time": district_summary.get("avg_response_time", 0.0),
+        "avg_response_time": avg_response_time,
         "patrol_units": patrol_units,
         "available_patrol_units": available_patrol_units,
         "unassigned_incidents": unassigned_incidents,
@@ -2814,6 +2821,8 @@ async def live_patrol_units(current_user: dict = Depends(require_police_departme
             detail="district_id is required for patrol unit status",
         )
 
+    _ensure_officer_statuses_initialized(district_id)
+
     incidents = _load_police_incidents(district_id)
     supervisor_name = current_user.get("username", "Unknown Supervisor")
     assignments = _get_dispatch_assignments(district_id)
@@ -3090,15 +3099,22 @@ async def logistics_shared_alerts(current_user: dict = Depends(require_role("log
 
 def _ensure_officer_statuses_initialized(district_id: str):
     """
-    Ensure all mock officers in a district have 'available' status in database.
-    This syncs the OfficerDispatchStatus table with the mock units being displayed.
-    Resets all officers to 'available' on each request to ensure consistency with mock data.
+    Ensure the district's mock patrol slots have dispatch-status rows.
+    This keeps the visible patrol cards and dispatch validation aligned.
     """
     session = get_session()
     try:
         # Generate unit IDs based on mock data
         incidents = _load_police_incidents(district_id)
-        police_users = session.query(User).filter(User.department == "police").count()
+        police_users = (
+            session.query(User)
+            .filter(
+                User.department == "police",
+                User.district_id == district_id,
+                User.is_active == True,  # noqa: E712
+            )
+            .count()
+        )
         unit_count = max(4, len(incidents), police_users)
         
         for index in range(unit_count):
@@ -3113,7 +3129,6 @@ def _ensure_officer_statuses_initialized(district_id: str):
             ).first()
             
             if officer_status is None:
-                # Create new entry with 'available' status
                 officer_status = OfficerDispatchStatus(
                     district_id=district_id,
                     officer_id=unit_id,
@@ -3123,8 +3138,8 @@ def _ensure_officer_statuses_initialized(district_id: str):
                 )
                 session.add(officer_status)
             else:
-                # Reset all officers to 'available' to match mock data display
-                # This ensures what's shown in the UI matches what the backend validates
+                # Refresh mock patrol slots so the UI and dispatch validator
+                # agree on their current availability.
                 officer_status.status = "available"
                 officer_status.assigned_incident_id = None
                 officer_status.updated_at = datetime.now(UTC)
