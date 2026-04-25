@@ -1823,7 +1823,7 @@
 
             <article class="kpi-card">
                 <div class="kpi-label">Avg Response Time</div>
-                <div class="kpi-value">{{ avg_response_time }}</div>
+                <div class="kpi-value">{{ 'N/A' if avg_response_time in [None, '', 0, 0.0, '0', '0.0'] else avg_response_time }}</div>
                 <div class="kpi-footnote">Average response time across active incidents.</div>
             </article>
         </section>
