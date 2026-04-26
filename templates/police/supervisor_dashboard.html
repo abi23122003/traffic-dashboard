@@ -1941,42 +1941,7 @@
             </div>
         </section>
 
-        <section class="section-shell response-shell" aria-label="Response time tracker">
-            <div class="section-header">
-                <div>
-                    <h2 class="section-title">Response Time Tracker</h2>
-                    <p class="section-subtitle" id="response-tracker-subtitle">{{ zone_count }} zones tracked · Target: {{ response_target_minutes }} min response</p>
-                </div>
-                <div class="refresh-chip">
-                    <span id="response-refresh-label">Response metrics synced just now</span>
-                </div>
-            </div>
 
-            <div class="response-layout">
-                <div class="response-chart-card">
-                    <canvas id="response-time-chart" class="response-chart-canvas" aria-label="Average response time per zone"></canvas>
-                </div>
-
-                <div class="response-table-wrap">
-                    <table class="response-table" aria-label="Zone response time table">
-                        <thead>
-                            <tr>
-                                <th>Zone</th>
-                                <th>Avg Response Time</th>
-                                <th>Fastest Unit</th>
-                                <th>Slowest Unit</th>
-                                <th>Total Incidents</th>
-                            </tr>
-                        </thead>
-                        <tbody id="response-time-table-body">
-                            <tr>
-                                <td colspan="5" class="empty-state">Loading response-time metrics...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
 
         <section class="section-shell" aria-label="Dispatch panel">
             <div class="section-header">
@@ -2207,10 +2172,7 @@
         const dispatchRefreshLabel = document.getElementById('dispatch-refresh-label');
         const feedRefreshLabel = document.getElementById('feed-refresh-label');
         const heatmapRefreshLabel = document.getElementById('heatmap-refresh-label');
-        const responseRefreshLabel = document.getElementById('response-refresh-label');
-        const responseTrackerSubtitle = document.getElementById('response-tracker-subtitle');
-        const responseTimeChartCanvas = document.getElementById('response-time-chart');
-        const responseTimeTableBody = document.getElementById('response-time-table-body');
+
         const incidentList = document.getElementById('unassigned-incidents-list');
         const incidentFeedList = document.getElementById('incident-feed-list');
         const availableUnitList = document.getElementById('available-units-list');
@@ -2660,7 +2622,6 @@
             await Promise.all([
                 refreshDispatchState(),
                 refreshIncidentFeed(),
-                refreshResponseTimes(),
             ]);
         }
 
@@ -2698,7 +2659,7 @@
             setInterval(refreshDispatchState, 30000);
             setInterval(refreshIncidentFeed, 20000);
             setInterval(refreshHeatmapData, 60000);
-            setInterval(refreshResponseTimes, 60000);
+
         }
 
         async function startRealtimeServices() {
@@ -2823,7 +2784,6 @@
                         refreshDispatchState(),
                         refreshIncidentFeed(),
                         refreshHeatmapData(),
-                        refreshResponseTimes(),
                     ]);
                 } catch (error) {
                     console.error('Failed to refresh after socket incident update:', error);
@@ -3631,262 +3591,6 @@
             return `${number.toFixed(2)} min`;
         }
 
-        function renderResponseTimeTable(zones) {
-            const list = Array.isArray(zones) ? zones : [];
-            if (!list.length) {
-                responseTimeTableBody.innerHTML = '<tr><td colspan="5" class="empty-state">No response-time metrics available for this district.</td></tr>';
-                return;
-            }
-
-            responseTimeTableBody.innerHTML = list.map((zone) => {
-                const rowClass = zone.exceeds_target ? 'response-alert-row' : '';
-                return `
-                    <tr class="${rowClass}">
-                        <td>${escapeHtml(zone.zone)}</td>
-                        <td>${formatMinutes(zone.avg_response_time)}</td>
-                        <td>${escapeHtml(zone.fastest_unit || '-')}</td>
-                        <td>${escapeHtml(zone.slowest_unit || '-')}</td>
-                        <td>${zone.total_incidents || 0}</td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        function renderResponseTimeChart(zones, targetThreshold) {
-            if (!responseTimeChartCanvas || typeof Chart === 'undefined') {
-                return;
-            }
-
-            const list = Array.isArray(zones) ? zones : [];
-            const zoneLabels = list.map(z => z.zone);
-            const zoneValues = list.map(z => Number(z.avg_response_time || 0));
-            const target = Number(targetThreshold || 8);
-            const barColors = zoneValues.map(v => v <= target ? '#22c55e' : '#ef4444');
-            const suggestedMax = Math.max(...zoneValues, target) + 2;
-
-            if (responseTimeChart) {
-                responseTimeChart.destroy();
-            }
-
-            responseTimeChart = new Chart(responseTimeChartCanvas.getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels: zoneLabels,
-                    datasets: [
-                        {
-                            label: 'Avg Response Time (minutes)',
-                            data: zoneValues,
-                            backgroundColor: barColors,
-                            borderColor: barColors,
-                            borderWidth: 1,
-                            borderRadius: 8,
-                        }
-                    ]
-                },
-                options: {
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#cfe3f7'
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: (context) => `${context.parsed.y.toFixed(2)} min`
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            ticks: {
-                                color: '#cfe3f7'
-                            },
-                            grid: {
-                                color: 'rgba(120, 170, 220, 0.1)'
-                            }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            suggestedMax,
-                            ticks: {
-                                color: '#cfe3f7'
-                            },
-                            grid: {
-                                color: 'rgba(120, 170, 220, 0.1)'
-                            }
-                        }
-                    }
-                },
-                plugins: [{
-                    id: 'targetThreshold',
-                    afterDraw(chart) {
-                        const yScale = chart.scales.y;
-                        const y = yScale.getPixelForValue(target);
-                        const { left, right } = chart.chartArea;
-                        const ctx = chart.ctx;
-                        ctx.save();
-                        ctx.strokeStyle = 'rgba(251, 191, 36, 0.9)';
-                        ctx.lineWidth = 1.5;
-                        ctx.setLineDash([6, 4]);
-                        ctx.beginPath();
-                        ctx.moveTo(left, y);
-                        ctx.lineTo(right, y);
-                        ctx.stroke();
-                        ctx.setLineDash([]);
-                        ctx.fillStyle = 'rgba(251, 191, 36, 0.95)';
-                        ctx.font = '12px Segoe UI';
-                        ctx.fillText(`Target ${target} min`, left + 8, y - 6);
-                        ctx.restore();
-                    }
-                }]
-            });
-        }
-
-        function inferZoneFromText(text) {
-            const value = String(text || '').toLowerCase();
-            if (value.includes('north')) return 'North Zone';
-            if (value.includes('south')) return 'South Zone';
-            if (value.includes('east')) return 'East Zone';
-            if (value.includes('west')) return 'West Zone';
-            return 'Central Zone';
-        }
-
-        function severityToMinutes(severity) {
-            const normalized = String(severity || '').toLowerCase();
-            if (normalized === 'low') return 6;
-            if (normalized === 'moderate' || normalized === 'medium') return 8;
-            if (normalized === 'high') return 11;
-            return 9;
-        }
-
-        function buildFallbackResponseMetrics(feedItems, units, targetThreshold) {
-            const byZone = new Map();
-            const unitPool = Array.isArray(units) ? units : [];
-
-            (Array.isArray(feedItems) ? feedItems : []).forEach((item, index) => {
-                const zone = inferZoneFromText(item.location_name || item.type || '');
-                if (!byZone.has(zone)) {
-                    byZone.set(zone, {
-                        zone,
-                        total_incidents: 0,
-                        response_sum: 0,
-                        unit_times: new Map(),
-                    });
-                }
-
-                const bucket = byZone.get(zone);
-                const minutes = severityToMinutes(item.severity);
-                bucket.total_incidents += 1;
-                bucket.response_sum += minutes;
-
-                const fallbackUnit = unitPool[index % Math.max(unitPool.length, 1)]?.unit_id || 'Unassigned';
-                const unitId = item.assigned_unit || fallbackUnit;
-                if (!bucket.unit_times.has(unitId)) {
-                    bucket.unit_times.set(unitId, { sum: 0, count: 0 });
-                }
-                const unitBucket = bucket.unit_times.get(unitId);
-                unitBucket.sum += minutes;
-                unitBucket.count += 1;
-            });
-
-            const zones = [];
-            byZone.forEach((bucket) => {
-                const avg = bucket.total_incidents ? bucket.response_sum / bucket.total_incidents : 0;
-                const unitAverages = [];
-                bucket.unit_times.forEach((value, unitId) => {
-                    if (value.count > 0) {
-                        unitAverages.push([unitId, value.sum / value.count]);
-                    }
-                });
-                unitAverages.sort((a, b) => a[1] - b[1]);
-                zones.push({
-                    zone: bucket.zone,
-                    avg_response_time: Number(avg.toFixed(2)),
-                    fastest_unit: unitAverages[0]?.[0] || '-',
-                    slowest_unit: unitAverages[unitAverages.length - 1]?.[0] || '-',
-                    total_incidents: bucket.total_incidents,
-                    exceeds_target: avg > targetThreshold,
-                });
-            });
-
-            zones.sort((a, b) => b.avg_response_time - a.avg_response_time);
-            return zones;
-        }
-
-        async function fetchResponsePayload() {
-            const candidates = [
-                '/police/response-times',
-                '/api/police/response-times',
-                '/police/response_times',
-            ];
-
-            let lastError = null;
-            for (const path of candidates) {
-                try {
-                    const response = await fetch(path, {
-                        headers: { 'Accept': 'application/json' },
-                        credentials: 'same-origin'
-                    });
-                    if (response.ok) {
-                        const payload = await response.json();
-                        return { payload, source: path };
-                    }
-                    lastError = new Error(`HTTP ${response.status} from ${path}`);
-                } catch (error) {
-                    lastError = error;
-                }
-            }
-
-            throw lastError || new Error('Response metrics endpoint unavailable');
-        }
-
-        async function refreshResponseTimes() {
-            const targetThreshold = 8;
-            try {
-                const { payload } = await fetchResponsePayload();
-                const zones = payload.zones || [];
-                const threshold = Number(payload.target_threshold_minutes ?? targetThreshold);
-
-                renderResponseTimeTable(zones);
-                renderResponseTimeChart(zones, threshold);
-                if (responseTrackerSubtitle) {
-                    responseTrackerSubtitle.textContent = `${payload.zone_count || zones.length} zones tracked · Target: ${threshold.toFixed(1).replace(/\.0$/, '')} min response`;
-                }
-
-                if (responseRefreshLabel) {
-                    const stamp = payload.updated_at ? new Date(payload.updated_at) : new Date();
-                    responseRefreshLabel.textContent = `Response metrics synced ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                }
-            } catch (error) {
-                console.warn('Response-time endpoint unavailable; using dashboard fallback metrics.', error);
-                try {
-                    const fallbackZones = buildFallbackResponseMetrics(liveIncidentFeed, livePatrolUnits, targetThreshold);
-                    const fallbackValues = fallbackZones.map((zone) => Number(zone.avg_response_time || 0)).sort((a, b) => a - b);
-                    const fallbackTarget = fallbackValues.length && fallbackValues.every((value) => value > targetThreshold)
-                        ? fallbackValues[Math.floor(fallbackValues.length / 2)]
-                        : targetThreshold;
-                    fallbackZones.forEach((zone) => {
-                        zone.exceeds_target = Number(zone.avg_response_time || 0) > fallbackTarget;
-                    });
-                    renderResponseTimeTable(fallbackZones);
-                    renderResponseTimeChart(fallbackZones, fallbackTarget);
-                    if (responseTrackerSubtitle) {
-                        responseTrackerSubtitle.textContent = `${fallbackZones.length} zones tracked · Target: ${fallbackTarget.toFixed(1).replace(/\.0$/, '')} min response`;
-                    }
-                    if (responseRefreshLabel) {
-                        const stamp = new Date();
-                        responseRefreshLabel.textContent = `Fallback metrics synced ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                    }
-                } catch (fallbackError) {
-                    console.error('Failed to build fallback response-time metrics:', fallbackError);
-                    responseTimeTableBody.innerHTML = '<tr><td colspan="5" class="empty-state">Response-time metrics unavailable.</td></tr>';
-                    if (responseRefreshLabel) {
-                        responseRefreshLabel.textContent = 'Response metrics unavailable';
-                    }
-                }
-            }
-        }
 
         async function refreshHeatmapData() {
             try {
