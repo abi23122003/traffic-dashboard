@@ -144,7 +144,12 @@ sio = socketio.AsyncServer(
     logger=True,  # Enable Socket.IO logger
     engineio_logger=False,  # Don't spam with engine.io logs
 )
-app.mount("/socket.io", socketio.ASGIApp(sio, socketio_path="/"))
+# Wrap FastAPI inside the Socket.IO ASGI app so Socket.IO handles its own
+# /socket.io/* path and delegates everything else to FastAPI. This is the
+# officially recommended pattern for python-socketio + Starlette/FastAPI.
+# Do NOT use app.mount() for Socket.IO — it strips the path prefix and causes
+# the client to connect to /socket.io/socket.io/... (doubled path → timeout).
+asgi_app = socketio.ASGIApp(sio, other_asgi_app=app)
 
 from .socketio_events import (
     register_police_socketio_handlers,
@@ -2952,6 +2957,15 @@ async def create_incident(
         actor=current_user.get("username", "Unknown Supervisor"),
     )
 
+    # Fire a real-time alert so the supervisor alert sidebar lights up
+    severity_label = _normalize_severity(request.severity)
+    add_alert(
+        district_id=district_id,
+        severity=severity_label,
+        message=f"New {severity_label} incident reported in {zone_name}: {request.description or request.incident_type}",
+        incident_id=incident_id,
+    )
+
     return {
         "status": "created",
         "incident": incident_record,
@@ -3227,6 +3241,13 @@ async def dispatch_selected_patrol(
     finally:
         session.close()
 
+    # Fire a real-time alert for this patrol dispatch
+    add_alert(
+        district_id=district_id,
+        severity="medium",
+        message=f"Patrol {patrol_id} dispatched to {dispatch_target}",
+    )
+
     return {
         "success": True,
         "patrol_id": patrol_id,
@@ -3476,6 +3497,20 @@ async def dispatch_patrol_unit(
             "incident_id": request.incident_id,
         },
         actor=supervisor_id,
+    )
+
+    # Fire a real-time alert for this dispatch
+    officer_display = (
+        (updated_unit or {}).get("officer_name") if isinstance(updated_unit, dict) else None
+    ) or officer_id
+    incident_severity = (
+        (updated_incident or target_incident or {}).get("severity") or "medium"
+    )
+    add_alert(
+        district_id=district_id,
+        severity=_normalize_severity(incident_severity),
+        message=f"Unit {officer_display} dispatched to {zone_name} — ETA {eta_minutes} min",
+        incident_id=request.incident_id,
     )
 
     # Return simplified response format
@@ -4536,6 +4571,15 @@ async def resolve_incident(
             },
             actor=current_user.get("username", "Unknown Supervisor"),
         )
+
+    # Fire a real-time alert for the resolution
+    add_alert(
+        district_id=district_id,
+        severity="low",
+        message=f"Incident {request.incident_id} resolved"
+        + (f" — {returned_officer_id} returned to service" if returned_officer_id else ""),
+        incident_id=request.incident_id,
+    )
 
     return {
         "status": "resolved",

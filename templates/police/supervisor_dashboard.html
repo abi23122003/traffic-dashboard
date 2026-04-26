@@ -2718,17 +2718,14 @@
 
             console.log('Connecting to Socket.IO /police namespace...');
             commandCenterSocket = io('/police', {
-                path: '/socket.io/',
-                withCredentials: true,  // Automatically send HttpOnly cookies with connection
-                transports: ['polling', 'websocket'],
+                // No explicit path — Socket.IO uses the default /socket.io/
+                // Backend: socketio.ASGIApp(sio, other_asgi_app=app) handles it directly.
+                withCredentials: true,
                 reconnection: true,
-                reconnectionDelay: 1000,
-                reconnectionDelayMax: 10000,
-                reconnectionAttempts: 10,
-                timeout: 10000,
-                upgrade: true,  // Allow transport upgrade from polling to websocket
-                rememberUpgrade: false,
-                rejectUnauthorized: false,  // For self-signed certificates in dev
+                reconnectionDelay: 2000,
+                reconnectionDelayMax: 15000,
+                reconnectionAttempts: 5,
+                timeout: 20000,
             });
 
             // Update status indicator
