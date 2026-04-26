@@ -915,6 +915,20 @@
             box-shadow: none;
         }
 
+        .severity-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            margin-right: 6px;
+        }
+        .severity-badge.high { background: rgba(239,68,68,0.18); color: #f87171; border: 1px solid rgba(239,68,68,0.35); }
+        .severity-badge.moderate { background: rgba(245,158,11,0.18); color: #fbbf24; border: 1px solid rgba(245,158,11,0.35); }
+        .severity-badge.low { background: rgba(34,197,94,0.18); color: #4ade80; border: 1px solid rgba(34,197,94,0.35); }
+        .severity-badge.unknown { background: rgba(100,116,139,0.18); color: #94a3b8; border: 1px solid rgba(100,116,139,0.25); }
+
         .unit-mini {
             display: inline-flex;
             align-items: center;
@@ -1967,8 +1981,8 @@
         <section class="section-shell" aria-label="Dispatch panel">
             <div class="section-header">
                 <div>
-                    <h2 class="section-title">Dispatch Panel</h2>
-                    <p class="section-subtitle">Assign an available patrol unit to a recent incident.</p>
+                    <h2 class="section-title">🚨 Command Dispatch Center</h2>
+                    <p class="section-subtitle">Monitor critical incidents and assign patrol units for immediate response.</p>
                 </div>
                 <div class="refresh-chip">
                     <span id="dispatch-refresh-label">Synced just now</span>
@@ -1979,8 +1993,8 @@
                 <div class="panel-card">
                     <div class="section-header" style="margin-bottom: 12px;">
                         <div>
-                            <h3 class="section-title" style="font-size: 0.98rem;">Recent Incidents</h3>
-                            <p class="section-subtitle">Recent incidents with live assignment status.</p>
+                            <h3 class="section-title" style="font-size: 0.98rem;">🚨 Critical Incident Queue</h3>
+                            <p class="section-subtitle">High severity incidents requiring immediate dispatch.</p>
                         </div>
                     </div>
                     <div id="unassigned-incidents-list" class="incident-list"></div>
@@ -3975,17 +3989,29 @@
 
         function renderIncidentList(incidents) {
             const items = Array.isArray(incidents) ? incidents : [];
-            if (!items.length) {
-                incidentList.innerHTML = '<div class="empty-state">No recent incidents right now.</div>';
+
+            const criticalItems = items.filter((incident) => {
+                const sev = (incident.severity || '').toLowerCase();
+                return sev === 'high' || sev === 'critical';
+            });
+
+            if (!criticalItems.length) {
+                incidentList.innerHTML = '<div class="empty-state">✅ No critical incidents right now.</div>';
                 return;
             }
 
-            incidentList.innerHTML = items.map((incident) => `
-                <article class="incident-card" data-incident-type="${escapeHtml(incident.type || '')}" data-start-time="${escapeHtml(incident.start_time || '')}" data-severity="${escapeHtml(incident.severity || 'medium')}">
+            function getSeverityBadge(severity) {
+                const s = (severity || 'unknown').toLowerCase();
+                const label = s === 'high' ? 'HIGH' : s === 'moderate' ? 'MODERATE' : s === 'low' ? 'LOW' : 'UNKNOWN';
+                return `<span class="severity-badge ${s}">${label}</span>`;
+            }
+
+            incidentList.innerHTML = criticalItems.map((incident) => `
+                <article class="incident-card" data-incident-type="${escapeHtml(incident.type || '')}" data-start-time="${escapeHtml(incident.start_time || '')}" data-severity="${escapeHtml(incident.severity || 'high')}">
                     <div class="incident-row">
                         <div>
-                            <div class="incident-title">${escapeHtml(incident.description || 'District patrol area')}</div>
-                            <div class="incident-meta">${escapeHtml(incident.severity || 'medium')} severity · ${escapeHtml(incident.type || 'Traffic Incident')}</div>
+                            <div class="incident-title">${getSeverityBadge(incident.severity)}${escapeHtml(incident.description || 'District patrol area')}</div>
+                            <div class="incident-meta">${escapeHtml(incident.type || 'Traffic Incident')}</div>
                             <div class="incident-meta"><span data-time="${escapeHtml(incident.start_time || '')}">${escapeHtml(incident.start_time || '-')}</span></div>
                             <div class="incident-meta">Assigned Unit: ${escapeHtml(incident.assigned_unit || 'Unassigned')}</div>
                         </div>
