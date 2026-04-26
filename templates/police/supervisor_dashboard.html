@@ -1824,7 +1824,7 @@
             <article class="kpi-card">
                 <div class="kpi-label">Avg Response Time</div>
                 <div class="kpi-value">{{ 'N/A' if avg_response_time in [None, '', 0, 0.0, '0', '0.0'] else avg_response_time }}</div>
-                <div class="kpi-footnote">Average response time across active incidents.</div>
+                <div class="kpi-footnote">Average response time from today's recorded incident resolutions.</div>
             </article>
         </section>
 
@@ -2823,16 +2823,30 @@
             // Event listeners for real-time updates
             commandCenterSocket.on('incident_new', (data) => {
                 console.log('📍 New incident received:', data);
+                const incident = data?.incident || {};
+                const zoneName = incident.zone || incident.zone_name || 'the assigned area';
+                showToast(`New incident reported in ${zoneName}.`, 'warning', 4500);
                 refreshFromPoliceEvent(data);
             });
 
             commandCenterSocket.on('incident_updated', (data) => {
                 console.log('🔄 Incident updated:', data);
+                if (data?.update_type === 'resolved') {
+                    const incident = data?.incident || {};
+                    const zoneName = incident.zone || incident.zone_name || 'the assigned area';
+                    showToast(`Incident resolved in ${zoneName}.`, 'success', 4000);
+                }
                 refreshFromPoliceEvent(data);
             });
 
             commandCenterSocket.on('officer_status_changed', (data) => {
                 console.log('👮 Officer status changed:', data);
+                refreshFromPoliceEvent(data);
+            });
+
+            commandCenterSocket.on('officer_dispatched', (data) => {
+                console.log('Dispatch event received:', data);
+                showToast(buildDispatchToastMessage(data), 'info', 6000);
                 refreshFromPoliceEvent(data);
             });
 
@@ -2855,6 +2869,17 @@
             }
 
             return toast;
+        }
+
+        function buildDispatchToastMessage(payload) {
+            const dispatch = payload?.dispatch || {};
+            const supervisorName = String(payload?.actor || dispatch.supervisor_id || 'Supervisor').trim() || 'Supervisor';
+            const officerName = String(dispatch.officer_name || dispatch.officer_id || 'patrol unit').trim() || 'patrol unit';
+            const zoneName = String(dispatch.zone || 'the assigned area').trim() || 'the assigned area';
+            const incidentLabel = String(dispatch.incident_description || 'the incident').trim() || 'the incident';
+            const etaMinutes = Number(dispatch.eta);
+            const etaText = Number.isFinite(etaMinutes) && etaMinutes > 0 ? ` ETA ${etaMinutes} min.` : '';
+            return `${supervisorName} assigned ${officerName} to ${zoneName} for ${incidentLabel}.${etaText}`;
         }
 
         // ============================================================================
@@ -3775,14 +3800,6 @@
             });
 
             zones.sort((a, b) => b.avg_response_time - a.avg_response_time);
-            if (!zones.length) {
-                return [
-                    { zone: 'East Zone', avg_response_time: 11.3, fastest_unit: 'DISTRICT-1-U21', slowest_unit: 'DISTRICT-1-U26', total_incidents: 6, exceeds_target: true },
-                    { zone: 'South Zone', avg_response_time: 9.8, fastest_unit: 'DISTRICT-1-U12', slowest_unit: 'DISTRICT-1-U18', total_incidents: 5, exceeds_target: true },
-                    { zone: 'West Zone', avg_response_time: 7.2, fastest_unit: 'DISTRICT-1-U05', slowest_unit: 'DISTRICT-1-U11', total_incidents: 4, exceeds_target: false },
-                    { zone: 'North Zone', avg_response_time: 6.1, fastest_unit: 'DISTRICT-1-U03', slowest_unit: 'DISTRICT-1-U09', total_incidents: 3, exceeds_target: false },
-                ];
-            }
             return zones;
         }
 

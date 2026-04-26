@@ -25,7 +25,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field, EmailStr, field_validator
 from jose.exceptions import ExpiredSignatureError
 import joblib
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, UTC, timedelta, date
 import secrets
 import uuid
 import traceback
@@ -430,7 +430,24 @@ def _load_police_incidents(district_id: str) -> list[dict]:
     return normalized
 
 
-def _build_district_summary(incidents: list[dict]) -> dict:
+def _feedback_rows_for_district(
+    session: Session,
+    district_id: Optional[str],
+    *,
+    on_date: Optional[date] = None,
+    zone_name: Optional[str] = None,
+):
+    query = session.query(MLFeedback)
+    if district_id:
+        query = query.filter(MLFeedback.district_id == district_id)
+    if on_date is not None:
+        query = query.filter(func.date(MLFeedback.created_at) == on_date.isoformat())
+    if zone_name:
+        query = query.filter(MLFeedback.zone == zone_name)
+    return query
+
+
+def _build_district_summary(incidents: list[dict], district_id: Optional[str] = None) -> dict:
     today = datetime.now(UTC).date()
     today_count = 0
     response_times: list[float] = []
@@ -450,6 +467,15 @@ def _build_district_summary(incidents: list[dict]) -> dict:
         response_time = incident.get("response_time")
         if isinstance(response_time, (int, float)):
             response_times.append(float(response_time))
+
+    session = get_session()
+    try:
+        feedback_rows = _feedback_rows_for_district(session, district_id, on_date=today).all()
+    finally:
+        session.close()
+
+    if feedback_rows:
+        response_times = [float(row.response_time_minutes) for row in feedback_rows if row.response_time_minutes]
 
     avg_response_time = round(sum(response_times) / len(response_times), 2) if response_times else 0.0
     return {
@@ -720,11 +746,7 @@ def _build_response_time_by_zone(
 
     session = get_session()
     try:
-        feedback_rows = (
-            session.query(MLFeedback)
-            .filter(func.date(MLFeedback.created_at) == today.isoformat())
-            .all()
-        )
+        feedback_rows = _feedback_rows_for_district(session, district_id, on_date=today).all()
         available_units = [
             row.officer_id
             for row in (
@@ -778,6 +800,10 @@ def _build_response_time_by_zone(
             if today_only and start_time and start_time.date() != today:
                 continue
 
+            response_minutes = incident.get("response_time")
+            if not isinstance(response_minutes, (int, float)) or float(response_minutes) <= 0:
+                continue
+
             zone_name = _infer_zone_name(district_id, incident)
             bucket = zone_stats.setdefault(
                 zone_name,
@@ -791,27 +817,7 @@ def _build_response_time_by_zone(
             )
 
             bucket["total_incidents"] += 1
-            response_minutes = incident.get("response_time")
-            if not isinstance(response_minutes, (int, float)) or float(response_minutes) <= 0:
-                seed = (abs(hash(f"{zone_name}:{incident.get('id') or incident.get('description') or bucket['total_incidents']}")) % 45) / 10.0
-                severity_adjustment = {
-                    "low": -0.9,
-                    "moderate": 0.3,
-                    "medium": 0.3,
-                    "high": 1.7,
-                    "critical": 2.4,
-                    "unknown": 0.8,
-                }.get(str(incident.get("severity") or "unknown").lower(), 0.8)
-                zone_adjustment = {
-                    "West Zone": 0.2,
-                    "South Zone": 2.0,
-                    "North Zone": -1.1,
-                    "East Zone": 2.9,
-                    "Central Zone": 0.9,
-                }.get(zone_name, 0.5)
-                response_minutes = round(_clamp(5.2 + seed + severity_adjustment + zone_adjustment, 4.5, 14.8), 2)
-            else:
-                response_minutes = round(float(response_minutes), 2)
+            response_minutes = round(float(response_minutes), 2)
             bucket["response_sum"] += response_minutes
             bucket["response_count"] += 1
 
@@ -851,14 +857,6 @@ def _build_response_time_by_zone(
             "total_incidents": stats["total_incidents"],
             "exceeds_target": avg_response > float(target_threshold_minutes),
         })
-
-    if not response_rows:
-        response_rows = [
-            {"zone": "West Zone", "avg_response_time": 7.2, "fastest_unit": f"{district_unit_prefix}-U05", "slowest_unit": f"{district_unit_prefix}-U11", "total_incidents": 4, "exceeds_target": False},
-            {"zone": "South Zone", "avg_response_time": 9.8, "fastest_unit": f"{district_unit_prefix}-U12", "slowest_unit": f"{district_unit_prefix}-U18", "total_incidents": 5, "exceeds_target": True},
-            {"zone": "North Zone", "avg_response_time": 6.1, "fastest_unit": f"{district_unit_prefix}-U03", "slowest_unit": f"{district_unit_prefix}-U09", "total_incidents": 3, "exceeds_target": False},
-            {"zone": "East Zone", "avg_response_time": 11.3, "fastest_unit": f"{district_unit_prefix}-U21", "slowest_unit": f"{district_unit_prefix}-U26", "total_incidents": 6, "exceeds_target": True},
-        ]
 
     response_rows.sort(key=lambda item: item["avg_response_time"], reverse=True)
     return response_rows
@@ -1059,7 +1057,7 @@ def _build_police_dashboard_context(current_user: dict, district_id: str) -> dic
     incidents = _load_police_incidents(district_id)
     assignments = _get_dispatch_assignments(district_id)
     incidents_feed = _build_incidents_feed(district_id, incidents, assignments)
-    district_summary = _build_district_summary(incidents)
+    district_summary = _build_district_summary(incidents, district_id)
     district_info = DISTRICT_LOCATIONS.get(district_id, {"name": district_id or "Unknown District"})
     supervisor_name = current_user.get("username", "Unknown Supervisor")
     patrol_units = _build_patrol_units(district_id, incidents, supervisor_name, assignments)
@@ -1166,11 +1164,7 @@ def _candidate_historical_incident_count(district_id: str, candidate: dict, inci
     zone_name = _candidate_zone_name(district_id, candidate)
     session = get_session()
     try:
-        feedback_count = (
-            session.query(MLFeedback)
-            .filter(MLFeedback.zone == zone_name)
-            .count()
-        )
+        feedback_count = _feedback_rows_for_district(session, district_id, zone_name=zone_name).count()
     finally:
         session.close()
 
@@ -2721,7 +2715,7 @@ async def supervisor_analytics_data(
 
     seven_days_ago = now - timedelta(days=6)
     recent_feedback = (
-        db.query(MLFeedback)
+        _feedback_rows_for_district(db, district_id)
         .filter(MLFeedback.created_at >= seven_days_ago)
         .order_by(MLFeedback.created_at.asc())
         .all()
@@ -2755,7 +2749,7 @@ async def supervisor_analytics_data(
         start = (now - timedelta(days=now.weekday())) - timedelta(weeks=week_index)
         end = start + timedelta(days=7)
         rows = (
-            db.query(MLFeedback)
+            _feedback_rows_for_district(db, district_id)
             .filter(MLFeedback.created_at >= start, MLFeedback.created_at < end)
             .all()
         )
@@ -3010,44 +3004,9 @@ async def police_response_times(current_user: dict = Depends(require_police_depa
             detail="district_id is required for response time metrics",
         )
 
-    random.seed(42)
-    base_times = {
-        "West Zone": 7.2,
-        "South Zone": 9.8,
-        "North Zone": 6.1,
-        "East Zone": 11.3,
-    }
-
-    session = get_session()
-    try:
-        zone_metrics = []
-        for zone_name, avg_time in base_times.items():
-            units_in_zone = (
-                session.query(OfficerDispatchStatus)
-                .filter(
-                    OfficerDispatchStatus.district_id == district_id,
-                    OfficerDispatchStatus.zone == zone_name,
-                )
-                .order_by(OfficerDispatchStatus.officer_id.asc())
-                .all()
-            )
-
-            unit_ids = [u.officer_id for u in units_in_zone] if units_in_zone else []
-            fastest = unit_ids[0] if unit_ids else "N/A"
-            slowest = unit_ids[-1] if len(unit_ids) > 1 else (unit_ids[0] if unit_ids else "N/A")
-            total = len(unit_ids)
-
-            zone_metrics.append({
-                "zone": zone_name,
-                "avg_response_time": avg_time,
-                "avg_time": avg_time,
-                "fastest_unit": fastest,
-                "slowest_unit": slowest,
-                "total_incidents": total,
-                "total_units": total,
-            })
-    finally:
-        session.close()
+    incidents = _load_police_incidents(district_id)
+    assignments = _get_dispatch_assignments(district_id)
+    zone_metrics = _build_response_time_by_zone(district_id, incidents, assignments)
 
     zone_times = sorted(float(zone["avg_response_time"]) for zone in zone_metrics if zone.get("avg_response_time") is not None)
     target_threshold_minutes = 8.0
@@ -3055,6 +3014,8 @@ async def police_response_times(current_user: dict = Depends(require_police_depa
         target_threshold_minutes = float(zone_times[len(zone_times) // 2])
     for zone in zone_metrics:
         zone["exceeds_target"] = float(zone.get("avg_response_time") or 0.0) > float(target_threshold_minutes)
+        zone["avg_time"] = zone.get("avg_response_time")
+        zone["total_units"] = zone.get("total_incidents")
 
     return {
         "district_id": district_id,
@@ -3463,15 +3424,29 @@ async def dispatch_patrol_unit(
         f"sent={fcm_result.get('sent')}, reason={fcm_result.get('reason')}"
     )
     
+    updated_context = _build_police_dashboard_context(current_user, district_id)
+    updated_unit = next((unit for unit in updated_context["patrol_units"] if unit["unit_id"] == officer_id), None)
+    updated_incident = next((incident for incident in updated_context["incidents"] if incident.get("id") == request.incident_id), None)
+    incident_reference = updated_incident or target_incident or {"id": request.incident_id}
+    zone_name = (
+        incident_reference.get("zone")
+        or incident_reference.get("zone_name")
+        or _infer_zone_name(district_id, incident_reference)
+    )
+
     # Build dispatch data for SocketIO event
     dispatch_data = {
         "dispatch_id": dispatch_log_record.id if dispatch_log_record else None,
         "officer_id": officer_id,
+        "officer_name": (updated_unit or {}).get("officer_name") if isinstance(updated_unit, dict) else None,
         "incident_id": request.incident_id,
+        "incident_description": incident_reference.get("description"),
+        "zone": zone_name,
+        "district_id": district_id,
         "eta": eta_minutes,
         "supervisor_id": supervisor_id,
     }
-    
+
     # Emit SocketIO event to police namespace
     await emit_officer_dispatched(
         sio,
@@ -3481,14 +3456,11 @@ async def dispatch_patrol_unit(
     )
     
     # Also emit the existing events for backward compatibility
-    updated_context = _build_police_dashboard_context(current_user, district_id)
-    updated_unit = next((unit for unit in updated_context["patrol_units"] if unit["unit_id"] == officer_id), None)
-    updated_incident = next((incident for incident in updated_context["incidents"] if incident.get("id") == request.incident_id), None)
 
     await emit_incident_updated(
         sio,
         district_id,
-        updated_incident or {"id": request.incident_id},
+        incident_reference,
         update_type="dispatched",
         actor=supervisor_id,
     )
@@ -3530,7 +3502,7 @@ async def police_export_pptx(current_user: dict = Depends(require_police_departm
     try:
         officer_name = current_user.get("username", "Unknown Officer")
         incidents = _load_police_incidents(district_id)
-        district_summary = _build_district_summary(incidents)
+        district_summary = _build_district_summary(incidents, district_id)
         ml_predictions = _predict_police_hotspots(district_id, incidents)
         output = generate_shift_pptx(district_id, officer_name, incidents, district_summary, ml_predictions)
 
@@ -4198,7 +4170,7 @@ async def end_shift(
         if request.export_pptx:
             try:
                 incidents = _load_police_incidents(district_id)
-                district_summary = _build_district_summary(incidents)
+                district_summary = _build_district_summary(incidents, district_id)
                 ml_predictions = _predict_police_hotspots(district_id, incidents)
                 output = generate_shift_pptx(district_id, username, incidents, district_summary, ml_predictions)
                 
@@ -4490,6 +4462,7 @@ async def resolve_incident(
         )
 
     feedback = MLFeedback(
+        district_id=district_id,
         incident_type=request.incident_type.strip(),
         zone=request.zone.strip(),
         time_of_day=resolved_at.hour,

@@ -166,6 +166,7 @@ class MLFeedback(Base):
     __tablename__ = "ml_feedback"
 
     id = Column(Integer, primary_key=True, index=True)
+    district_id = Column(String(50), nullable=False, index=True, default="district_1")
     incident_type = Column(String(100), nullable=False, index=True)
     zone = Column(String(120), nullable=False, index=True)
     time_of_day = Column(Integer, nullable=False, index=True)
@@ -326,6 +327,26 @@ def _ensure_user_department_column(engine):
         conn.execute(text("UPDATE users SET department = COALESCE(NULLIF(department, ''), 'general')"))
 
 
+def _ensure_ml_feedback_district_column(engine):
+    """Add the ml_feedback.district_id column if it does not exist yet."""
+    inspector = inspect(engine)
+    try:
+        feedback_columns = {column["name"] for column in inspector.get_columns("ml_feedback")}
+    except Exception:
+        return
+
+    if "district_id" not in feedback_columns:
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE ml_feedback ADD COLUMN district_id VARCHAR(50) NOT NULL DEFAULT 'district_1'")
+            )
+
+    with engine.begin() as conn:
+        conn.execute(
+            text("UPDATE ml_feedback SET district_id = COALESCE(NULLIF(district_id, ''), 'district_1')")
+        )
+
+
 def get_session() -> Session:
     """Create and return a database session."""
     global _SESSION_LOCAL
@@ -350,6 +371,7 @@ def init_db():
         engine = get_engine()
         Base.metadata.create_all(bind=engine)
         _ensure_user_department_column(engine)
+        _ensure_ml_feedback_district_column(engine)
         logger.info("✅ Database tables initialized successfully")
         
         # Ensure default admin user exists
