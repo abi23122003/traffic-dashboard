@@ -47,3 +47,7 @@ dist/
 # Misc
 *.tmp
 *.bak
+
+traffic_analysis.db
+
+*.db
