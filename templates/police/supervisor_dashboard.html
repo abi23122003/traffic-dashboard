@@ -1871,6 +1871,7 @@
                         <button type="button" class="status-pill" data-status-filter="busy">Busy</button>
                         <button type="button" class="status-pill" data-status-filter="responding">Responding</button>
                         <button type="button" class="status-pill" data-status-filter="offline">Offline</button>
+                        <button type="button" class="status-pill" data-status-filter="unassigned">Unassigned</button>
                     </div>
                     <button type="button" id="dispatch-selected-btn" class="dispatch-selected-btn">🚨 Dispatch</button>
                 </div>
@@ -1965,15 +1966,7 @@
                     <div id="unassigned-incidents-list" class="incident-list"></div>
                 </div>
 
-                <div class="panel-card">
-                    <div class="section-header" style="margin-bottom: 12px;">
-                        <div>
-                            <h3 class="section-title" style="font-size: 0.98rem;">Available Units</h3>
-                            <p class="section-subtitle">Idle units ready to be assigned.</p>
-                        </div>
-                    </div>
-                    <div id="available-units-list" class="available-unit-list"></div>
-                </div>
+
             </div>
         </section>
 
@@ -2376,16 +2369,56 @@
 
         function applyUnitCardFilters() {
             const search = (unitSearchInput?.value || '').toLowerCase();
-            const status = activeStatusInput?.value || 'all';
-            const cards = document.querySelectorAll('.unit-card');
+            const filter = activeStatusInput?.value || 'all';
+            
+            const filteredUnits = livePatrolUnits.filter((unit) => {
+                const id = String(unit.patrol_id || unit.unit_id || '').toLowerCase();
+                const matchSearch = id.includes(search);
+                if (!matchSearch) return false;
 
+                if (filter === 'all') return true;
+
+                if (filter === 'unassigned') {
+                    return !unit.officer_name || 
+                           unit.officer_name === 'Unassigned' || 
+                           !unit.officer || 
+                           unit.officer === 'Unassigned';
+                }
+
+                if (filter === 'available') {
+                    return unit.status === 'available' && 
+                           unit.officer_name && 
+                           unit.officer_name !== 'Unassigned';
+                }
+
+                if (filter === 'responding') {
+                    return unit.status === 'responding' && 
+                           unit.officer_name && 
+                           unit.officer_name !== 'Unassigned';
+                }
+
+                if (filter === 'busy') {
+                    return unit.status === 'busy' && 
+                           unit.officer_name && 
+                           unit.officer_name !== 'Unassigned';
+                }
+
+                if (filter === 'offline') {
+                    return unit.status === 'offline';
+                }
+
+                return false;
+            });
+
+            const cards = document.querySelectorAll('.unit-card');
             cards.forEach((card) => {
                 const id = String(card.dataset.patrolId || card.dataset.unitId || '').toLowerCase();
-                const cardStatus = normalizePatrolStatus(card.dataset.status);
-                const matchSearch = id.includes(search);
-                const matchStatus = status === 'all' || cardStatus === normalizePatrolStatus(status);
-                card.style.display = matchSearch && matchStatus ? '' : 'none';
+                const isVisible = filteredUnits.some(u => String(u.patrol_id || u.unit_id || '').toLowerCase() === id);
+                card.style.display = isVisible ? '' : 'none';
             });
+
+            renderOfficerMarkers(filteredUnits);
+            updateSummaryBar(filteredUnits);
         }
 
         function isDispatchableStatus(value) {
@@ -4191,6 +4224,7 @@ function fillUnitSelect(units) {
         let initialIncidentFeed = [];
         try {
             initialUnits = JSON.parse(patrolUnitsData.textContent || '[]');
+            livePatrolUnits = [...initialUnits];
             initialIncidents = JSON.parse(unassignedIncidentsData.textContent || '[]');
             initialAvailableUnits = JSON.parse(availableUnitsData.textContent || '[]');
             initialIncidentFeed = JSON.parse(incidentsFeedData.textContent || '[]');

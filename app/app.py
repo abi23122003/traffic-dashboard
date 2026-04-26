@@ -953,7 +953,7 @@ def _build_patrol_units(
         else:
             item["display_name"] = base_name
 
-    unit_count = max(4, len(incidents), len(available_officers))
+    unit_count = min(max(4, len(available_officers)), 15)
     patrol_units: list[dict] = []
 
     patrol_name_cycle = [
@@ -985,7 +985,10 @@ def _build_patrol_units(
             assignment_override = (_patrol_user_assignments.get(district_id) or {}).get(unit_id)
         persisted_status = status_by_unit.get(unit_id)
 
-        if persisted_status in {"responding", "enroute"}:
+        if officer_assignment is None:
+            # Unassigned units are always available - cannot respond without officer
+            status = "available"
+        elif persisted_status in {"responding", "enroute"}:
             status = "responding"
         elif persisted_status == "busy":
             status = "busy"
@@ -995,10 +998,7 @@ def _build_patrol_units(
             status = "responding"
         elif assignment:
             status = "responding"
-        elif officer_assignment is None:
-            # Keep seeded/mock patrol slots dispatchable even before
-            # real officer accounts are created for the district.
-            status = "available"
+
         else:
             status = "available"
 
@@ -3090,7 +3090,7 @@ def _ensure_officer_statuses_initialized(district_id: str):
             )
             .count()
         )
-        unit_count = max(4, len(incidents), police_users)
+        unit_count = min(max(4, police_users), 15)
         
         for index in range(unit_count):
             # Use consistent unit ID format: DISTRICT-X-UXX
