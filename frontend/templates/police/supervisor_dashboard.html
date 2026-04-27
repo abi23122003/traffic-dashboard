@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,7 +25,8 @@
             box-sizing: border-box;
         }
 
-        html, body {
+        html,
+        body {
             margin: 0;
             min-height: 100%;
             background:
@@ -184,13 +186,27 @@
         }
 
         @keyframes pulse-orange {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         @keyframes pulse-red {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         .export-btn {
@@ -285,10 +301,13 @@
         }
 
         @keyframes badgePulse {
-            0%, 100% {
+
+            0%,
+            100% {
                 transform: scale(1);
                 box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
             }
+
             50% {
                 transform: scale(1.1);
                 box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3);
@@ -382,6 +401,7 @@
                 transform: translateX(400px);
                 opacity: 0;
             }
+
             to {
                 transform: translateX(0);
                 opacity: 1;
@@ -467,9 +487,11 @@
             0% {
                 box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.55);
             }
+
             70% {
                 box-shadow: 0 0 0 14px rgba(74, 222, 128, 0);
             }
+
             100% {
                 box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
             }
@@ -924,10 +946,30 @@
             letter-spacing: 0.05em;
             margin-right: 6px;
         }
-        .severity-badge.high { background: rgba(239,68,68,0.18); color: #f87171; border: 1px solid rgba(239,68,68,0.35); }
-        .severity-badge.moderate { background: rgba(245,158,11,0.18); color: #fbbf24; border: 1px solid rgba(245,158,11,0.35); }
-        .severity-badge.low { background: rgba(34,197,94,0.18); color: #4ade80; border: 1px solid rgba(34,197,94,0.35); }
-        .severity-badge.unknown { background: rgba(100,116,139,0.18); color: #94a3b8; border: 1px solid rgba(100,116,139,0.25); }
+
+        .severity-badge.high {
+            background: rgba(239, 68, 68, 0.18);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.35);
+        }
+
+        .severity-badge.moderate {
+            background: rgba(245, 158, 11, 0.18);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.35);
+        }
+
+        .severity-badge.low {
+            background: rgba(34, 197, 94, 0.18);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.35);
+        }
+
+        .severity-badge.unknown {
+            background: rgba(100, 116, 139, 0.18);
+            color: #94a3b8;
+            border: 1px solid rgba(100, 116, 139, 0.25);
+        }
 
         .unit-mini {
             display: inline-flex;
@@ -1088,6 +1130,7 @@
                 border-color: rgba(53, 176, 255, 0.48);
                 transform: translateY(-4px);
             }
+
             100% {
                 background: rgba(6, 17, 31, 0.55);
                 border-color: rgba(120, 170, 220, 0.16);
@@ -1610,6 +1653,7 @@
                 transform: translateX(400px);
                 opacity: 0;
             }
+
             to {
                 transform: translateX(0);
                 opacity: 1;
@@ -1621,6 +1665,7 @@
                 transform: translateX(0);
                 opacity: 1;
             }
+
             to {
                 transform: translateX(400px);
                 opacity: 0;
@@ -1788,6 +1833,7 @@
         }
     </style>
 </head>
+
 <body>
     <div id="toast-container" class="toast-container"></div>
     <main class="page">
@@ -1837,7 +1883,8 @@
 
             <article class="kpi-card">
                 <div class="kpi-label">Avg Response Time</div>
-                <div class="kpi-value">{{ 'N/A' if avg_response_time in [None, '', 0, 0.0, '0', '0.0'] else avg_response_time }}</div>
+                <div class="kpi-value">{{ 'N/A' if avg_response_time in [None, '', 0, 0.0, '0', '0.0'] else
+                    avg_response_time }}</div>
                 <div class="kpi-footnote">Average response time from today's recorded incident resolutions.</div>
             </article>
         </section>
@@ -1876,18 +1923,24 @@
                     <button type="button" id="dispatch-selected-btn" class="dispatch-selected-btn">🚨 Dispatch</button>
                 </div>
             </div>
-            <div id="patrol-dispatch-feedback" class="patrol-dispatch-feedback">Select one available patrol unit, then click Dispatch.</div>
+            <div id="patrol-dispatch-feedback" class="patrol-dispatch-feedback">Select one available patrol unit, then
+                click Dispatch.</div>
 
             <div id="patrol-units-grid" class="unit-grid">
                 {% for unit in patrol_units %}
-                <article class="unit-card {{ 'is-selectable' if unit.status | lower == 'available' and (unit.officer_name and unit.officer_name|lower != 'unassigned') else 'is-disabled' }}" data-patrol-id="{{ unit.patrol_id or unit.unit_id }}" data-unit-id="{{ unit.unit_id }}" data-status="{{ 'unassigned' if (not unit.officer_name or unit.officer_name|lower == 'unassigned') else unit.status | lower }}" aria-selected="false">
+                <article
+                    class="unit-card {{ 'is-selectable' if unit.status | lower == 'available' and (unit.officer_name and unit.officer_name|lower != 'unassigned') else 'is-disabled' }}"
+                    data-patrol-id="{{ unit.patrol_id or unit.unit_id }}" data-unit-id="{{ unit.unit_id }}"
+                    data-status="{{ 'unassigned' if (not unit.officer_name or unit.officer_name|lower == 'unassigned') else unit.status | lower }}"
+                    aria-selected="false">
                     <div class="unit-top">
                         <div>
                             <div class="unit-id">🚓 {{ unit.patrol_id or unit.unit_id }}</div>
                             <div class="unit-name">{{ unit.unit_name or 'Patrol Unit' }}</div>
                         </div>
                         {% set is_unassigned = not unit.officer_name or unit.officer_name|lower == 'unassigned' %}
-                        <div class="status-badge {% if is_unassigned %}status-offline{% elif unit.status | lower == 'available' %}status-available{% elif unit.status | lower == 'busy' %}status-busy{% elif unit.status | lower == 'responding' %}status-responding{% else %}status-offline{% endif %}">
+                        <div
+                            class="status-badge {% if is_unassigned %}status-offline{% elif unit.status | lower == 'available' %}status-available{% elif unit.status | lower == 'busy' %}status-busy{% elif unit.status | lower == 'responding' %}status-responding{% else %}status-offline{% endif %}">
                             {{ 'UNASSIGNED' if is_unassigned else unit.status | upper }}
                         </div>
                     </div>
@@ -1899,22 +1952,27 @@
                         <div>
                             <div class="unit-label">Updated</div>
                             <div class="unit-value">
-                                <span class="unit-updated-time" data-time="{{ unit.updated_at }}">{{ unit.updated_at }}</span>
+                                <span class="unit-updated-time" data-time="{{ unit.updated_at }}">{{ unit.updated_at
+                                    }}</span>
                             </div>
                         </div>
                     </div>
                     <div>
                         <div class="unit-label">Current Area</div>
-                        <div class="unit-value unit-location" title="{{ unit.current_area or unit.current_location | clean_location }}">
+                        <div class="unit-value unit-location"
+                            title="{{ unit.current_area or unit.current_location | clean_location }}">
                             📍 {{ unit.current_area or unit.current_location | clean_location }}
                         </div>
                     </div>
                     <div class="card-actions">
                         {% if unit.status | lower == 'available' and not is_unassigned %}
-                        <button class="btn-dispatch" type="button" onclick="dispatchUnit('{{ unit.unit_id }}')">Dispatch</button>
+                        <button class="btn-dispatch" type="button"
+                            onclick="dispatchUnit('{{ unit.unit_id }}')">Dispatch</button>
                         {% endif %}
-                        <button class="btn-route" type="button" onclick="viewRoute('{{ unit.unit_id }}')">View Route</button>
-                        <button class="btn-contact" type="button" onclick="contactUnit('{{ unit.unit_id }}')">Contact</button>
+                        <button class="btn-route" type="button" onclick="viewRoute('{{ unit.unit_id }}')">View
+                            Route</button>
+                        <button class="btn-contact" type="button"
+                            onclick="contactUnit('{{ unit.unit_id }}')">Contact</button>
                     </div>
                 </article>
                 {% endfor %}
@@ -1924,8 +1982,10 @@
         <section class="section-shell heatmap-shell" aria-label="Incident severity heatmap">
             <div class="section-header">
                 <div>
-                    <h2 class="section-title">Google Traffic + Incident Map - <span id="map-district-label">{{ district }}</span></h2>
-                    <p class="section-subtitle">Live traffic layer with active incident markers and ETA on marker click.</p>
+                    <h2 class="section-title">Google Traffic + Incident Map - <span id="map-district-label">{{ district
+                            }}</span></h2>
+                    <p class="section-subtitle">Live traffic layer with active incident markers and ETA on marker click.
+                    </p>
                 </div>
                 <div class="section-actions">
                     <div class="refresh-chip">
@@ -1938,9 +1998,12 @@
                 <div id="incident-heatmap" class="heatmap-map"></div>
                 <aside class="heatmap-legend" aria-label="Heatmap legend">
                     <h3 class="legend-title">Intensity Legend</h3>
-                    <div class="legend-item"><span id="legend-low-swatch" class="legend-swatch swatch-low"></span><span>Low</span></div>
-                    <div class="legend-item"><span id="legend-medium-swatch" class="legend-swatch swatch-medium"></span><span>Medium</span></div>
-                    <div class="legend-item"><span id="legend-high-swatch" class="legend-swatch swatch-high"></span><span>High</span></div>
+                    <div class="legend-item"><span id="legend-low-swatch"
+                            class="legend-swatch swatch-low"></span><span>Low</span></div>
+                    <div class="legend-item"><span id="legend-medium-swatch"
+                            class="legend-swatch swatch-medium"></span><span>Medium</span></div>
+                    <div class="legend-item"><span id="legend-high-swatch"
+                            class="legend-swatch swatch-high"></span><span>High</span></div>
                 </aside>
             </div>
         </section>
@@ -1951,7 +2014,8 @@
             <div class="section-header">
                 <div>
                     <h2 class="section-title">🚨 Command Dispatch Center</h2>
-                    <p class="section-subtitle">Monitor critical incidents and assign patrol units for immediate response.</p>
+                    <p class="section-subtitle">Monitor critical incidents and assign patrol units for immediate
+                        response.</p>
                 </div>
                 <div class="refresh-chip">
                     <span id="dispatch-refresh-label">Synced just now</span>
@@ -1994,8 +2058,10 @@
                     <p class="section-subtitle" id="shift-status-subtitle">No active shift</p>
                 </div>
                 <div class="section-actions">
-                    <button id="mark-attendance-btn" class="secondary-btn" style="display:none;" onclick="openAttendanceModal()">Mark Attendance</button>
-                    <button id="end-shift-btn" class="warning-btn" style="display:none;" onclick="endShiftWithExport()">End Shift & Export</button>
+                    <button id="mark-attendance-btn" class="secondary-btn" style="display:none;"
+                        onclick="openAttendanceModal()">Mark Attendance</button>
+                    <button id="end-shift-btn" class="warning-btn" style="display:none;"
+                        onclick="endShiftWithExport()">End Shift & Export</button>
                 </div>
             </div>
 
@@ -2033,7 +2099,8 @@
             </div>
         </section>
 
-        <section class="section-shell officer-workload-shell" aria-label="Officer workload and rotation status" hidden style="display:none;">
+        <section class="section-shell officer-workload-shell" aria-label="Officer workload and rotation status" hidden
+            style="display:none;">
             <div class="section-header">
                 <div>
                     <h2 class="section-title">Officer Workload & Rotation Status</h2>
@@ -2066,7 +2133,8 @@
             <button class="close-btn" type="button" onclick="toggleAlertSidebar()">×</button>
         </div>
         <div id="alerts-list" class="alerts-list"></div>
-        <div id="alerts-empty" class="empty-state" style="margin: 20px; text-align: center;">No alerts at this time</div>
+        <div id="alerts-empty" class="empty-state" style="margin: 20px; text-align: center;">No alerts at this time
+        </div>
     </div>
 
     <div id="attendance-modal-backdrop" class="modal-backdrop" aria-hidden="true">
@@ -2076,7 +2144,8 @@
                     <h3 id="attendance-modal-title" class="modal-title">Mark Officer Attendance</h3>
                     <div class="section-subtitle">Select which officers are present for this shift.</div>
                 </div>
-                <button class="close-btn" type="button" aria-label="Close attendance modal" onclick="closeAttendanceModal()">×</button>
+                <button class="close-btn" type="button" aria-label="Close attendance modal"
+                    onclick="closeAttendanceModal()">×</button>
             </div>
 
             <div id="attendance-officers-list" class="attendance-officers-list"></div>
@@ -2095,7 +2164,8 @@
                     <h3 id="dispatch-modal-title" class="modal-title">Dispatch Incident</h3>
                     <div id="dispatch-modal-subtitle" class="section-subtitle">Choose a unit to assign.</div>
                 </div>
-                <button class="close-btn" type="button" aria-label="Close dispatch modal" onclick="closeDispatchModal()" tabindex="-1">×</button>
+                <button class="close-btn" type="button" aria-label="Close dispatch modal" onclick="closeDispatchModal()"
+                    tabindex="-1">×</button>
             </div>
 
             <form id="dispatch-form">
@@ -2112,7 +2182,8 @@
                 <div class="dispatch-feedback" id="dispatch-feedback"></div>
 
                 <div class="modal-actions">
-                    <button type="button" class="secondary-btn" onclick="closeDispatchModal()" tabindex="-1">Cancel</button>
+                    <button type="button" class="secondary-btn" onclick="closeDispatchModal()"
+                        tabindex="-1">Cancel</button>
                     <button type="submit" class="primary-btn" tabindex="-1">Dispatch</button>
                 </div>
             </form>
@@ -2130,7 +2201,8 @@
     <script src="/static/chart.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     {% if google_maps_api_key %}
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=geometry,visualization"></script>
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=geometry,visualization"></script>
     {% endif %}
     <script>
         // Configure Leaflet to use custom marker icons from static/images
@@ -2228,7 +2300,7 @@
         let pollingIntervalsStarted = false;
         let selectedPatrolId = null;
         const seenIncidentFeedIds = new Set();
-        
+
         // Route drawing variables for dispatch
         let dispatchRoutePolyline = null;
         let dispatchDirectionsRenderer = null;
@@ -2372,7 +2444,7 @@
             if (summaryTotal) summaryTotal.textContent = `${total} units`;
             if (summaryAvailable) summaryAvailable.textContent = `${available} Available`;
             if (summaryResponding) summaryResponding.textContent = `${responding} Responding`;
-            
+
             const kpiDeployed = document.getElementById('kpi-units-deployed');
             const kpiAvailable = document.getElementById('kpi-units-available');
             if (kpiDeployed) kpiDeployed.textContent = deployed;
@@ -2382,7 +2454,7 @@
         function applyUnitCardFilters() {
             const search = (unitSearchInput?.value || '').toLowerCase();
             const filter = activeStatusInput?.value || 'all';
-            
+
             const filteredUnits = livePatrolUnits.filter((unit) => {
                 const id = String(unit.patrol_id || unit.unit_id || '').toLowerCase();
                 const matchSearch = id.includes(search);
@@ -2391,28 +2463,28 @@
                 if (filter === 'all') return true;
 
                 if (filter === 'unassigned') {
-                    return !unit.officer_name || 
-                           unit.officer_name === 'Unassigned' || 
-                           !unit.officer || 
-                           unit.officer === 'Unassigned';
+                    return !unit.officer_name ||
+                        unit.officer_name === 'Unassigned' ||
+                        !unit.officer ||
+                        unit.officer === 'Unassigned';
                 }
 
                 if (filter === 'available') {
-                    return unit.status === 'available' && 
-                           unit.officer_name && 
-                           unit.officer_name !== 'Unassigned';
+                    return unit.status === 'available' &&
+                        unit.officer_name &&
+                        unit.officer_name !== 'Unassigned';
                 }
 
                 if (filter === 'responding') {
-                    return unit.status === 'responding' && 
-                           unit.officer_name && 
-                           unit.officer_name !== 'Unassigned';
+                    return unit.status === 'responding' &&
+                        unit.officer_name &&
+                        unit.officer_name !== 'Unassigned';
                 }
 
                 if (filter === 'busy') {
-                    return unit.status === 'busy' && 
-                           unit.officer_name && 
-                           unit.officer_name !== 'Unassigned';
+                    return unit.status === 'busy' &&
+                        unit.officer_name &&
+                        unit.officer_name !== 'Unassigned';
                 }
 
                 if (filter === 'offline') {
@@ -2621,7 +2693,7 @@
                 const stamp = payload.updated_at ? new Date(payload.updated_at) : new Date();
                 feedRefreshLabel.textContent = `Feed synced ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
             }
-            
+
             const activeIncidentsKpi = document.getElementById('kpi-active-incidents');
             if (activeIncidentsKpi) {
                 activeIncidentsKpi.textContent = incidents.length;
@@ -2777,7 +2849,7 @@
                 console.error('  Error message:', error.message || 'unknown');
                 console.error('  Current transport:', commandCenterSocket.io?.engine?.transport?.name || 'unknown');
                 updateSocketIOStatus('error', 'Connection error');
-                
+
                 // Log detailed error for troubleshooting
                 let errorMsg = error.message || 'Unknown error';
                 if (error.message && error.message.includes('403')) {
@@ -2790,7 +2862,7 @@
                     errorMsg = 'Connection timeout - server may be slow or unreachable';
                     console.error('  Likely cause: Network latency or server not responding');
                 }
-                
+
                 showToast('Real-time connection error: ' + errorMsg, 'error', 5000);
             });
 
@@ -2801,13 +2873,13 @@
             commandCenterSocket.on('disconnect', (reason) => {
                 console.warn('⚠️ Socket.IO disconnected:', reason);
                 updateSocketIOStatus('connecting', 'Reconnecting...');
-                
+
                 if (reason === 'io server disconnect') {
                     // Server forcibly disconnected - likely auth issue
                     console.error('Server disconnected client. Authentication may have failed.');
                     updateSocketIOStatus('error', 'Auth required');
                     showToast('Real-time connection lost (authentication required)', 'warning', 3000);
-                    
+
                     // Manual reconnection after delay
                     setTimeout(() => {
                         if (!commandCenterSocket || !commandCenterSocket.connected) {
@@ -3015,6 +3087,12 @@
         function toggleAlertSidebar() {
             const sidebar = document.getElementById('alert-sidebar');
             sidebar.classList.toggle('open');
+
+            if (sidebar.classList.contains('open')) {
+                // Clear unread count when viewing alerts
+                unreadAlertCount = 0;
+                updateAlertBadge();
+            }
 
             if (!alertEventSource && sidebar.classList.contains('open')) {
                 connectAlertStream();
@@ -3427,7 +3505,7 @@
                         <strong>${incidentTitle}</strong><br>
                         Severity: ${severity}<br>
                         Officer: ${escapeHtml(nearest.officer.officer_name || nearest.officer.unit_id || 'Unit')}<br>
-                        ETA: ${eta.durationText || (eta.minutes ? `${eta.minutes} min` : '-') }<br>
+                        ETA: ${eta.durationText || (eta.minutes ? `${eta.minutes} min` : '-')}<br>
                         Distance: ${escapeHtml(eta.distanceText || '-')}
                     </div>
                 `);
@@ -3780,6 +3858,7 @@
         }
 
         function renderAvailableUnits(units) {
+            if (!availableUnitList) return;
             const items = filterUnitsForSupervisorDistrict(units);
             if (!items.length) {
                 availableUnitList.innerHTML = '<div class="empty-state">No available units right now.</div>';
@@ -3802,7 +3881,7 @@
             hydrateRelativeTimes();
         }
 
-function fillUnitSelect(units) {
+        function fillUnitSelect(units) {
             const items = Array.isArray(units) ? units : [];
             const previousValue = dispatchUnitSelect.value;
             if (!items.length) {
@@ -3845,18 +3924,18 @@ function fillUnitSelect(units) {
                 dispatchUnitSelect.value = options.preferredOfficerId;
             }
             dispatchFeedback.textContent = liveAvailableUnits.length ? '' : 'No available units to dispatch.';
-            
+
             // Initialize map if needed
             if (!heatmapMap) {
                 initializeHeatmap();
             }
-            
+
             // Attach the officer change listener for route drawing
             attachDispatchOfficerChangeListener();
-            
+
             // Clear any previous route
             clearDispatchRoute();
-            
+
             // Open modal - update aria-hidden BEFORE enabling interactive elements
             modalBackdrop.classList.add('open');
             modalBackdrop.setAttribute('aria-hidden', 'false');
@@ -4001,7 +4080,7 @@ function fillUnitSelect(units) {
 
             try {
                 dispatchFeedback.textContent = 'Calculating route and ETA...';
-                
+
                 // Clear previous route
                 if (dispatchRoutePolyline) {
                     dispatchRoutePolyline.setMap(null);
@@ -4080,7 +4159,7 @@ function fillUnitSelect(units) {
             } catch (error) {
                 console.error('Route drawing error:', error);
                 dispatchFeedback.textContent = `Could not calculate route: ${error.message}`;
-                
+
                 // Clear route on error
                 if (dispatchRoutePolyline) {
                     dispatchRoutePolyline.setMap(null);
@@ -4095,7 +4174,7 @@ function fillUnitSelect(units) {
                 dispatchRoutePolyline.setMap(null);
                 dispatchRoutePolyline = null;
             }
-            
+
             // Clear the directions renderer if used
             if (dispatchDirectionsRenderer) {
                 dispatchDirectionsRenderer.setMap(null);
@@ -4373,7 +4452,7 @@ function fillUnitSelect(units) {
                         })
                         .join('');
                     hydrateRelativeTimes();
-                    
+
                     // Refresh officer workload when shift is active
                     refreshOfficerWorkload();
                 }
@@ -4526,7 +4605,7 @@ function fillUnitSelect(units) {
             }
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             document.querySelectorAll('[data-time]').forEach(el => {
                 const raw = el.getAttribute('data-time');
                 if (raw) el.textContent = timeAgo(raw);
@@ -4641,4 +4720,5 @@ function fillUnitSelect(units) {
 
     </script>
 </body>
+
 </html>
