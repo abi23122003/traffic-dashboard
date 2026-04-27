@@ -1819,19 +1819,19 @@
         <section class="kpi-grid" aria-label="Key performance indicators">
             <article class="kpi-card">
                 <div class="kpi-label">Total Active Incidents</div>
-                <div class="kpi-value kpi-warning">{{ total_active_incidents }}</div>
+                <div class="kpi-value kpi-warning" id="kpi-active-incidents">{{ total_active_incidents }}</div>
                 <div class="kpi-footnote">Incidents currently open in the district.</div>
             </article>
 
             <article class="kpi-card">
                 <div class="kpi-label">Units Deployed</div>
-                <div class="kpi-value kpi-accent">{{ units_deployed }}</div>
+                <div class="kpi-value kpi-accent" id="kpi-units-deployed">{{ units_deployed }}</div>
                 <div class="kpi-footnote">Assigned patrol and response units on duty.</div>
             </article>
 
             <article class="kpi-card">
                 <div class="kpi-label">Units Available</div>
-                <div class="kpi-value kpi-blue">{{ units_available }}</div>
+                <div class="kpi-value kpi-blue" id="kpi-units-available">{{ units_available }}</div>
                 <div class="kpi-footnote">Units ready for immediate redeployment.</div>
             </article>
 
@@ -1880,13 +1880,16 @@
 
             <div id="patrol-units-grid" class="unit-grid">
                 {% for unit in patrol_units %}
-                <article class="unit-card {{ 'is-selectable' if unit.status | lower == 'available' else 'is-disabled' }}" data-patrol-id="{{ unit.patrol_id or unit.unit_id }}" data-unit-id="{{ unit.unit_id }}" data-status="{{ unit.status | lower }}" aria-selected="false">
+                <article class="unit-card {{ 'is-selectable' if unit.status | lower == 'available' and (unit.officer_name and unit.officer_name|lower != 'unassigned') else 'is-disabled' }}" data-patrol-id="{{ unit.patrol_id or unit.unit_id }}" data-unit-id="{{ unit.unit_id }}" data-status="{{ 'unassigned' if (not unit.officer_name or unit.officer_name|lower == 'unassigned') else unit.status | lower }}" aria-selected="false">
                     <div class="unit-top">
                         <div>
                             <div class="unit-id">🚓 {{ unit.patrol_id or unit.unit_id }}</div>
                             <div class="unit-name">{{ unit.unit_name or 'Patrol Unit' }}</div>
                         </div>
-                        <div class="status-badge {% if unit.status | lower == 'available' %}status-available{% elif unit.status | lower == 'busy' %}status-busy{% elif unit.status | lower == 'responding' %}status-responding{% else %}status-offline{% endif %}">{{ unit.status | upper }}</div>
+                        {% set is_unassigned = not unit.officer_name or unit.officer_name|lower == 'unassigned' %}
+                        <div class="status-badge {% if is_unassigned %}status-offline{% elif unit.status | lower == 'available' %}status-available{% elif unit.status | lower == 'busy' %}status-busy{% elif unit.status | lower == 'responding' %}status-responding{% else %}status-offline{% endif %}">
+                            {{ 'UNASSIGNED' if is_unassigned else unit.status | upper }}
+                        </div>
                     </div>
                     <div class="unit-meta">
                         <div>
@@ -1907,7 +1910,7 @@
                         </div>
                     </div>
                     <div class="card-actions">
-                        {% if unit.status | lower == 'available' %}
+                        {% if unit.status | lower == 'available' and not is_unassigned %}
                         <button class="btn-dispatch" type="button" onclick="dispatchUnit('{{ unit.unit_id }}')">Dispatch</button>
                         {% endif %}
                         <button class="btn-route" type="button" onclick="viewRoute('{{ unit.unit_id }}')">View Route</button>
@@ -2361,10 +2364,19 @@
             const total = items.length;
             const available = items.filter((unit) => normalizePatrolStatus(unit.status) === 'available').length;
             const responding = items.filter((unit) => normalizePatrolStatus(unit.status) === 'responding').length;
+            const deployed = items.filter((unit) => {
+                const stat = normalizePatrolStatus(unit.status);
+                return stat === 'responding' || stat === 'busy';
+            }).length;
 
             if (summaryTotal) summaryTotal.textContent = `${total} units`;
             if (summaryAvailable) summaryAvailable.textContent = `${available} Available`;
             if (summaryResponding) summaryResponding.textContent = `${responding} Responding`;
+            
+            const kpiDeployed = document.getElementById('kpi-units-deployed');
+            const kpiAvailable = document.getElementById('kpi-units-available');
+            if (kpiDeployed) kpiDeployed.textContent = deployed;
+            if (kpiAvailable) kpiAvailable.textContent = available;
         }
 
         function applyUnitCardFilters() {
@@ -2608,6 +2620,11 @@
             if (feedRefreshLabel) {
                 const stamp = payload.updated_at ? new Date(payload.updated_at) : new Date();
                 feedRefreshLabel.textContent = `Feed synced ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            }
+            
+            const activeIncidentsKpi = document.getElementById('kpi-active-incidents');
+            if (activeIncidentsKpi) {
+                activeIncidentsKpi.textContent = incidents.length;
             }
         }
 
@@ -3679,23 +3696,27 @@
             updateSummaryBar(items);
             patrolUnitsGrid.innerHTML = items.map((unit) => {
                 const status = normalizePatrolStatus(unit.status || 'offline');
-                const badgeClass = statusClass(status);
                 const patrolId = unit.patrol_id || unit.unit_id || 'Unit';
                 const unitName = unit.unit_name || 'Patrol Unit';
                 const officerName = unit.officer_name || unit.officer || 'Unassigned';
+                const isUnassigned = (!officerName || officerName.toLowerCase() === 'unassigned');
+                const badgeClass = isUnassigned ? 'status-offline' : statusClass(status);
+                const displayStatus = isUnassigned ? 'UNASSIGNED' : String(status || 'offline').toUpperCase();
+                const selectableClass = (isDispatchableStatus(status) && !isUnassigned) ? 'is-selectable' : 'is-disabled';
+                const dataStatus = isUnassigned ? 'unassigned' : status;
                 const cleanedLocation = cleanLocationText(unit.current_area || unit.current_location || 'Unknown location');
                 const updatedAt = unit.updated_at || unit.last_updated || '-';
-                const dispatchAction = isDispatchableStatus(status)
+                const dispatchAction = (isDispatchableStatus(status) && !isUnassigned)
                     ? `<button class="btn-dispatch" type="button" onclick="dispatchUnit('${escapeHtml(unit.unit_id || patrolId)}')">Dispatch</button>`
                     : '';
                 return `
-                    <article class="unit-card ${isDispatchableStatus(status) ? 'is-selectable' : 'is-disabled'}" data-patrol-id="${escapeHtml(patrolId)}" data-unit-id="${escapeHtml(unit.unit_id || patrolId)}" data-status="${escapeHtml(status)}" aria-selected="false">
+                    <article class="unit-card ${selectableClass}" data-patrol-id="${escapeHtml(patrolId)}" data-unit-id="${escapeHtml(unit.unit_id || patrolId)}" data-status="${escapeHtml(dataStatus)}" aria-selected="false">
                         <div class="unit-top">
                             <div>
                                 <div class="unit-id">🚓 ${escapeHtml(patrolId)}</div>
                                 <div class="unit-name">${escapeHtml(unitName)}</div>
                             </div>
-                            <div class="status-badge ${badgeClass}">${escapeHtml(String(status || 'offline').toUpperCase())}</div>
+                            <div class="status-badge ${badgeClass}">${escapeHtml(displayStatus)}</div>
                         </div>
                         <div class="unit-meta">
                             <div>

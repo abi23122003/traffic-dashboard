@@ -7203,3 +7203,187 @@ ConnectionResetError: [WinError 10054] An existing connection was forcibly close
 2026-04-27 23:47:57 - app.db - INFO - db.py:375 - ✅ Database tables initialized successfully
 2026-04-27 23:47:58 - app.db - INFO - db.py:386 - ✅ Default admin user verified/created
 2026-04-27 23:48:01 - app.app - INFO - app.py:304 - Loaded ML model from D:\finallly\traffic-dashboard-3\backend\data\rf_model.pkl
+2026-04-28 00:12:43 - app.app - INFO - app.py:101 - ✅ Socket.IO using Redis manager: redis://localhost:6379/0
+2026-04-28 00:12:47 - app.app - INFO - app.py:135 - Redis not reachable at redis://localhost:6379/0; using in-memory Socket.IO manager
+2026-04-28 00:12:47 - app.db - INFO - db.py:305 - Using SQLite database: D:\finallly\traffic-dashboard-3\data\traffic_analysis.db
+2026-04-28 00:12:47 - app.db - ERROR - db.py:390 - ❌ Failed to initialize database: (sqlite3.OperationalError) unable to open database file
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-04-28 00:12:47 - app.app - ERROR - app.py:312 - Application bootstrap failed
+Traceback (most recent call last):
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\engine\base.py", line 143, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\engine\base.py", line 3309, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 447, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 1264, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 711, in checkout
+    rec = pool._do_get()
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\impl.py", line 175, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 388, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 673, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 899, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 895, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\engine\create.py", line 661, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\engine\default.py", line 630, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)  # type: ignore[no-any-return]  # NOQA: E501
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: unable to open database file
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\finallly\traffic-dashboard-3\backend\app\app.py", line 299, in _bootstrap_app_state
+    init_db()
+    ~~~~~~~^^
+  File "D:\finallly\traffic-dashboard-3\backend\app\db.py", line 372, in init_db
+    Base.metadata.create_all(bind=engine)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\sql\schema.py", line 5928, in create_all
+    bind._run_ddl_visitor(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        ddl.SchemaGenerator, self, checkfirst=checkfirst, tables=tables
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\engine\base.py", line 3259, in _run_ddl_visitor
+    with self.begin() as conn:
+         ~~~~~~~~~~^^
+  File "C:\Python314\Lib\contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\engine\base.py", line 3249, in begin
+    with self.connect() as conn:
+         ~~~~~~~~~~~~^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\engine\base.py", line 3285, in connect
+    return self._connection_cls(self)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\engine\base.py", line 145, in __init__
+    Connection._handle_dbapi_exception_noconnection(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        err, dialect, engine
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\engine\base.py", line 2448, in _handle_dbapi_exception_noconnection
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\engine\base.py", line 143, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\engine\base.py", line 3309, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 447, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 1264, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 711, in checkout
+    rec = pool._do_get()
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\impl.py", line 175, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 388, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 673, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 899, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\pool\base.py", line 895, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\engine\create.py", line 661, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pavit\AppData\Roaming\Python\Python314\site-packages\sqlalchemy\engine\default.py", line 630, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)  # type: ignore[no-any-return]  # NOQA: E501
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unable to open database file
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-04-28 00:14:48 - app.app - INFO - app.py:101 - ✅ Socket.IO using Redis manager: redis://localhost:6379/0
+2026-04-28 00:14:51 - app.app - INFO - app.py:135 - Redis not reachable at redis://localhost:6379/0; using in-memory Socket.IO manager
+2026-04-28 00:14:51 - app.db - INFO - db.py:305 - Using SQLite database: D:\finallly\traffic-dashboard-3\traffic_analysis.db
+2026-04-28 00:14:54 - app.db - INFO - db.py:375 - ✅ Database tables initialized successfully
+2026-04-28 00:14:55 - app.auth - INFO - auth.py:546 - ✅ Created default admin user: Admin
+2026-04-28 00:14:57 - app.auth - INFO - auth.py:622 - ✅ Created 3 default police officers
+2026-04-28 00:14:57 - app.db - INFO - db.py:386 - ✅ Default admin user verified/created
+2026-04-28 00:15:00 - app.app - INFO - app.py:304 - Loaded ML model from D:\finallly\traffic-dashboard-3\backend\data\rf_model.pkl
+2026-04-28 00:15:41 - app.app - INFO - app.py:101 - ✅ Socket.IO using Redis manager: redis://localhost:6379/0
+2026-04-28 00:15:44 - app.app - INFO - app.py:135 - Redis not reachable at redis://localhost:6379/0; using in-memory Socket.IO manager
+2026-04-28 00:15:45 - app.db - INFO - db.py:305 - Using SQLite database: D:\finallly\traffic-dashboard-3\traffic_analysis.db
+2026-04-28 00:15:45 - app.db - INFO - db.py:375 - ✅ Database tables initialized successfully
+2026-04-28 00:15:46 - app.db - INFO - db.py:386 - ✅ Default admin user verified/created
+2026-04-28 00:15:49 - app.app - INFO - app.py:304 - Loaded ML model from D:\finallly\traffic-dashboard-3\backend\data\rf_model.pkl
+2026-04-28 00:17:00 - socketio.server - INFO - async_server.py:305 - UoqqSxmRt6FJ9ZnyAAAB is entering room district_1 [/police]
+2026-04-28 00:17:00 - app.app - INFO - socketio_events.py:187 - Socket.IO police connected sid=UoqqSxmRt6FJ9ZnyAAAB user=officer_raj role=police_supervisor district=district_1
+2026-04-28 00:17:00 - socketio.server - INFO - async_server.py:599 - received event "join_district" from UoqqSxmRt6FJ9ZnyAAAB [/police]
+2026-04-28 00:17:00 - socketio.server - INFO - async_server.py:305 - UoqqSxmRt6FJ9ZnyAAAB is entering room district_1 [/police]
+2026-04-28 00:17:24 - app.app - INFO - app.py:4305 - Alert stream closed for district district_1
+2026-04-28 00:17:24 - app.app - INFO - socketio_events.py:202 - Socket.IO police disconnected sid=UoqqSxmRt6FJ9ZnyAAAB
+2026-04-28 00:32:14 - socketio.server - INFO - async_server.py:305 - sUBf9CGEtSmaTGuwAAAD is entering room district_1 [/police]
+2026-04-28 00:32:14 - app.app - INFO - socketio_events.py:187 - Socket.IO police connected sid=sUBf9CGEtSmaTGuwAAAD user=officer_raj role=police_supervisor district=district_1
+2026-04-28 00:32:14 - socketio.server - INFO - async_server.py:599 - received event "join_district" from sUBf9CGEtSmaTGuwAAAD [/police]
+2026-04-28 00:32:14 - socketio.server - INFO - async_server.py:305 - sUBf9CGEtSmaTGuwAAAD is entering room district_1 [/police]
+2026-04-28 00:32:55 - app.app - INFO - app.py:3443 - Dispatch notification for officer DISTRICT-1-U03: sent=False, reason=missing_device_token
+2026-04-28 00:33:00 - socketio.server - INFO - async_server.py:178 - emitting event "officer_dispatched" to district_1 [/police]
+2026-04-28 00:33:00 - socketio.server - INFO - async_server.py:178 - emitting event "incident_updated" to district_1 [/police]
+2026-04-28 00:33:05 - socketio.server - INFO - async_server.py:178 - emitting event "officer_status_changed" to district_1 [/police]
+2026-04-28 00:33:05 - app.app - INFO - app.py:197 - Alert added: unknown - Unit Officer Arjun dispatched to South Zone — ETA 5 min (District: district_1)
+2026-04-28 00:33:35 - app.app - INFO - app.py:3443 - Dispatch notification for officer DISTRICT-1-U03: sent=False, reason=missing_device_token
+2026-04-28 00:33:36 - socketio.server - INFO - async_server.py:178 - emitting event "officer_dispatched" to district_1 [/police]
+2026-04-28 00:33:41 - socketio.server - INFO - async_server.py:178 - emitting event "incident_updated" to district_1 [/police]
+2026-04-28 00:33:41 - socketio.server - INFO - async_server.py:178 - emitting event "officer_status_changed" to district_1 [/police]
+2026-04-28 00:33:58 - app.app - INFO - app.py:197 - Alert added: unknown - Unit Officer Arjun dispatched to South Zone — ETA 5 min (District: district_1)
+2026-04-28 00:36:15 - app.app - INFO - socketio_events.py:202 - Socket.IO police disconnected sid=sUBf9CGEtSmaTGuwAAAD
+2026-04-28 00:36:29 - socketio.server - INFO - async_server.py:305 - KrSuA5U0qUi0jrndAAAF is entering room district_1 [/police]
+2026-04-28 00:36:29 - app.app - INFO - socketio_events.py:187 - Socket.IO police connected sid=KrSuA5U0qUi0jrndAAAF user=officer_raj role=police_supervisor district=district_1
+2026-04-28 00:36:47 - socketio.server - INFO - async_server.py:599 - received event "join_district" from KrSuA5U0qUi0jrndAAAF [/police]
+2026-04-28 00:36:47 - socketio.server - INFO - async_server.py:305 - KrSuA5U0qUi0jrndAAAF is entering room district_1 [/police]
+2026-04-28 00:41:37 - app.app - INFO - app.py:4305 - Alert stream closed for district district_1
+2026-04-28 00:41:37 - app.app - INFO - socketio_events.py:202 - Socket.IO police disconnected sid=KrSuA5U0qUi0jrndAAAF
+2026-04-28 00:41:49 - socketio.server - INFO - async_server.py:305 - gDNADLzRHX-XEY0LAAAH is entering room district_1 [/police]
+2026-04-28 00:41:49 - app.app - INFO - socketio_events.py:187 - Socket.IO police connected sid=gDNADLzRHX-XEY0LAAAH user=officer_raj role=police_supervisor district=district_1
+2026-04-28 00:41:49 - socketio.server - INFO - async_server.py:599 - received event "join_district" from gDNADLzRHX-XEY0LAAAH [/police]
+2026-04-28 00:41:49 - socketio.server - INFO - async_server.py:305 - gDNADLzRHX-XEY0LAAAH is entering room district_1 [/police]
+2026-04-28 00:43:18 - app.app - INFO - app.py:4305 - Alert stream closed for district district_1
+2026-04-28 00:43:18 - app.app - INFO - socketio_events.py:202 - Socket.IO police disconnected sid=gDNADLzRHX-XEY0LAAAH
+2026-04-28 00:43:30 - socketio.server - INFO - async_server.py:305 - D4d0yr2CYl_NKNO5AAAJ is entering room district_1 [/police]
+2026-04-28 00:43:30 - app.app - INFO - socketio_events.py:187 - Socket.IO police connected sid=D4d0yr2CYl_NKNO5AAAJ user=officer_raj role=police_supervisor district=district_1
+2026-04-28 00:43:33 - socketio.server - INFO - async_server.py:599 - received event "join_district" from D4d0yr2CYl_NKNO5AAAJ [/police]
+2026-04-28 00:43:33 - socketio.server - INFO - async_server.py:305 - D4d0yr2CYl_NKNO5AAAJ is entering room district_1 [/police]
+2026-04-28 00:44:36 - app.app - INFO - app.py:4305 - Alert stream closed for district district_1
+2026-04-28 00:44:36 - app.app - INFO - socketio_events.py:202 - Socket.IO police disconnected sid=D4d0yr2CYl_NKNO5AAAJ
+2026-04-28 00:44:49 - socketio.server - INFO - async_server.py:305 - uVJ4eDSGCI2a-PjGAAAL is entering room district_1 [/police]
+2026-04-28 00:44:49 - app.app - INFO - socketio_events.py:187 - Socket.IO police connected sid=uVJ4eDSGCI2a-PjGAAAL user=officer_raj role=police_supervisor district=district_1
+2026-04-28 00:44:49 - socketio.server - INFO - async_server.py:599 - received event "join_district" from uVJ4eDSGCI2a-PjGAAAL [/police]
+2026-04-28 00:44:49 - socketio.server - INFO - async_server.py:305 - uVJ4eDSGCI2a-PjGAAAL is entering room district_1 [/police]

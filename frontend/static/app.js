@@ -647,7 +647,7 @@ function displayResults(data) {
             </div>
             <div class="route-actions" style="margin-top: 15px; display: flex !important; gap: 10px !important; flex-direction: column;">
                 <button class="btn-small btn-view-report" 
-                        onclick="console.log('View Report clicked for route:', ${route.route_index}, 'routeId:', '${routeId}'); viewAnalysisReport('${routeId}', ${route.route_index});"
+                        onclick="viewAnalysisReport(null, ${route.route_index});"
                         style="width: 100% !important; padding: 15px !important; font-size: 15px !important; font-weight: 700 !important; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; color: white !important; border: none !important; border-radius: 8px !important; cursor: pointer !important; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important; display: block !important; visibility: visible !important;">
                     📊 VIEW DETAILED DASHBOARD REPORT
                 </button>
@@ -852,8 +852,13 @@ async function viewAnalysisReport(routeId, routeIndex) {
 
     const url = `/analysis-report?route_id=${encodeURIComponent(routeId)}&route_index=${routeIndex}`;
     console.log('Opening report with routeId:', routeId, 'routeIndex:', routeIndex);
-    window.open(url, '_blank');
+    
+    // Open in same tab to completely bypass popup blockers
+    window.location.href = url;
 }
+
+// Make globally accessible
+window.viewAnalysisReport = viewAnalysisReport;
 
 // Draw routes on map
 function drawRoutes(data) {
