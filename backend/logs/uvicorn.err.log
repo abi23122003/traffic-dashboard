@@ -1,0 +1,631 @@
+10:41:39 - INFO - \u2705 Socket.IO using Redis manager: redis://localhost:6379/0
+10:41:42 - INFO - Redis not reachable at redis://localhost:6379/0; using in-memory Socket.IO manager
+INFO:     Started server process [23596]
+INFO:     Waiting for application startup.
+10:41:42 - INFO - Using SQLite database: D:\finallly\traffic-dashboard-3\data\traffic_analysis.db
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+10:41:42 - INFO - \u2705 Database tables initialized successfully
+10:41:43 - INFO - \u2705 Default admin user verified/created
+DEBUG:    = connection is CONNECTING
+DEBUG:    < GET /socket.io/?EIO=4&transport=websocket&sid=iL2Te8ruMPzSNRjAAAAA HTTP/1.1
+DEBUG:    < host: 127.0.0.1:8000
+DEBUG:    < connection: Upgrade
+DEBUG:    < pragma: no-cache
+DEBUG:    < cache-control: no-cache
+DEBUG:    < user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 Edg/147.0.0.0
+DEBUG:    < upgrade: websocket
+DEBUG:    < origin: http://127.0.0.1:8000
+DEBUG:    < sec-websocket-version: 13
+DEBUG:    < accept-encoding: gzip, deflate, br, zstd
+DEBUG:    < accept-language: en-US,en;q=0.9,en-IN;q=0.8
+DEBUG:    < cookie: access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwYXZpdGhyYW43MCIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxNzc5MDk4ODkyfQ.5qH4HkEIK6pTULIbXXq6GDOc-Ftui5AAhcsJdOPR8r8; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJvZmZpY2VyX3JhaiIsInJvbGUiOiJwb2xpY2Vfc3VwZXJ2aXNvciIsImRpc3RyaWN0X2lkIjoiZGlzdHJpY3RfMSIsImV4cCI6MTc3OTc3MTcyN30.Fbq6TA7RFjzTKU8ePCoBVdKT-sQb2L9EUk254CRUj74
+DEBUG:    < sec-websocket-key: SRaTPz28k1np3XuACuvOmA==
+DEBUG:    < sec-websocket-extensions: permessage-deflate; client_max_window_bits
+INFO:     127.0.0.1:63519 - "WebSocket /socket.io/?EIO=4&transport=websocket&sid=iL2Te8ruMPzSNRjAAAAA" [accepted]
+DEBUG:    > HTTP/1.1 101 Switching Protocols
+DEBUG:    > Upgrade: websocket
+DEBUG:    > Connection: Upgrade
+DEBUG:    > Sec-WebSocket-Accept: pPVPd0YKve4s+scTeE1G2gBkW6I=
+DEBUG:    > Sec-WebSocket-Extensions: permessage-deflate
+DEBUG:    > date: Sun, 26 Apr 2026 05:11:43 GMT
+DEBUG:    > server: uvicorn
+INFO:     connection open
+DEBUG:    = connection is OPEN
+Z6swfAl1sv6Slvd1AAAB is entering room district_1 [/police]
+10:41:44 - INFO - Z6swfAl1sv6Slvd1AAAB is entering room district_1 [/police]
+10:41:44 - INFO - Socket.IO police connected sid=Z6swfAl1sv6Slvd1AAAB user=officer_raj role=police_supervisor district=district_1
+DEBUG:    < TEXT '2probe' [6 bytes]
+DEBUG:    > TEXT '3probe' [6 bytes]
+DEBUG:    < TEXT '5' [1 byte]
+DEBUG:    > TEXT '40/police,{"sid":"Z6swfAl1sv6Slvd1AAAB"}' [40 bytes]
+DEBUG:    > TEXT '6' [1 byte]
+DEBUG:    < TEXT '42/police,["join_district",{"district_id":"district_1"}]' [56 bytes]
+received event "join_district" from Z6swfAl1sv6Slvd1AAAB [/police]
+10:41:44 - INFO - received event "join_district" from Z6swfAl1sv6Slvd1AAAB [/police]
+Z6swfAl1sv6Slvd1AAAB is entering room district_1 [/police]
+10:41:44 - INFO - Z6swfAl1sv6Slvd1AAAB is entering room district_1 [/police]
+10:41:45 - INFO - Loaded ML model from D:\finallly\traffic-dashboard-3\data\rf_model.pkl
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING c0 0b b2 36 [binary, 4 bytes]
+DEBUG:    < PONG c0 0b b2 36 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 3f e7 da 95 [binary, 4 bytes]
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < PONG 3f e7 da 95 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    < CLOSE 1001 (going away) [2 bytes]
+DEBUG:    = connection is CLOSING
+DEBUG:    > CLOSE 1001 (going away) [2 bytes]
+DEBUG:    x half-closing TCP connection
+DEBUG:    = connection is CLOSED
+10:42:45 - INFO - Socket.IO police disconnected sid=Z6swfAl1sv6Slvd1AAAB
+INFO:     connection closed
+DEBUG:    = connection is CONNECTING
+DEBUG:    < GET /socket.io/?EIO=4&transport=websocket&sid=SU4m5eZmHE-2bbQzAAAC HTTP/1.1
+DEBUG:    < host: 127.0.0.1:8000
+DEBUG:    < connection: Upgrade
+DEBUG:    < pragma: no-cache
+DEBUG:    < cache-control: no-cache
+DEBUG:    < user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 Edg/147.0.0.0
+DEBUG:    < upgrade: websocket
+DEBUG:    < origin: http://127.0.0.1:8000
+DEBUG:    < sec-websocket-version: 13
+DEBUG:    < accept-encoding: gzip, deflate, br, zstd
+DEBUG:    < accept-language: en-US,en;q=0.9,en-IN;q=0.8
+DEBUG:    < cookie: access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwYXZpdGhyYW43MCIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxNzc5MDk4ODkyfQ.5qH4HkEIK6pTULIbXXq6GDOc-Ftui5AAhcsJdOPR8r8; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJvZmZpY2VyX3JhaiIsInJvbGUiOiJwb2xpY2Vfc3VwZXJ2aXNvciIsImRpc3RyaWN0X2lkIjoiZGlzdHJpY3RfMSIsImV4cCI6MTc3OTc3MTcyN30.Fbq6TA7RFjzTKU8ePCoBVdKT-sQb2L9EUk254CRUj74
+DEBUG:    < sec-websocket-key: 8mOQKrpk8XeyUggerz9D0w==
+DEBUG:    < sec-websocket-extensions: permessage-deflate; client_max_window_bits
+INFO:     127.0.0.1:52584 - "WebSocket /socket.io/?EIO=4&transport=websocket&sid=SU4m5eZmHE-2bbQzAAAC" [accepted]
+DEBUG:    > HTTP/1.1 101 Switching Protocols
+DEBUG:    > Upgrade: websocket
+DEBUG:    > Connection: Upgrade
+DEBUG:    > Sec-WebSocket-Accept: DbARB23WXKJFCHka/3S5Tm+1UT0=
+DEBUG:    > Sec-WebSocket-Extensions: permessage-deflate
+DEBUG:    > date: Sun, 26 Apr 2026 05:12:45 GMT
+DEBUG:    > server: uvicorn
+INFO:     connection open
+DEBUG:    = connection is OPEN
+1QoGKv07LlNNTJ5tAAAD is entering room district_1 [/police]
+10:42:52 - INFO - 1QoGKv07LlNNTJ5tAAAD is entering room district_1 [/police]
+10:42:52 - INFO - Socket.IO police connected sid=1QoGKv07LlNNTJ5tAAAD user=officer_raj role=police_supervisor district=district_1
+DEBUG:    < TEXT '2probe' [6 bytes]
+DEBUG:    > TEXT '3probe' [6 bytes]
+DEBUG:    < TEXT '5' [1 byte]
+DEBUG:    > TEXT '40/police,{"sid":"1QoGKv07LlNNTJ5tAAAD"}' [40 bytes]
+DEBUG:    > TEXT '6' [1 byte]
+DEBUG:    < TEXT '42/police,["join_district",{"district_id":"district_1"}]' [56 bytes]
+received event "join_district" from 1QoGKv07LlNNTJ5tAAAD [/police]
+10:42:52 - INFO - received event "join_district" from 1QoGKv07LlNNTJ5tAAAD [/police]
+1QoGKv07LlNNTJ5tAAAD is entering room district_1 [/police]
+10:42:52 - INFO - 1QoGKv07LlNNTJ5tAAAD is entering room district_1 [/police]
+10:43:03 - INFO - Dispatch notification for officer DISTRICT-1-U36: sent=False, reason=missing_device_token
+emitting event "officer_dispatched" to district_1 [/police]
+10:43:04 - INFO - emitting event "officer_dispatched" to district_1 [/police]
+DEBUG:    > TEXT '42/police,["officer_dispatched",{"district_id":...5:13:04.519584+00:00"}]' [436 bytes]
+emitting event "incident_updated" to district_1 [/police]
+10:43:04 - INFO - emitting event "incident_updated" to district_1 [/police]
+DEBUG:    > TEXT '42/police,["incident_updated",{"district_id":"d...5:13:04.523827+00:00"}]' [518 bytes]
+emitting event "officer_status_changed" to district_1 [/police]
+10:43:04 - INFO - emitting event "officer_status_changed" to district_1 [/police]
+DEBUG:    > TEXT '42/police,["officer_status_changed",{"district_...5:13:04.533433+00:00"}]' [337 bytes]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING '%\rs2' [text, 4 bytes]
+DEBUG:    < PONG '%\rs2' [text, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING '\x02\x1dL+' [text, 4 bytes]
+DEBUG:    < PONG '\x02\x1dL+' [text, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING '\x10\u01f8\x18' [text, 4 bytes]
+DEBUG:    < PONG '\x10\u01f8\x18' [text, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 2d 80 0a df [binary, 4 bytes]
+DEBUG:    < PONG 2d 80 0a df [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING cc 91 75 9c [binary, 4 bytes]
+DEBUG:    < PONG cc 91 75 9c [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING bc fc e1 b2 [binary, 4 bytes]
+DEBUG:    < PONG bc fc e1 b2 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 10 97 32 06 [binary, 4 bytes]
+DEBUG:    < PONG 10 97 32 06 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING '\\n&X' [text, 4 bytes]
+DEBUG:    < PONG '\\n&X' [text, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING a6 2b 62 d3 [binary, 4 bytes]
+DEBUG:    < PONG a6 2b 62 d3 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING '(5 \x0f' [text, 4 bytes]
+DEBUG:    < PONG '(5 \x0f' [text, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 3f 92 9f 45 [binary, 4 bytes]
+DEBUG:    < PONG 3f 92 9f 45 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING d0 8e 4f ce [binary, 4 bytes]
+DEBUG:    < PONG d0 8e 4f ce [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 6f 61 d0 3b [binary, 4 bytes]
+DEBUG:    < PONG 6f 61 d0 3b [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING ad 93 bb c8 [binary, 4 bytes]
+DEBUG:    < PONG ad 93 bb c8 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 46 90 11 ce [binary, 4 bytes]
+DEBUG:    < PONG 46 90 11 ce [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 54 fe 61 b7 [binary, 4 bytes]
+DEBUG:    < PONG 54 fe 61 b7 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING '\n1lG' [text, 4 bytes]
+DEBUG:    < PONG '\n1lG' [text, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 55 22 b9 09 [binary, 4 bytes]
+DEBUG:    < PONG 55 22 b9 09 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 22 90 57 bf [binary, 4 bytes]
+DEBUG:    < PONG 22 90 57 bf [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 8b 20 b9 a3 [binary, 4 bytes]
+DEBUG:    < PONG 8b 20 b9 a3 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 32 b3 ab a3 [binary, 4 bytes]
+DEBUG:    < PONG 32 b3 ab a3 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 0d 8e bc 37 [binary, 4 bytes]
+DEBUG:    < PONG 0d 8e bc 37 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING ea 9c 56 32 [binary, 4 bytes]
+DEBUG:    < PONG ea 9c 56 32 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING b2 88 9f a8 [binary, 4 bytes]
+DEBUG:    < PONG b2 88 9f a8 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 51 7e f1 46 [binary, 4 bytes]
+DEBUG:    < PONG 51 7e f1 46 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 66 b5 c9 33 [binary, 4 bytes]
+DEBUG:    < PONG 66 b5 c9 33 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 58 dd 4a a7 [binary, 4 bytes]
+DEBUG:    < PONG 58 dd 4a a7 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 98 8b 54 a2 [binary, 4 bytes]
+DEBUG:    < PONG 98 8b 54 a2 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    = connection is CLOSING
+DEBUG:    > CLOSE 1000 (OK) [2 bytes]
+DEBUG:    < CLOSE 1000 (OK) [2 bytes]
+DEBUG:    x half-closing TCP connection
+DEBUG:    = connection is CLOSED
+INFO:     connection closed
+10:52:32 - INFO - Socket.IO police disconnected sid=1QoGKv07LlNNTJ5tAAAD
+DEBUG:    = connection is CONNECTING
+DEBUG:    < GET /socket.io/?EIO=4&transport=websocket&sid=NZoSd_Xj2q0mg36jAAAG HTTP/1.1
+DEBUG:    < host: 127.0.0.1:8000
+DEBUG:    < connection: Upgrade
+DEBUG:    < pragma: no-cache
+DEBUG:    < cache-control: no-cache
+DEBUG:    < user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 Edg/147.0.0.0
+DEBUG:    < upgrade: websocket
+DEBUG:    < origin: http://127.0.0.1:8000
+DEBUG:    < sec-websocket-version: 13
+DEBUG:    < accept-encoding: gzip, deflate, br, zstd
+DEBUG:    < accept-language: en-US,en;q=0.9,en-IN;q=0.8
+DEBUG:    < cookie: access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwYXZpdGhyYW43MCIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxNzc5MDk4ODkyfQ.5qH4HkEIK6pTULIbXXq6GDOc-Ftui5AAhcsJdOPR8r8; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJvZmZpY2VyX3JhaiIsInJvbGUiOiJwb2xpY2Vfc3VwZXJ2aXNvciIsImRpc3RyaWN0X2lkIjoiZGlzdHJpY3RfMSIsImV4cCI6MTc3OTc3MTcyN30.Fbq6TA7RFjzTKU8ePCoBVdKT-sQb2L9EUk254CRUj74
+DEBUG:    < sec-websocket-key: qe48eq3exgBjhbvajsRtuQ==
+DEBUG:    < sec-websocket-extensions: permessage-deflate; client_max_window_bits
+INFO:     127.0.0.1:64020 - "WebSocket /socket.io/?EIO=4&transport=websocket&sid=NZoSd_Xj2q0mg36jAAAG" [accepted]
+pd8e4Q8l21avbTMFAAAH is entering room district_1 [/police]
+10:53:42 - INFO - pd8e4Q8l21avbTMFAAAH is entering room district_1 [/police]
+10:53:42 - INFO - Socket.IO police connected sid=pd8e4Q8l21avbTMFAAAH user=officer_raj role=police_supervisor district=district_1
+DEBUG:    > HTTP/1.1 101 Switching Protocols
+DEBUG:    > Upgrade: websocket
+DEBUG:    > Connection: Upgrade
+DEBUG:    > Sec-WebSocket-Accept: UPCBRXu8GdgKLx9jDRV245YYZBw=
+DEBUG:    > Sec-WebSocket-Extensions: permessage-deflate
+DEBUG:    > date: Sun, 26 Apr 2026 05:23:07 GMT
+DEBUG:    > server: uvicorn
+INFO:     connection open
+DEBUG:    = connection is OPEN
+DEBUG:    < TEXT '2probe' [6 bytes]
+DEBUG:    > TEXT '3probe' [6 bytes]
+DEBUG:    < TEXT '5' [1 byte]
+DEBUG:    > TEXT '40/police,{"sid":"pd8e4Q8l21avbTMFAAAH"}' [40 bytes]
+DEBUG:    > TEXT '6' [1 byte]
+DEBUG:    < TEXT '42/police,["join_district",{"district_id":"district_1"}]' [56 bytes]
+received event "join_district" from pd8e4Q8l21avbTMFAAAH [/police]
+10:53:43 - INFO - received event "join_district" from pd8e4Q8l21avbTMFAAAH [/police]
+pd8e4Q8l21avbTMFAAAH is entering room district_1 [/police]
+10:53:43 - INFO - pd8e4Q8l21avbTMFAAAH is entering room district_1 [/police]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 87 23 6d e4 [binary, 4 bytes]
+DEBUG:    < PONG 87 23 6d e4 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 'IE\x17=' [text, 4 bytes]
+DEBUG:    < PONG 'IE\x17=' [text, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING '\ud584\\' [text, 4 bytes]
+DEBUG:    < PONG '\ud584\\' [text, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 5b 32 cd 7f [binary, 4 bytes]
+DEBUG:    < PONG 5b 32 cd 7f [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 4f 72 c3 1b [binary, 4 bytes]
+DEBUG:    < PONG 4f 72 c3 1b [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING e6 70 17 c7 [binary, 4 bytes]
+DEBUG:    < PONG e6 70 17 c7 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 92 26 a6 b1 [binary, 4 bytes]
+DEBUG:    < PONG 92 26 a6 b1 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 8a 96 56 5d [binary, 4 bytes]
+DEBUG:    < PONG 8a 96 56 5d [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING fb e3 b4 d8 [binary, 4 bytes]
+DEBUG:    < PONG fb e3 b4 d8 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 0a 99 23 3e [binary, 4 bytes]
+DEBUG:    < PONG 0a 99 23 3e [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 2b fa dd 3e [binary, 4 bytes]
+DEBUG:    < PONG 2b fa dd 3e [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 24 44 16 ef [binary, 4 bytes]
+DEBUG:    < PONG 24 44 16 ef [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 07 58 71 ec [binary, 4 bytes]
+DEBUG:    < PONG 07 58 71 ec [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 22 83 97 eb [binary, 4 bytes]
+DEBUG:    < PONG 22 83 97 eb [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING '5Po7' [text, 4 bytes]
+DEBUG:    < PONG '5Po7' [text, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING d0 fe bc 53 [binary, 4 bytes]
+DEBUG:    < PONG d0 fe bc 53 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 9d e9 b3 cf [binary, 4 bytes]
+DEBUG:    < PONG 9d e9 b3 cf [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 1e e7 8b 18 [binary, 4 bytes]
+DEBUG:    < PONG 1e e7 8b 18 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 46 1e 83 de [binary, 4 bytes]
+DEBUG:    < PONG 46 1e 83 de [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING be 95 8d 5f [binary, 4 bytes]
+DEBUG:    < PONG be 95 8d 5f [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 59 8e 76 65 [binary, 4 bytes]
+DEBUG:    < PONG 59 8e 76 65 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 43 f2 4b 7c [binary, 4 bytes]
+DEBUG:    < PONG 43 f2 4b 7c [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 00 f8 c9 af [binary, 4 bytes]
+DEBUG:    < PONG 00 f8 c9 af [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 5f 9c e1 1a [binary, 4 bytes]
+DEBUG:    < PONG 5f 9c e1 1a [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING fc 5d 43 74 [binary, 4 bytes]
+DEBUG:    < PONG fc 5d 43 74 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 18 4e 20 ef [binary, 4 bytes]
+DEBUG:    < PONG 18 4e 20 ef [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 67 34 e4 8d [binary, 4 bytes]
+DEBUG:    < PONG 67 34 e4 8d [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 19 11 68 8a [binary, 4 bytes]
+DEBUG:    < PONG 19 11 68 8a [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 3c f9 5a 1b [binary, 4 bytes]
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < PONG 3c f9 5a 1b [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 10 1d e1 4e [binary, 4 bytes]
+DEBUG:    < PONG 10 1d e1 4e [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING eb ac 68 ce [binary, 4 bytes]
+DEBUG:    < PONG eb ac 68 ce [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 7a 0c c5 52 [binary, 4 bytes]
+DEBUG:    < PONG 7a 0c c5 52 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 2d 78 6d cc [binary, 4 bytes]
+DEBUG:    < PONG 2d 78 6d cc [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING b4 71 de 54 [binary, 4 bytes]
+DEBUG:    < PONG b4 71 de 54 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 93 3c 3f 83 [binary, 4 bytes]
+DEBUG:    < PONG 93 3c 3f 83 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 30 69 88 aa [binary, 4 bytes]
+DEBUG:    < PONG 30 69 88 aa [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    = connection is CLOSING
+DEBUG:    > CLOSE 1000 (OK) [2 bytes]
+DEBUG:    < CLOSE 1000 (OK) [2 bytes]
+DEBUG:    x half-closing TCP connection
+DEBUG:    = connection is CLOSED
+INFO:     connection closed
+11:06:26 - INFO - Socket.IO police disconnected sid=pd8e4Q8l21avbTMFAAAH
+11:34:04 - INFO - Alert stream closed for district district_1
+11:49:46 - ERROR - Error fetching traffic incidents: HTTPSConnectionPool(host='api.tomtom.com', port=443): Read timed out. (read timeout=10)
+11:49:57 - ERROR - Error fetching traffic incidents: HTTPSConnectionPool(host='api.tomtom.com', port=443): Max retries exceeded with url: /traffic/services/5/incidentDetails?key=lDfiIMS9bisNZ02h56YGCXvHA5qkGRVP&bbox=80.206143%2C13.019818%2C80.335257%2C13.145582&fields=%7Bincidents%7Btype%2Cgeometry%7Btype%2Ccoordinates%7D%2Cproperties%7Bid%2CiconCategory%2CmagnitudeOfDelay%2CstartTime%2CendTime%2Cfrom%2Cto%2Clength%2Cdelay%2CroadNumbers%2CtimeValidity%7D%7D%7D&language=en-GB&timeValidityFilter=present (Caused by NameResolutionError("HTTPSConnection(host='api.tomtom.com', port=443): Failed to resolve 'api.tomtom.com' ([Errno 11001] getaddrinfo failed)"))
+11:50:05 - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ReadTimeoutError("HTTPSConnectionPool(host='api.tomtom.com', port=443): Read timed out. (read timeout=8)")': /search/2/reverseGeocode/13.0827,80.2707.json?key=lDfiIMS9bisNZ02h56YGCXvHA5qkGRVP&language=en-US&radius=2500
+NjO8Q7VBrzcL9n5qAAAN is entering room district_1 [/police]
+11:50:56 - INFO - NjO8Q7VBrzcL9n5qAAAN is entering room district_1 [/police]
+11:50:56 - INFO - Socket.IO police connected sid=NjO8Q7VBrzcL9n5qAAAN user=officer_raj role=police_supervisor district=district_1
+DEBUG:    = connection is CONNECTING
+DEBUG:    < GET /socket.io/?EIO=4&transport=websocket&sid=5UHVvwTN4d8betEpAAAM HTTP/1.1
+DEBUG:    < host: 127.0.0.1:8000
+DEBUG:    < connection: Upgrade
+DEBUG:    < pragma: no-cache
+DEBUG:    < cache-control: no-cache
+DEBUG:    < user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 Edg/147.0.0.0
+DEBUG:    < upgrade: websocket
+DEBUG:    < origin: http://127.0.0.1:8000
+DEBUG:    < sec-websocket-version: 13
+DEBUG:    < accept-encoding: gzip, deflate, br, zstd
+DEBUG:    < accept-language: en-US,en;q=0.9,en-IN;q=0.8
+DEBUG:    < cookie: access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwYXZpdGhyYW43MCIsInJvbGUiOiJ1c2VyIiwiZXhwIjoxNzc5MDk4ODkyfQ.5qH4HkEIK6pTULIbXXq6GDOc-Ftui5AAhcsJdOPR8r8; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJvZmZpY2VyX3JhaiIsInJvbGUiOiJwb2xpY2Vfc3VwZXJ2aXNvciIsImRpc3RyaWN0X2lkIjoiZGlzdHJpY3RfMSIsImV4cCI6MTc3OTc3NjM2Mn0.KCayGM8Ca0rnrsG-NfscG8BYE2X-5EwYRK0qWbUyxvo
+DEBUG:    < sec-websocket-key: dgQJwNEiZMVJoTcoPdaz6A==
+DEBUG:    < sec-websocket-extensions: permessage-deflate; client_max_window_bits
+INFO:     127.0.0.1:62440 - "WebSocket /socket.io/?EIO=4&transport=websocket&sid=5UHVvwTN4d8betEpAAAM" [accepted]
+DEBUG:    > HTTP/1.1 101 Switching Protocols
+DEBUG:    > Upgrade: websocket
+DEBUG:    > Connection: Upgrade
+DEBUG:    > Sec-WebSocket-Accept: TKFDNtAKgO2Qkg3zLs844VTIWz0=
+DEBUG:    > Sec-WebSocket-Extensions: permessage-deflate
+DEBUG:    > date: Sun, 26 Apr 2026 06:20:43 GMT
+DEBUG:    > server: uvicorn
+INFO:     connection open
+DEBUG:    = connection is OPEN
+DEBUG:    < TEXT '2probe' [6 bytes]
+DEBUG:    > TEXT '3probe' [6 bytes]
+DEBUG:    < TEXT '5' [1 byte]
+DEBUG:    > TEXT '40/police,{"sid":"NjO8Q7VBrzcL9n5qAAAN"}' [40 bytes]
+DEBUG:    > TEXT '6' [1 byte]
+DEBUG:    < TEXT '42/police,["join_district",{"district_id":"district_1"}]' [56 bytes]
+received event "join_district" from NjO8Q7VBrzcL9n5qAAAN [/police]
+11:50:56 - INFO - received event "join_district" from NjO8Q7VBrzcL9n5qAAAN [/police]
+NjO8Q7VBrzcL9n5qAAAN is entering room district_1 [/police]
+11:50:56 - INFO - NjO8Q7VBrzcL9n5qAAAN is entering room district_1 [/police]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 1a d5 a1 9c [binary, 4 bytes]
+DEBUG:    < PONG 1a d5 a1 9c [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 'bn4\x0c' [text, 4 bytes]
+DEBUG:    < PONG 'bn4\x0c' [text, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING '\x1a\x0fw\r' [text, 4 bytes]
+DEBUG:    < PONG '\x1a\x0fw\r' [text, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING b8 1f 21 f7 [binary, 4 bytes]
+DEBUG:    < PONG b8 1f 21 f7 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING aa e5 f4 54 [binary, 4 bytes]
+DEBUG:    < PONG aa e5 f4 54 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING b7 69 ed 4e [binary, 4 bytes]
+DEBUG:    < PONG b7 69 ed 4e [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 3f 2e 85 cd [binary, 4 bytes]
+DEBUG:    < PONG 3f 2e 85 cd [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING '\tGEo' [text, 4 bytes]
+DEBUG:    < PONG '\tGEo' [text, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 33 11 b3 c8 [binary, 4 bytes]
+DEBUG:    < PONG 33 11 b3 c8 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 09 e2 0a ba [binary, 4 bytes]
+DEBUG:    < PONG 09 e2 0a ba [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING ee 3b 21 99 [binary, 4 bytes]
+DEBUG:    < PONG ee 3b 21 99 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING f4 05 95 f9 [binary, 4 bytes]
+DEBUG:    < PONG f4 05 95 f9 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 71 94 a0 db [binary, 4 bytes]
+DEBUG:    < PONG 71 94 a0 db [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    % sending keepalive ping
+DEBUG:    > PING 1d de 59 d9 [binary, 4 bytes]
+DEBUG:    < PONG 1d de 59 d9 [binary, 4 bytes]
+DEBUG:    % received keepalive pong
+DEBUG:    > TEXT '2' [1 byte]
+DEBUG:    < TEXT '3' [1 byte]
