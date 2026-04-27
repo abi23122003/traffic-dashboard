@@ -1982,10 +1982,8 @@
         <section class="section-shell heatmap-shell" aria-label="Incident severity heatmap">
             <div class="section-header">
                 <div>
-                    <h2 class="section-title">Google Traffic + Incident Map - <span id="map-district-label">{{ district
-                            }}</span></h2>
-                    <p class="section-subtitle">Live traffic layer with active incident markers and ETA on marker click.
-                    </p>
+                    <h2 class="section-title">Live Tactical Map - <span id="map-district-label">{{ district }}</span></h2>
+                    <p class="section-subtitle">Real-time patrol unit locations and incident tracking.</p>
                 </div>
                 <div class="section-actions">
                     <div class="refresh-chip">
@@ -3733,7 +3731,7 @@
 
                 if (heatmapRefreshLabel) {
                     const stamp = new Date();
-                    heatmapRefreshLabel.textContent = `Traffic + incidents synced ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                    heatmapRefreshLabel.textContent = `Live Sync: ${stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
                 }
             } catch (error) {
                 console.error('Failed to refresh Google map incident markers:', error);
