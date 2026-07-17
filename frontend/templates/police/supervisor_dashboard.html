@@ -2282,11 +2282,16 @@
         let liveIncidentFeed = [];
         let districtInfo = {};
         let heatmapMap = null;
+        let heatmapMode = 'google';
+        let leafletIncidentLayer = null;
+        let leafletOfficerLayer = null;
         let googleTrafficLayer = null;
         let googleDirectionsService = null;
         let googleInfoWindow = null;
         let googleIncidentMarkers = [];
         let googleOfficerMarkers = [];
+        let leafletIncidentMarkers = [];
+        let leafletOfficerMarkers = [];
         let googleMapInitAttempts = 0;
         let responseTimeChart = null;
         let commandCenterSocket = null;
@@ -3548,16 +3553,88 @@
             return INTENSITY_COLOR_MAP[level] || INTENSITY_COLOR_MAP.UNKNOWN;
         }
 
+        function clearHeatmapMarkers() {
+            googleIncidentMarkers.forEach((marker) => marker.setMap(null));
+            googleIncidentMarkers = [];
+            googleOfficerMarkers.forEach((marker) => marker.setMap(null));
+            googleOfficerMarkers = [];
+
+            leafletIncidentMarkers.forEach((marker) => {
+                if (leafletIncidentLayer) {
+                    leafletIncidentLayer.removeLayer(marker);
+                }
+            });
+            leafletIncidentMarkers = [];
+
+            leafletOfficerMarkers.forEach((marker) => {
+                if (leafletOfficerLayer) {
+                    leafletOfficerLayer.removeLayer(marker);
+                }
+            });
+            leafletOfficerMarkers = [];
+        }
+
+        function createLeafletIncidentIcon(markerColor) {
+            return L.divIcon({
+                className: 'leaflet-hotspot-marker',
+                html: `<span style="display:block;width:14px;height:14px;border-radius:50%;background:${markerColor};border:2px solid #0f172a;box-shadow:0 0 0 2px rgba(255,255,255,0.25);"></span>`,
+                iconSize: [18, 18],
+                iconAnchor: [9, 9],
+            });
+        }
+
+        function createLeafletOfficerIcon() {
+            return L.divIcon({
+                className: 'leaflet-officer-marker',
+                html: '<span style="display:block;width:12px;height:12px;border-radius:50%;background:#35b0ff;border:2px solid #e8f1fb;box-shadow:0 0 0 2px rgba(53,176,255,0.22);"></span>',
+                iconSize: [16, 16],
+                iconAnchor: [8, 8],
+            });
+        }
+
         function updateHeatLayer(hotspots) {
-            if (!heatmapMap || !window.google || !google.maps) {
+            if (!heatmapMap) {
                 return;
             }
 
-            googleIncidentMarkers.forEach((marker) => marker.setMap(null));
-            googleIncidentMarkers = [];
+            clearHeatmapMarkers();
 
             const rows = (Array.isArray(hotspots) ? hotspots : [])
                 .filter((hotspot) => Number.isFinite(Number(hotspot.lat)) && Number.isFinite(Number(hotspot.lng)));
+
+            if (heatmapMode === 'leaflet') {
+                rows.forEach((hotspot) => {
+                    const position = [Number(hotspot.lat), Number(hotspot.lng)];
+                    const level = normalizeIntensityLevel(hotspot.intensity_level) === 'UNKNOWN'
+                        ? intensityLevelFromNumeric(hotspot.intensity)
+                        : normalizeIntensityLevel(hotspot.intensity_level);
+                    const markerColor = hotspot.marker_color || hotspotColor(hotspot);
+                    const marker = L.circleMarker(position, {
+                        radius: 8,
+                        color: '#0f172a',
+                        weight: 1.2,
+                        fillColor: markerColor,
+                        fillOpacity: 0.95,
+                    });
+                    marker.bindPopup(`
+                        <div style="min-width: 220px; color: #0f172a; font-size: 13px;">
+                            <strong>${escapeHtml(hotspot.location_name || 'Hotspot')}</strong><br>
+                            Intensity: ${escapeHtml(level)}<br>
+                            Score: ${Number.isFinite(Number(hotspot.intensity)) ? Number(hotspot.intensity).toFixed(2) : '-'}
+                        </div>
+                    `);
+                    marker.addTo(leafletIncidentLayer);
+                    leafletIncidentMarkers.push(marker);
+                });
+
+                if (rows.length > 0) {
+                    const bounds = L.latLngBounds(rows.map((hotspot) => [Number(hotspot.lat), Number(hotspot.lng)]));
+                    heatmapMap.fitBounds(bounds.pad(0.2));
+                }
+                return;
+            }
+
+            googleIncidentMarkers = [];
 
             const bounds = new google.maps.LatLngBounds();
             rows.forEach((hotspot) => {
@@ -3605,7 +3682,36 @@
         }
 
         function renderOfficerMarkers(units) {
-            if (!heatmapMap || !window.google || !google.maps) {
+            if (!heatmapMap) {
+                return;
+            }
+
+            if (heatmapMode === 'leaflet') {
+                const districtUnits = filterUnitsForSupervisorDistrict(units);
+                districtUnits.forEach((unit) => {
+                    if (formatDistrictLabel(unit.district_id || unit.district || supervisorDistrictId) !== currentDistrict) {
+                        return;
+                    }
+                    const coords = getOfficerCoordinates(unit);
+                    if (!coords) {
+                        return;
+                    }
+
+                    const marker = L.marker([coords.lat, coords.lng], {
+                        icon: createLeafletOfficerIcon(),
+                        zIndexOffset: 1000,
+                    });
+                    marker.bindPopup(`
+                        <div style="min-width: 220px; color: #0f172a; font-size: 13px;">
+                            <strong>Officer: ${escapeHtml(unit.officer_name || unit.unit_id || 'Officer')}</strong><br>
+                            Location: ${escapeHtml(cleanLocationText(unit.current_location || 'Unknown location'))}<br>
+                            District: ${escapeHtml(formatDistrictLabel(unit.district_id || unit.district || supervisorDistrictId))}<br>
+                            Status: ${escapeHtml(String(unit.status || 'available').toUpperCase())}
+                        </div>
+                    `);
+                    marker.addTo(leafletOfficerLayer);
+                    leafletOfficerMarkers.push(marker);
+                });
                 return;
             }
 
@@ -3665,14 +3771,41 @@
             }
 
             if (!(window.google && google.maps)) {
-                if (googleMapInitAttempts < 20) {
-                    googleMapInitAttempts += 1;
-                    setTimeout(initializeHeatmap, 500);
-                } else if (heatmapRefreshLabel) {
-                    heatmapRefreshLabel.textContent = 'Google Maps API unavailable (set GOOGLE_MAPS_API_KEY)';
+                heatmapMode = 'leaflet';
+
+                if (typeof L === 'undefined') {
+                    if (googleMapInitAttempts < 20) {
+                        googleMapInitAttempts += 1;
+                        setTimeout(initializeHeatmap, 500);
+                    } else if (heatmapRefreshLabel) {
+                        heatmapRefreshLabel.textContent = 'Map libraries unavailable';
+                    }
+                    return;
+                }
+
+                const centerLat = Number(districtInfo.lat ?? 13.0827);
+                const centerLng = Number(districtInfo.lon ?? 80.2707);
+                heatmapMap = L.map(incidentHeatmap, {
+                    zoomControl: true,
+                    scrollWheelZoom: false,
+                }).setView([centerLat, centerLng], 12);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap contributors',
+                }).addTo(heatmapMap);
+
+                leafletIncidentLayer = L.layerGroup().addTo(heatmapMap);
+                leafletOfficerLayer = L.layerGroup().addTo(heatmapMap);
+                applyHeatmapLegendColors();
+
+                if (heatmapRefreshLabel) {
+                    heatmapRefreshLabel.textContent = 'Leaflet fallback map active';
                 }
                 return;
             }
+
+            heatmapMode = 'google';
 
             const centerLat = Number(districtInfo.lat ?? 13.0827);
             const centerLng = Number(districtInfo.lon ?? 80.2707);
