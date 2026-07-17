@@ -7434,3 +7434,17 @@ sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unable to open datab
 2026-06-25 20:23:11 - app.db - INFO - db.py:375 - ✅ Database tables initialized successfully
 2026-06-25 20:23:13 - app.db - INFO - db.py:386 - ✅ Default admin user verified/created
 2026-06-25 20:23:33 - app.app - INFO - app.py:304 - Loaded ML model from D:\Final year project\traffic-dashboard-3\backend\data\rf_model.pkl
+2026-07-17 22:10:02 - app.app - INFO - app.py:101 - ✅ Socket.IO using Redis manager: redis://redis:6379/0
+2026-07-17 22:10:09 - app.app - INFO - app.py:135 - Redis not reachable at redis://redis:6379/0; using in-memory Socket.IO manager
+2026-07-17 22:10:09 - app.db - INFO - db.py:305 - Using SQLite database: D:\traffic-dashboard\backend\data\traffic_analysis.db
+2026-07-17 22:10:10 - app.db - INFO - db.py:375 - ✅ Database tables initialized successfully
+2026-07-17 22:10:11 - app.db - INFO - db.py:386 - ✅ Default admin user verified/created
+2026-07-17 22:10:16 - socketio.server - INFO - async_server.py:305 - Mh5KNaiMa9rse5_6AAAB is entering room district_1 [/police]
+2026-07-17 22:10:16 - app.app - INFO - socketio_events.py:187 - Socket.IO police connected sid=Mh5KNaiMa9rse5_6AAAB user=officer_raj role=police_supervisor district=district_1
+2026-07-17 22:10:17 - socketio.server - INFO - async_server.py:599 - received event "join_district" from Mh5KNaiMa9rse5_6AAAB [/police]
+2026-07-17 22:10:17 - socketio.server - INFO - async_server.py:305 - Mh5KNaiMa9rse5_6AAAB is entering room district_1 [/police]
+2026-07-17 22:10:18 - app.app - INFO - app.py:304 - Loaded ML model from D:\traffic-dashboard\backend\data\rf_model.pkl
+2026-07-17 22:10:22 - socketio.server - INFO - async_server.py:305 - Lpl1a7uWH7ITukvTAAAD is entering room district_1 [/police]
+2026-07-17 22:10:22 - app.app - INFO - socketio_events.py:187 - Socket.IO police connected sid=Lpl1a7uWH7ITukvTAAAD user=officer_raj role=police_supervisor district=district_1
+2026-07-17 22:10:22 - socketio.server - INFO - async_server.py:599 - received event "join_district" from Lpl1a7uWH7ITukvTAAAD [/police]
+2026-07-17 22:10:22 - socketio.server - INFO - async_server.py:305 - Lpl1a7uWH7ITukvTAAAD is entering room district_1 [/police]
